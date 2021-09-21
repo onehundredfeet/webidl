@@ -73,6 +73,93 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 
 ";
 
+
+	static var HEADER_NATIVE_TYPES = "
+class FloatArray
+{
+public:
+	FloatArray() {}
+
+	FloatArray(int size)
+	{
+		list = new float[size];
+	}
+
+	float Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, float value)
+	{
+		list[index] = value;
+	}
+
+	float* GetPtr() {
+		return list;
+	}
+
+private:
+	float* list;
+};
+
+class IntArray
+{
+public:
+	IntArray() {}
+
+	IntArray(int size)
+	{
+		list = new int[size];
+	}
+
+	int Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, int value)
+	{
+		list[index] = value;
+	}
+
+	int* GetPtr() {
+		return list;
+	}
+
+private:
+	int* list;
+};
+
+class CharArray
+{
+public:
+	CharArray() {}
+
+	CharArray(int size)
+	{
+		list = new unsigned char[size];
+	}
+
+	char Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, unsigned char value)
+	{
+		list[index] = value;
+	}
+
+	unsigned char* GetPtr() {
+		return list;
+	}
+
+private:
+	unsigned char* list;
+};
+	";
+
 	static function initOpts(opts:Options) {
 		if (opts.outputDir == null)
 			opts.outputDir = "";
@@ -113,6 +200,10 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 			add("");
 			add(StringTools.trim(opts.includeCode));
 		}
+		add("");
+		add("");
+		add(StringTools.trim(HEADER_NATIVE_TYPES));
+		add("");
 		add("");
 		add('extern "C" {');
 		add("");
@@ -173,6 +264,7 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 
 		function makeType(t:webidl.Data.Type,  isReturn : Bool= false) {
 			return switch (t) {
+				case TChar: "unsigned char";
 				case TFloat: "float";
 				case TDouble: "double";
 				case TShort: "short";
@@ -197,6 +289,7 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 
 		function defType(t, isReturn : Bool = false) {
 			return switch (t) {
+				case TChar: "_I8";
 				case TFloat: "_F32";
 				case TDouble: "_F64";
 				case TShort: "_I16";
@@ -212,6 +305,7 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 
 		function dynamicAccess(t) {
 			return switch (t) {
+				case TChar: "c";
 				case TFloat: "f";
 				case TDouble: "d";
 				case TShort: "ui16";
@@ -264,7 +358,10 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 								
 								var tret = isConstr ? {t: TCustom(name), attr: []} : ret;
 								
-								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + (args.length - 1));
+								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
+								var argsSuffix = (ret.attr.indexOf(AStatic) >= 0) ? args.length : args.length - 1;
+								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argsSuffix);
+								
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
 								output.add('HL_PRIM ${makeTypeDecl( returnField == null ? tret : {t: returnType, attr: []}, true)} HL_NAME($funName)(');
 								var first = true;
@@ -406,8 +503,11 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 												output.add('${e}__values[${a.name}]');
 											else
 												switch (a.t.t) {
-													case TCustom(_):
+													case TCustom(st):
 														output.add('_unref(${a.name})');
+														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray"){
+															output.add("->GetPtr()");
+														}								
 													case THString:
 														output.add(a.name + "__cstr");
 													default:
