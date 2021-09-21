@@ -58,6 +58,7 @@ enum Attrib {
 	// interfaces
 	ANoDelete;
 	AStatic;
+	ASynthetic;
 	AReturn;
 	AThrow(msg :String);
 	AValidate(expression : String);

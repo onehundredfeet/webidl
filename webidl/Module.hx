@@ -317,8 +317,9 @@ class Module {
 				fields : dfields,
 			};
 
-			if( attrs.indexOf(ANoDelete) < 0 )
+			if( attrs.indexOf(ANoDelete) < 0 ) {
 				dfields.push(makeNativeField(iname, { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
+			}
 
 			if( !hl ) {
 				for( f in dfields )
