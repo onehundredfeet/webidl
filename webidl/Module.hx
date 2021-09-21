@@ -42,7 +42,7 @@ class Module {
 	function makeType( t : TypeAttr ) : ComplexType {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
-		case TChar: macro : Int;
+		case TChar: macro : hl.UI8;
 		case TInt: macro : Int;
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? macro : Single : macro : Float;

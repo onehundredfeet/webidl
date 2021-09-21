@@ -73,6 +73,93 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 
 ";
 
+
+	static var HEADER_NATIVE_TYPES = "
+class FloatArray
+{
+public:
+	FloatArray() {}
+
+	FloatArray(int size)
+	{
+		list = new float[size];
+	}
+
+	float Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, float value)
+	{
+		list[index] = value;
+	}
+
+	float* GetPtr() {
+		return list;
+	}
+
+private:
+	float* list;
+};
+
+class IntArray
+{
+public:
+	IntArray() {}
+
+	IntArray(int size)
+	{
+		list = new int[size];
+	}
+
+	int Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, int value)
+	{
+		list[index] = value;
+	}
+
+	int* GetPtr() {
+		return list;
+	}
+
+private:
+	int* list;
+};
+
+class CharArray
+{
+public:
+	CharArray() {}
+
+	CharArray(int size)
+	{
+		list = new unsigned char[size];
+	}
+
+	char Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, unsigned char value)
+	{
+		list[index] = value;
+	}
+
+	unsigned char* GetPtr() {
+		return list;
+	}
+
+private:
+	unsigned char* list;
+};
+	";
+
 	static function initOpts(opts:Options) {
 		if (opts.outputDir == null)
 			opts.outputDir = "";
@@ -113,6 +200,10 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 			add("");
 			add(StringTools.trim(opts.includeCode));
 		}
+		add("");
+		add("");
+		add(StringTools.trim(HEADER_NATIVE_TYPES));
+		add("");
 		add("");
 		add('extern "C" {');
 		add("");
@@ -414,7 +505,7 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 												switch (a.t.t) {
 													case TCustom(st):
 														output.add('_unref(${a.name})');
-														if (st == 'FloatArray'){
+														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray"){
 															output.add("->GetPtr()");
 														}								
 													case THString:
