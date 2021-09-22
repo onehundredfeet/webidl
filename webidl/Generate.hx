@@ -158,6 +158,34 @@ public:
 private:
 	unsigned char* list;
 };
+
+class ShortArray
+{
+public:
+    ShortArray() {}
+
+    ShortArray(int size)
+	{
+		list = new unsigned short[size];
+	}
+
+	short Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, unsigned short value)
+	{
+		list[index] = value;
+	}
+
+	unsigned short* GetPtr() {
+		return list;
+	}
+
+private:
+	unsigned short* list;
+};
 	";
 
 	static function initOpts(opts:Options) {
@@ -525,7 +553,7 @@ private:
 												switch (a.t.t) {
 													case TCustom(st):
 														output.add('_unref(${a.name})');
-														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray"){
+														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
 															output.add("->GetPtr()");
 														}								
 													case THString:
