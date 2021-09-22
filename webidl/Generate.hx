@@ -376,7 +376,24 @@ private:
 											case TArray(t):
 												output.add(makeType(t) + "*");
 											default:
-												if (isDyn(a)) output.add("_OPT(" + makeType(a.t.t) + ")"); else output.add(makeType(a.t.t));
+												if (isDyn(a)) {
+													output.add("_OPT(" + makeType(a.t.t) + ")"); 
+												}
+												else {
+													output.add(makeType(a.t.t));
+
+													// Add '&' for referenced primitive types
+													for (attr in a.t.attr) {
+														switch (attr) {
+															case ARef:
+																switch(a.t.t){
+																	case TChar, TInt, TShort, TFloat, TDouble, TBool: output.add("&"); // Reference primitive types with &
+																	default: output.add(""); // Do nothung for custom types
+																}			
+															default:
+														}
+													}
+												}
 										}
 										output.add(" " + a.name);
 									}
@@ -488,10 +505,13 @@ private:
 											first = false
 										else
 											output.add(", ");
-										for (a in a.t.attr) {
-											switch (a) {
+										for (attr in a.t.attr) {
+											switch (attr) {
 												case ARef:
-													output.add("*"); // unref
+													switch(a.t.t){
+														case TChar, TInt, TShort, TFloat, TDouble, TBool: output.add(""); // Reference primitive types don't need any symbol
+														default: output.add("*"); // Unreference custom type
+													}			
 												default:
 											}
 										}
