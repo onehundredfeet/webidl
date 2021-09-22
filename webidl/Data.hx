@@ -47,6 +47,7 @@ enum Type {
 	THString;
 	TCustom( id : String );
 	TArray( t : Type );
+	TInt64;
 }
 
 enum Attrib {

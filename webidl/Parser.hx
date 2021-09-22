@@ -195,6 +195,7 @@ class Parser {
 			case "double": TDouble;
 			case "long", "int": TInt; // long ensures 32 bits
 			case "short": TShort;
+			case "int64": TInt64;
 			case "boolean", "bool": TBool;
 			case "any": TAny;
 			case "VoidPtr": TVoidPtr;

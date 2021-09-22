@@ -269,6 +269,7 @@ private:
 				case TFloat: "float";
 				case TDouble: "double";
 				case TShort: "short";
+				case TInt64: "int64_t";
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
@@ -294,6 +295,7 @@ private:
 				case TFloat: "_F32";
 				case TDouble: "_F64";
 				case TShort: "_I16";
+				case TInt64: "_I64";
 				case TInt: "_I32";
 				case TVoid: "_VOID";
 				case TAny, TVoidPtr: "_BYTES";
@@ -310,6 +312,7 @@ private:
 				case TFloat: "f";
 				case TDouble: "d";
 				case TShort: "ui16";
+				case TInt64: "i64";
 				case TInt: "i";
 				case TBool: "b";
 				default: throw "assert";

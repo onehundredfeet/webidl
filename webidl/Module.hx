@@ -44,6 +44,7 @@ class Module {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
 		case TInt: macro : Int;
+		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? macro : Single : macro : Float;
 		case TDouble: macro : Float;
@@ -70,7 +71,7 @@ class Module {
 	function defVal( t : TypeAttr ) : Expr {
 		return switch( t.t ) {
 		case TVoid: throw "assert";
-		case TInt, TShort, TChar: { expr : EConst(CInt("0")), pos : p };
+		case TInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
 		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
 		case TBool: { expr : EConst(CIdent("false")), pos : p };
 		default: { expr : EConst(CIdent("null")), pos : p };
