@@ -122,6 +122,7 @@ class Parser {
 				case "Const": AConst;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
+				case "HString" : AHString;
 				case "Synthetic": ASynthetic;
 				case "Return": AReturn;
 				case "CObject": ACObject;
@@ -146,6 +147,12 @@ class Parser {
 				case "Get":
 					ensure(TOp("="));
 					AGet(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+					case "Cast":
+					ensure(TOp("="));
+					ACast(switch (token()) {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});

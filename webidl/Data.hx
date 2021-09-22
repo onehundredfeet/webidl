@@ -54,7 +54,9 @@ enum Attrib {
 	// fields
 	AValue;
 	ARef;
+	ACast( type : String );
 	AConst;
+	AHString;
 	AOperator( op : String );
 	// interfaces
 	ANoDelete;

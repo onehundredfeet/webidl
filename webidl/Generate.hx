@@ -273,9 +273,9 @@ private:
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(t): "varray*"; //makeType(t) + "vdynamic *";
+				case TArray(t): "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TBool: "bool";
-				case THString: (isReturn) ? "vdynamic *" : "vstring *";
+				case THString: (isReturn && false) ? "vbyte *" : "vstring *";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -301,7 +301,7 @@ private:
 				case TAny, TVoidPtr: "_BYTES";
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
-				case THString: (isReturn) ? "_DYN" : "_STRING";
+				case THString: (isReturn && false) ? "_BYTES" : "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
 		}
@@ -399,8 +399,9 @@ private:
 										switch (a.t.t) {
 											case THString:
 												preamble = true;
-												output.add("auto " + a.name + "__cstr = (" + a.name + " == nullptr) ? nullptr : hl_to_utf8( " + a.name
-													+ "->bytes ); // Should be garbage collected\n\t");
+												if (!a.t.attr.contains(AHString))
+													output.add("auto " + a.name + "__cstr = (" + a.name + " == nullptr) ? nullptr : hl_to_utf8( " + a.name
+														+ "->bytes ); // Should be garbage collected\n\t");
 											default:
 										}
 									}
@@ -494,6 +495,8 @@ private:
 											output.add(", ");
 										for (a in a.t.attr) {
 											switch (a) {
+												case ACast(type):
+													output.add("(" + type + ")"); // unref
 												case ARef:
 													output.add("*"); // unref
 												default:
@@ -513,7 +516,10 @@ private:
 															output.add("->GetPtr()");
 														}								
 													case THString:
-														output.add(a.name + "__cstr");
+														if (!a.t.attr.contains(AHString))
+															output.add(a.name + "__cstr");
+														else 
+															output.add(a.name);
 													default:
 														if (isDyn(a)) {
 															output.add("_GET_OPT(" + a.name + "," + dynamicAccess(a.t.t) + ")");
@@ -554,11 +560,12 @@ private:
 											}
 										}
 
-										if (returnField != null) {
-											add("\treturn __tmpret;");
-										} else {
-											add("\treturn ___retvalue;");
-										}
+										if (tret.t != TVoid)
+											if (returnField != null) {
+												add("\treturn __tmpret;");
+											} else {
+												add("\treturn ___retvalue;");
+											}
 									}
 								} // end add call
 
@@ -583,7 +590,7 @@ private:
 									addCall(margs);
 								}
 								add('}');
-								output.add('DEFINE_PRIM(${defType(tret.t)}, $funName,');
+								output.add('DEFINE_PRIM(${defType(tret.t, true)}, $funName,');
 								for (a in args) {
 									if (a.name != returnField) {
 										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t.t) + ")" : defType(a.t.t)));

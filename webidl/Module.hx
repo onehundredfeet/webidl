@@ -39,7 +39,7 @@ class Module {
 		return types;
 	}
 
-	function makeType( t : TypeAttr ) : ComplexType {
+	function makeType( t : TypeAttr,isReturn:Bool ) : ComplexType {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
@@ -49,7 +49,7 @@ class Module {
 		case TFloat: hl ? macro : Single : macro : Float;
 		case TDouble: macro : Float;
 		case TBool: macro : Bool;
-		case THString : macro : String;
+		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
 		case TArray(at):
 			switch(at) {
@@ -124,11 +124,11 @@ class Module {
 			meta : [makeNative(iname+"_" + name + (name == "delete" ? "" : ""+args.length))],
 			access : access,
 			kind : FFun({
-				ret : makeType(ret),
+				ret : makeType(ret, true),
 				expr : expr,
 				args : [for( a in args ) {
 					if (a.t.attr.contains(AReturn)) {continue;}
-					{ name : a.name, opt : a.opt, type : makeType(a.t) }}],
+					{ name : a.name, opt : a.opt, type : makeType(a.t, false) }}],
 			}),
 		};
 
@@ -212,7 +212,7 @@ class Module {
 							targs.push({
 								name : names.join("_"),
 								opt : opt,
-								type : makeEither([for( t in types ) makeType(t.t)]),
+								type : makeEither([for( t in types ) makeType(t.t, false)]),
 							});
 						}
 
@@ -261,7 +261,7 @@ class Module {
 							kind : FFun({
 								expr : expr,
 								args : targs,
-								ret : makeEither([for( t in retTypes ) makeType(t.t)]),
+								ret : makeEither([for( t in retTypes ) makeType(t.t, false)]),
 							}),
 						});
 
@@ -270,7 +270,7 @@ class Module {
 
 
 				case FAttribute(t):
-					var tt = makeType(t);
+					var tt = makeType(t, false);
 					dfields.push({
 						pos : p,
 						name : f.name,
@@ -303,7 +303,7 @@ class Module {
 						name : name,
 						access : [APublic, AStatic, AInline],
 						kind : FVar(
-							makeType({t : type, attr : []}),
+							makeType({t : type, attr : []}, false),
 							macro $i{value}
 						)
 					});
