@@ -244,10 +244,18 @@ private:
 					add('static void finalize_$name( $fullName _this ) { free_ref(_this); }');
 					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\tfree_ref(_this);\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
-				case DEnum(name, values):
+				case DEnum(name, attrs, values):
 					enumNames.set(name, true);
 					typeNames.set(name, {full: "int", constructor: null});
-					add('static $name ${name}__values[] = { ${values.join(",")} };');
+
+					var etname = name;
+					for(a in attrs) {
+						switch(a) {
+							case AInternal(iname): etname = iname;
+							default:
+						}
+					}
+					add('static $etname ${name}__values[] = { ${values.join(",")} };');
 //					add('static int ${name}__values[] = { ${values.join(",")} };');
 
 					add('HL_PRIM int HL_NAME(${name}_ToInt0)( int idx ) {\n\treturn ${name}__values[idx];\n}');

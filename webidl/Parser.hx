@@ -92,7 +92,7 @@ class Parser {
 						}
 					}
 				ensure(TSemicolon);
-				return {pos: makePos(pmin), kind: DEnum(name, values)};
+				return {pos: makePos(pmin), kind: DEnum(name, attr, values)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;

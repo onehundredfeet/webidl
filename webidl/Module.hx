@@ -400,7 +400,7 @@ class Module {
 				}
 			if( !found )
 				Context.warning("Class " + name+" not found for implements " + intf, p);
-		case DEnum(name, values):
+		case DEnum(name, attrs, values):
 			var index = 0;
 			var cfields = [for( v in values ) { pos : p, name : v, kind : FVar(null,{ expr : EConst(CInt(""+(index++))), pos : p }) }];
 
