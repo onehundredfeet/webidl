@@ -247,8 +247,8 @@ private:
 				case DEnum(name, values):
 					enumNames.set(name, true);
 					typeNames.set(name, {full: "int", constructor: null});
-//					add('static $name ${name}__values[] = { ${values.join(",")} };');
-					add('static int ${name}__values[] = { ${values.join(",")} };');
+					add('static $name ${name}__values[] = { ${values.join(",")} };');
+//					add('static int ${name}__values[] = { ${values.join(",")} };');
 
 					add('HL_PRIM int HL_NAME(${name}_ToInt0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_ToInt0, _I32);');
