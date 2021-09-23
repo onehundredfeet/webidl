@@ -207,7 +207,8 @@ class Parser {
 			case "any": TAny;
 			case "VoidPtr": TVoidPtr;
 			case "String": THString;
-			default: TCustom(id);
+			default: 
+				TCustom(id);
 		};
 		if (maybe(TBkOpen)) {
 			ensure(TBkClose);

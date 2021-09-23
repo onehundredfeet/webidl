@@ -258,8 +258,13 @@ private:
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
 //					add('static int ${name}__values[] = { ${values.join(",")} };');
 
-					add('HL_PRIM int HL_NAME(${name}_ToInt0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
-					add('DEFINE_PRIM(_I32, ${name}_ToInt0, _I32);');
+
+					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i; i < ${values.length}; i++ ) if ( value == ${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_valueToIndex0, _I32);');
 				case DImplements(_):
 			}
 		}
@@ -283,6 +288,7 @@ private:
 				case TAny, TVoidPtr: "void*";
 				case TArray(t): "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TBool: "bool";
+				case TEnum(_): "int";
 				case THString: (isReturn && false) ? "vbyte *" : "vstring *";
 				case TCustom(id): {
 						var t = typeNames.get(id);
@@ -305,6 +311,7 @@ private:
 				case TShort: "_I16";
 				case TInt64: "_I64";
 				case TInt: "_I32";
+				case TEnum(_): "_I32";
 				case TVoid: "_VOID";
 				case TAny, TVoidPtr: "_BYTES";
 				case TArray(t): "_ARR";
@@ -452,8 +459,8 @@ private:
 											}
 										}
 										if (enumName != null) {
-											output.add('make__$enumName(');
-											throw "Enum returns mot supported ";
+											output.add('HL_NAME(${enumName}_valueToIndex0)(');
+											//throw "Enum returns mot supported ";
 										} else if (refRet == null && ret.t.match(TCustom(_))) {
 											refRet = switch (tret.t) {
 												case TCustom(id): id;

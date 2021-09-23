@@ -12,6 +12,7 @@ class Module {
 	var pack : Array<String>;
 	var opts : Options;
 	var types : Array<TypeDefinition> = [];
+	var typeNames = new Map();
 
 	function new(p, pack, hl, opts) {
 		this.p = p;
@@ -51,6 +52,7 @@ class Module {
 		case TBool: macro : Bool;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
+		case TEnum(_): macro : Int;
 		case TArray(at):
 			switch(at) {
 				case TChar: macro : hl.NativeArray<Int>;
@@ -64,7 +66,12 @@ class Module {
 //			var tt = makeType({ t : t, attr : [] });
 //			macro : webidl.Types.NativePtr<$tt>;
 		case TVoidPtr: macro : webidl.Types.VoidPtr;
-		case TCustom(id): TPath({ pack : [], name : makeName(id) });
+		case TCustom(id): 
+			if (typeNames.exists(id)) {
+				TPath( typeNames[id]);
+			}
+			else
+				TPath({ pack : [], name : makeName(id) });
 		}
 	}
 
@@ -74,7 +81,16 @@ class Module {
 		case TInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
 		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
 		case TBool: { expr : EConst(CIdent("false")), pos : p };
-		default: { expr : EConst(CIdent("null")), pos : p };
+		case TCustom(id):
+			var ex = { expr : EConst(CInt("0")), pos : p };
+			var tp = TPath({ pack : [], name : id });
+
+			if (typeNames.exists(id))  
+				{ expr : ECast(ex, tp), pos : p };
+			else
+				{ expr : EConst(CIdent("null")), pos : p };
+		default: 
+			{ expr : EConst(CIdent("null")), pos : p };
 		}
 	}
 
@@ -406,7 +422,13 @@ class Module {
 
 			// Add Int Conversion
 			var ta : TypeAttr = { t : TInt, attr : [] };
-			var toInt = makeNativeFieldRaw( name, "ToInt", p, [], ta,true );
+			var toInt = makeNativeFieldRaw( name, "indexToValue", p, [], ta,true );
+			cfields.push(toInt);
+
+			toInt = makeNativeFieldRaw( name, "valueToIndex", p, [], ta,true );
+			cfields.push(toInt);
+
+			toInt = makeNativeFieldRaw( name, "toValue", p, [], ta,true );
 			cfields.push(toInt);
 
 			var enumT = {
@@ -417,6 +439,9 @@ class Module {
 				kind : TDAbstract(macro : Int),
 				fields : cfields,
 			};
+//			trace("Enum Name" + name + " | " + makeName(name));
+			
+			typeNames[name] = enumT;
 			types.push(enumT);
 
 		}
