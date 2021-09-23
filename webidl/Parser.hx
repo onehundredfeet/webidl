@@ -206,7 +206,9 @@ class Parser {
 			case "boolean", "bool": TBool;
 			case "any": TAny;
 			case "VoidPtr": TVoidPtr;
+			case "bytes": TBytes;
 			case "String": THString;
+			case "string": THString;
 			default: 
 				TCustom(id);
 		};

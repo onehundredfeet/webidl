@@ -263,7 +263,7 @@ private:
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i; i < ${values.length}; i++ ) if ( value == ${name}__values[i]) return i; return -1;\n}');
+					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					add('DEFINE_PRIM(_I32, ${name}_valueToIndex0, _I32);');
 				case DImplements(_):
 			}
@@ -289,7 +289,8 @@ private:
 				case TArray(t): "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TBool: "bool";
 				case TEnum(_): "int";
-				case THString: (isReturn && false) ? "vbyte *" : "vstring *";
+				case THString: "vstring *";
+				case TBytes: "vbyte*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -316,7 +317,8 @@ private:
 				case TAny, TVoidPtr: "_BYTES";
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
-				case THString: (isReturn && false) ? "_BYTES" : "_STRING";
+				case TBytes: "_BYTES";
+				case THString:  "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
 		}

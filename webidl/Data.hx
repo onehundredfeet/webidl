@@ -45,6 +45,7 @@ enum Type {
 	TAny;
 	TVoidPtr;
 	THString;
+	TBytes;
 	TEnum(name : String );
 	TCustom( id : String );
 	TArray( t : Type );

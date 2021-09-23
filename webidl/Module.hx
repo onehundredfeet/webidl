@@ -52,6 +52,7 @@ class Module {
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
 		case TEnum(_): macro : Int;
+		case TBytes: macro : hl.Bytes;
 		case TArray(at):
 			switch(at) {
 				case TChar: macro : hl.NativeArray<Int>;
