@@ -84,10 +84,10 @@ Strings are returned as Dynamics as hashlink seems to only support creation of D
 Enums have an extension function that will return the integer value of the enum specified in C/C++.
 
 ```haxe
-MyEnum.Value.ToInt();
+MyEnum.Value.toValue();
 //or
 var x = MyEnum.Value;
-x.ToInt();
+x.toValue();
 ```
 
 ### \[Internal=NAME\]
