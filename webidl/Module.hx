@@ -4,7 +4,6 @@ package webidl;
 import webidl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
-import tink.MacroApi;
 
 class Module {
 	var p : Position;
