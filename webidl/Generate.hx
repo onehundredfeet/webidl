@@ -646,13 +646,11 @@ private:
 								var enumName = getEnumName(t.t);
 								var isConst = t.attr.indexOf(AConst) >= 0;
 
-								if (enumName != null)
-									throw "TODO : enum attribute";
-
 								//Translate name
 								var internalName = f.name;
 								var getter : String = null;
 								var setter : String = null;
+
 								for (a in t.attr) {
 									switch (a) {
 										case AInternal(name): internalName = name;
@@ -663,13 +661,17 @@ private:
 								}
 								// Get
 								add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).full} _this ) {');
-								if (isVal) {
+								
+								if (getter != null) 
+									add('\treturn ${getter}(_unref(_this)->${internalName});');
+								else if (enumName != null) 
+									add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
+								else if (isVal) {
 									var fname = typeNames.get(tname).constructor;
 									add('\treturn alloc_ref(new $fname(_unref(_this)->${f.name}),$tname);');
-								} else if (isRef)
+								} 
+								else if (isRef)
 									add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
-								else if (getter != null) 
-									add('\treturn ${getter}(_unref(_this)->${internalName});');
 								else
 									add('\treturn _unref(_this)->${internalName};');
 								add('}');
@@ -678,6 +680,8 @@ private:
 								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
 								if (setter != null) 
 									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
+								else if (enumName != null)
+									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
 								else
 									add('\t_unref(_this)->${internalName} = ${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 								add('\treturn value;');
