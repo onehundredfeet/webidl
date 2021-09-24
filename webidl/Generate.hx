@@ -365,7 +365,7 @@ private:
 
 								var returnField:String = null;
 								var returnType:TypeAttr;
-
+								var ignore : Array<String> = [];
 									
 								for (a in args) {
 									for (attr in a.t.attr) {
@@ -373,6 +373,9 @@ private:
 											case AReturn:
 												returnField = a.name;
 												returnType = a.t;
+												ignore.push(a.name);
+											case ASubstitute(_):
+												ignore.push(a.name);
 										default:
 										}
 									}
@@ -389,7 +392,7 @@ private:
 								var first = true;
 
 								for (a in args) {
-									if (returnField != a.name) {
+									if (!ignore.contains(a.name)) {
 										if (first)
 											first = false
 										else
@@ -423,23 +426,29 @@ private:
 											default:
 										}
 									}
-
+									var retCast = "";
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
 												preamble = true;
+											case ACast(t): 
+												retCast = "(" + t + ")";
 											default:
 										}
 									}
 
 									var refRet = null;
 									var enumName = getEnumName(tret.t);
+							
+									
 									if (isConstr) {
 										refRet = name;
+
+										
 										if (preamble) {
-											output.add('auto ___retvalue = alloc_ref((new ${typeNames.get(refRet).constructor}(');
+											output.add('auto ___retvalue = alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
 										} else {
-											output.add('return alloc_ref((new ${typeNames.get(refRet).constructor}(');
+											output.add('return alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
 										}
 									} else {
 										if (tret.t != TVoid)
@@ -454,10 +463,10 @@ private:
 														case TCustom(id): id;
 														default: throw "assert";
 													}
-													if (a == ARef && tret.attr.indexOf(AConst) >= 0)
-														output.add('alloc_ref_const(&('); // we shouldn't call delete() on this one !
+													if (a == ARef && tret.attr.contains(AConst))
+														output.add('alloc_ref_const(${retCast}&('); // we shouldn't call delete() on this one !
 													else
-														output.add('alloc_ref(new ${typeNames.get(refRet).constructor}(');
+														output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(');
 												default:
 											}
 										}
@@ -470,9 +479,9 @@ private:
 												default: throw "assert";
 											}
 											if (tret.attr.indexOf(AConst) >= 0)
-												output.add('alloc_ref_const((');
+												output.add('alloc_ref_const(${retCast}(');
 											else
-												output.add('alloc_ref((');
+												output.add('alloc_ref(${retCast}(');
 										}
 
 										switch (f.name) {
@@ -506,20 +515,30 @@ private:
 									}
 
 									var first = (ret.attr.indexOf(ACObject) >= 0 ? false : true);
+									
+
 									for (a in margs) {
+										var skip = false;
 										if (first)
 											first = false
 										else
 											output.add(", ");
+										
 										for (a in a.t.attr) {
 											switch (a) {
 												case ACast(type):
 													output.add("(" + type + ")"); // unref
 												case ARef:
 													output.add("*"); // unref
+												case ASubstitute(expression):
+													output.add(expression);
+													skip = true;
+													break;
 												default:
 											}
 										}
+										if (skip) continue;
+
 										if (a.name == returnField) {
 											output.add('&__tmpret');
 										} else {
@@ -610,7 +629,7 @@ private:
 								add('}');
 								output.add('DEFINE_PRIM(${defType(tret,  true)}, $funName,');
 								for (a in args) {
-									if (a.name != returnField) {
+									if (!ignore.contains(a.name)) {
 										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
 									}
 								}

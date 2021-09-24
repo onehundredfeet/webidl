@@ -66,6 +66,7 @@ enum Attrib {
 	AStatic;
 	ASynthetic;
 	AReturn;
+	ASubstitute(expression : String);
 	AThrow(msg :String);
 	AValidate(expression : String);
 	ACObject;

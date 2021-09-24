@@ -181,6 +181,12 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
+				case "Substitute":
+					ensure(TOp("="));
+					ASubstitute(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
 				case var attr:
 					error("Unsupported attribute " + attr);
 					null;

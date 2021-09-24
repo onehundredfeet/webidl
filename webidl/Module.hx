@@ -143,7 +143,18 @@ class Module {
 				ret : makeType(ret, true),
 				expr : expr,
 				args : [for( a in args ) {
-					if (a.t.attr.contains(AReturn)) {continue;}
+
+					//This pattern is brutallly bad There must be a cleaner way to do this
+					var sub = false;
+					for(aattr in a.t.attr) {
+						switch(aattr) {
+								case ASubstitute(_): 
+								sub = true;
+								break;
+							default: 
+						}
+					}
+					if (a.t.attr.contains(AReturn) || sub) {continue;}
 					{ name : a.name, opt : a.opt, type : makeType(a.t, false) }}],
 			}),
 		};
