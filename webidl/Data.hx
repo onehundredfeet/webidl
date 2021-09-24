@@ -59,6 +59,7 @@ enum Attrib {
 	ACast( type : String );
 	AConst;
 	AHString;
+	AOut;
 	AOperator( op : String );
 	// interfaces
 	ANoDelete;

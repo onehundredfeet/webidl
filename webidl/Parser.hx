@@ -122,6 +122,7 @@ class Parser {
 				case "Const": AConst;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
+				case "Out": AOut;
 				case "HString" : AHString;
 				case "Synthetic": ASynthetic;
 				case "Return": AReturn;

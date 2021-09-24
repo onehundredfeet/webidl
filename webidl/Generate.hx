@@ -256,9 +256,6 @@ private:
 						}
 					}
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
-//					add('static int ${name}__values[] = { ${values.join(",")} };');
-
-
 					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
@@ -276,8 +273,8 @@ private:
 			}
 		}
 
-		function makeType(t:webidl.Data.Type,  isReturn : Bool= false) {
-			return switch (t) {
+		function makeType(t:webidl.Data.TypeAttr,  isReturn : Bool= false) {
+			var x = switch (t.t) {
 				case TChar: "unsigned char";
 				case TFloat: "float";
 				case TDouble: "double";
@@ -302,10 +299,12 @@ private:
 				default:
 					throw "Unknown type " + t;
 			}
+			return t.attr.contains(AOut) ? x + "*" : x;
 		}
 
-		function defType(t, isReturn : Bool = false) {
-			return switch (t) {
+		function defType(t : TypeAttr, isReturn : Bool = false) {
+			
+			var x = switch (t.t) {
 				case TChar: "_I8";
 				case TFloat: "_F32";
 				case TDouble: "_F64";
@@ -321,6 +320,8 @@ private:
 				case THString:  "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
+
+			return t.attr.contains(AOut) ? "_REF(" + x + ")" : x;
 		}
 
 		function dynamicAccess(t) {
@@ -345,7 +346,7 @@ private:
 					default:
 				}
 			}
-			return prefix + makeType(td.t, isReturn);
+			return prefix + makeType(td, isReturn);
 		}
 
 		function isDyn(arg:{opt:Bool, t:TypeAttr}) {
@@ -363,7 +364,7 @@ private:
 									opt: false}].concat(margs);
 
 								var returnField:String = null;
-								var returnType:Type;
+								var returnType:TypeAttr;
 
 									
 								for (a in args) {
@@ -371,7 +372,7 @@ private:
 										switch (attr) {
 											case AReturn:
 												returnField = a.name;
-												returnType = a.t.t;
+												returnType = a.t;
 										default:
 										}
 									}
@@ -384,7 +385,7 @@ private:
 								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argsSuffix);
 								
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
-								output.add('HL_PRIM ${makeTypeDecl( returnField == null ? tret : {t: returnType, attr: []}, true)} HL_NAME($funName)(');
+								output.add('HL_PRIM ${makeTypeDecl( returnField == null ? tret : returnType, true)} HL_NAME($funName)(');
 								var first = true;
 
 								for (a in args) {
@@ -395,9 +396,9 @@ private:
 											output.add(", ");
 										switch (a.t.t) {
 											case TArray(t):
-												output.add(makeType(t) + "*");
+												output.add(makeType({t : t, attr : a.t.attr}) + "*");
 											default:
-												if (isDyn(a)) output.add("_OPT(" + makeType(a.t.t) + ")"); else output.add(makeType(a.t.t));
+												if (isDyn(a)) output.add("_OPT(" + makeType(a.t) + ")"); else output.add(makeType(a.t));
 										}
 										output.add(" " + a.name);
 									}
@@ -607,10 +608,10 @@ private:
 									addCall(margs);
 								}
 								add('}');
-								output.add('DEFINE_PRIM(${defType(tret.t, true)}, $funName,');
+								output.add('DEFINE_PRIM(${defType(tret,  true)}, $funName,');
 								for (a in args) {
 									if (a.name != returnField) {
-										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t.t) + ")" : defType(a.t.t)));
+										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
 									}
 								}
 								add(');');
@@ -663,9 +664,9 @@ private:
 								add('\treturn value;');
 								add('}');
 
-								var td = defType(t.t, true);
-								add('DEFINE_PRIM(${defType(t.t, true)},${name}_get_${f.name},_IDL);');
-								add('DEFINE_PRIM(${defType(t.t)},${name}_set_${f.name},_IDL ${defType(t.t)});');
+								var td = defType(t, true);
+								add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
+								add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
 								add('');
 							case DConst(_, _, _):
 						}

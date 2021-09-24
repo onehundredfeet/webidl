@@ -43,7 +43,7 @@ class Module {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
-		case TInt: macro : Int;
+		case TInt: (t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
 		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? macro : Single : macro : Float;
