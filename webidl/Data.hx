@@ -76,4 +76,5 @@ enum Attrib {
 	ASet(name:String);
 	APrefix( prefix : String );
 	AJSImplementation( name : String );	
+	ARemap(original:String, remapped: String);
 }

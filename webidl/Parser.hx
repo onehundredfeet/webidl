@@ -103,7 +103,13 @@ class Parser {
 				while (!maybe(TSemicolon)) {
 					if (!first) typeStr = typeStr + " ";
 					first = false;
-					typeStr = typeStr + token();
+					var tk = token();
+					switch(tk) {
+						case TId(id):
+							typeStr = typeStr + id;
+						default:
+							throw ("Unknown type " + tk);
+					}
 				}
 				typeDefs[name] = typeStr;
 				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr)};
@@ -214,11 +220,20 @@ class Parser {
 		return attrs;
 	}
 
-	function type():Type {
-		var id = ident();
+	function type(attrs : Array<Attrib> = null):Type {
+		// Type defs
+		var original_id = ident();
+		var id = original_id;
+		var remapped = false;
 		while (typeDefs.exists(id)) {
 			id = typeDefs[id];
+			remapped = true;
 		}
+		if (remapped && attrs != null) {
+			attrs.push(ARemap(original_id, id));
+		}
+
+		
 		var t = switch (id) {
 			case "void": TVoid;
 			case "char": TChar;
@@ -255,7 +270,7 @@ class Parser {
 		var pmin = this.pos;
 
 		if (maybe(TId("attribute"))) {
-			var t = type();
+			var t = type(attr);
 			var name = ident();
 			ensure(TSemicolon);
 			return {name: name, kind: FAttribute({t: t, attr: attr}), pos: makePos(pmin)};
