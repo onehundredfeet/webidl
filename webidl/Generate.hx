@@ -58,6 +58,7 @@ template<typename T> void free_ref( pref<T> *r ) {
 }
 
 template<typename T> pref<T> *_alloc_ref( T *value, void (*finalize)( pref<T> * ) ) {
+	if (value == nullptr) return nullptr;
 	pref<T> *r = (pref<T>*)hl_gc_alloc_finalizer(sizeof(pref<T>));
 	r->finalize = finalize;
 	r->value = value;
@@ -65,6 +66,7 @@ template<typename T> pref<T> *_alloc_ref( T *value, void (*finalize)( pref<T> * 
 }
 
 template<typename T> pref<T> *_alloc_const( const T *value ) {
+	if (value == nullptr) return nullptr;
 	pref<T> *r = (pref<T>*)hl_gc_alloc_noptr(sizeof(pref<T>));
 	r->finalize = NULL;
 	r->value = (T*)value;
@@ -267,18 +269,29 @@ private:
 
 					var fullName = "_ref(" + prefix + intName + ")*";
 					typeNames.set(name, {full: fullName, constructor: prefix + intName});
-					if (attrs.indexOf(ANoDelete) >= 0)
+					if (attrs.indexOf(ANoDelete) >= 0 )
 						continue;
 					add('static void finalize_$name( $fullName _this ) { free_ref(_this); }');
 					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\tfree_ref(_this);\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
-				case DEnum(name, values):
+				case DEnum(name, attrs, values):
 					enumNames.set(name, true);
 					typeNames.set(name, {full: "int", constructor: null});
-					add('static $name ${name}__values[] = { ${values.join(",")} };');
 
-					add('HL_PRIM int HL_NAME(${name}_ToInt0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
-					add('DEFINE_PRIM(_I32, ${name}_ToInt0, _I32);');
+					var etname = name;
+					for(a in attrs) {
+						switch(a) {
+							case AInternal(iname): etname = iname;
+							default:
+						}
+					}
+					add('static $etname ${name}__values[] = { ${values.join(",")} };');
+					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_valueToIndex0, _I32);');
 				case DImplements(_):
 			}
 		}
@@ -290,18 +303,21 @@ private:
 			}
 		}
 
-		function makeType(t:webidl.Data.Type,  isReturn : Bool= false) {
-			return switch (t) {
+		function makeType(t:webidl.Data.TypeAttr,  isReturn : Bool= false) {
+			var x = switch (t.t) {
 				case TChar: "unsigned char";
 				case TFloat: "float";
 				case TDouble: "double";
 				case TShort: "short";
+				case TInt64: "int64_t";
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(t): "varray*"; //makeType(t) + "vdynamic *";
+				case TArray(t): "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TBool: "bool";
-				case THString: (isReturn) ? "vdynamic *" : "vstring *";
+				case TEnum(_): "int";
+				case THString: "vstring *";
+				case TBytes: "vbyte*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -313,22 +329,29 @@ private:
 				default:
 					throw "Unknown type " + t;
 			}
+			return t.attr.contains(AOut) ? x + "*" : x;
 		}
 
-		function defType(t, isReturn : Bool = false) {
-			return switch (t) {
+		function defType(t : TypeAttr, isReturn : Bool = false) {
+			
+			var x = switch (t.t) {
 				case TChar: "_I8";
 				case TFloat: "_F32";
 				case TDouble: "_F64";
 				case TShort: "_I16";
+				case TInt64: "_I64";
 				case TInt: "_I32";
+				case TEnum(_): "_I32";
 				case TVoid: "_VOID";
 				case TAny, TVoidPtr: "_BYTES";
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
-				case THString: (isReturn) ? "_DYN" : "_STRING";
+				case TBytes: "_BYTES";
+				case THString:  "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
+
+			return t.attr.contains(AOut) ? "_REF(" + x + ")" : x;
 		}
 
 		function dynamicAccess(t) {
@@ -337,6 +360,7 @@ private:
 				case TFloat: "f";
 				case TDouble: "d";
 				case TShort: "ui16";
+				case TInt64: "i64";
 				case TInt: "i";
 				case TBool: "b";
 				default: throw "assert";
@@ -352,7 +376,7 @@ private:
 					default:
 				}
 			}
-			return prefix + makeType(td.t, isReturn);
+			return prefix + makeType(td, isReturn);
 		}
 
 		function isDyn(arg:{opt:Bool, t:TypeAttr}) {
@@ -370,15 +394,18 @@ private:
 									opt: false}].concat(margs);
 
 								var returnField:String = null;
-								var returnType:Type;
-
+								var returnType:TypeAttr;
+								var ignore : Array<String> = [];
 									
 								for (a in args) {
 									for (attr in a.t.attr) {
 										switch (attr) {
 											case AReturn:
 												returnField = a.name;
-												returnType = a.t.t;
+												returnType = a.t;
+												ignore.push(a.name);
+											case ASubstitute(_):
+												ignore.push(a.name);
 										default:
 										}
 									}
@@ -391,25 +418,26 @@ private:
 								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argsSuffix);
 								
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
-								output.add('HL_PRIM ${makeTypeDecl( returnField == null ? tret : {t: returnType, attr: []}, true)} HL_NAME($funName)(');
+								output.add('HL_PRIM ${makeTypeDecl( returnField == null ? tret : returnType, true)} HL_NAME($funName)(');
 								var first = true;
 
 								for (a in args) {
-									if (returnField != a.name) {
+									if (!ignore.contains(a.name)) {
 										if (first)
 											first = false
 										else
 											output.add(", ");
 										switch (a.t.t) {
 											case TArray(t):
-												output.add(makeType(t) + "*");
+												output.add(makeType({t : t, attr : a.t.attr}) + "*");
 											default:
 												if (isDyn(a)) {
-													output.add("_OPT(" + makeType(a.t.t) + ")"); 
+													// output.add("_OPT(" + makeType(a.t.t) + ")"); 
+													output.add("_OPT(" + makeType({t : a.t.t, attr : a.t.attr}) + ")"); 
 												}
 												else {
-													output.add(makeType(a.t.t));
-
+													//output.add(makeType(a.t.t));
+													output.add(makeType({t : a.t.t, attr : a.t.attr}));
 													// Add '&' for referenced primitive types
 													for (attr in a.t.attr) {
 														switch (attr) {
@@ -440,28 +468,35 @@ private:
 										switch (a.t.t) {
 											case THString:
 												preamble = true;
-												output.add("auto " + a.name + "__cstr = (" + a.name + " == nullptr) ? nullptr : hl_to_utf8( " + a.name
-													+ "->bytes ); // Should be garbage collected\n\t");
+												if (!a.t.attr.contains(AHString))
+													output.add("auto " + a.name + "__cstr = (" + a.name + " == nullptr) ? nullptr : hl_to_utf8( " + a.name
+														+ "->bytes ); // Should be garbage collected\n\t");
 											default:
 										}
 									}
-
+									var retCast = "";
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
 												preamble = true;
+											case ACast(t): 
+												retCast = "(" + t + ")";
 											default:
 										}
 									}
 
 									var refRet = null;
 									var enumName = getEnumName(tret.t);
+							
+									
 									if (isConstr) {
 										refRet = name;
+
+										
 										if (preamble) {
-											output.add('auto ___retvalue = alloc_ref((new ${typeNames.get(refRet).constructor}(');
+											output.add('auto ___retvalue = alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
 										} else {
-											output.add('return alloc_ref((new ${typeNames.get(refRet).constructor}(');
+											output.add('return alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
 										}
 									} else {
 										if (tret.t != TVoid)
@@ -476,25 +511,25 @@ private:
 														case TCustom(id): id;
 														default: throw "assert";
 													}
-													if (a == ARef && tret.attr.indexOf(AConst) >= 0)
-														output.add('alloc_ref_const(&('); // we shouldn't call delete() on this one !
+													if (a == ARef && tret.attr.contains(AConst))
+														output.add('alloc_ref_const(${retCast}&('); // we shouldn't call delete() on this one !
 													else
-														output.add('alloc_ref(new ${typeNames.get(refRet).constructor}(');
+														output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(');
 												default:
 											}
 										}
 										if (enumName != null) {
-											output.add('make__$enumName(');
-											throw "Enum returns mot supported ";
+											output.add('HL_NAME(${enumName}_valueToIndex0)(');
+											//throw "Enum returns mot supported ";
 										} else if (refRet == null && ret.t.match(TCustom(_))) {
 											refRet = switch (tret.t) {
 												case TCustom(id): id;
 												default: throw "assert";
 											}
 											if (tret.attr.indexOf(AConst) >= 0)
-												output.add('alloc_ref_const((');
+												output.add('alloc_ref_const(${retCast}(');
 											else
-												output.add('alloc_ref((');
+												output.add('alloc_ref(${retCast}(');
 										}
 
 										switch (f.name) {
@@ -528,21 +563,35 @@ private:
 									}
 
 									var first = (ret.attr.indexOf(ACObject) >= 0 ? false : true);
+									
+
 									for (a in margs) {
+										var skip = false;
 										if (first)
 											first = false
 										else
 											output.add(", ");
+
 										for (attr in a.t.attr) {
 											switch (attr) {
+												case ACast(type):
+													output.add("(" + type + ")"); // unref
+												case ASubstitute(expression):
+													output.add(expression);
+													skip = true;
+													break;
 												case ARef:
 													switch(a.t.t){
 														case TChar, TInt, TShort, TFloat, TDouble, TBool: output.add(""); // Reference primitive types don't need any symbol
 														default: output.add("*"); // Unreference custom type
 													}			
+
 												default:
 											}
 										}
+
+										if (skip) continue;
+
 										if (a.name == returnField) {
 											output.add('&__tmpret');
 										} else {
@@ -557,7 +606,10 @@ private:
 															output.add("->GetPtr()");
 														}								
 													case THString:
-														output.add(a.name + "__cstr");
+														if (!a.t.attr.contains(AHString))
+															output.add(a.name + "__cstr");
+														else 
+															output.add(a.name);
 													default:
 														if (isDyn(a)) {
 															output.add("_GET_OPT(" + a.name + "," + dynamicAccess(a.t.t) + ")");
@@ -598,11 +650,12 @@ private:
 											}
 										}
 
-										if (returnField != null) {
-											add("\treturn __tmpret;");
-										} else {
-											add("\treturn ___retvalue;");
-										}
+										if (tret.t != TVoid)
+											if (returnField != null) {
+												add("\treturn __tmpret;");
+											} else {
+												add("\treturn ___retvalue;");
+											}
 									}
 								} // end add call
 
@@ -627,10 +680,10 @@ private:
 									addCall(margs);
 								}
 								add('}');
-								output.add('DEFINE_PRIM(${defType(tret.t)}, $funName,');
+								output.add('DEFINE_PRIM(${defType(tret,  true)}, $funName,');
 								for (a in args) {
-									if (a.name != returnField) {
-										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t.t) + ")" : defType(a.t.t)));
+									if (!ignore.contains(a.name)) {
+										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
 									}
 								}
 								add(');');
@@ -646,13 +699,11 @@ private:
 								var enumName = getEnumName(t.t);
 								var isConst = t.attr.indexOf(AConst) >= 0;
 
-								if (enumName != null)
-									throw "TODO : enum attribute";
-
 								//Translate name
 								var internalName = f.name;
 								var getter : String = null;
 								var setter : String = null;
+
 								for (a in t.attr) {
 									switch (a) {
 										case AInternal(name): internalName = name;
@@ -663,13 +714,17 @@ private:
 								}
 								// Get
 								add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).full} _this ) {');
-								if (isVal) {
+								
+								if (getter != null) 
+									add('\treturn ${getter}(_unref(_this)->${internalName});');
+								else if (enumName != null) 
+									add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
+								else if (isVal) {
 									var fname = typeNames.get(tname).constructor;
 									add('\treturn alloc_ref(new $fname(_unref(_this)->${f.name}),$tname);');
-								} else if (isRef)
+								} 
+								else if (isRef)
 									add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
-								else if (getter != null) 
-									add('\treturn ${getter}(_unref(_this)->${internalName});');
 								else
 									add('\treturn _unref(_this)->${internalName};');
 								add('}');
@@ -678,14 +733,16 @@ private:
 								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
 								if (setter != null) 
 									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
+								else if (enumName != null)
+									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
 								else
 									add('\t_unref(_this)->${internalName} = ${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 								add('\treturn value;');
 								add('}');
 
-								var td = defType(t.t, true);
-								add('DEFINE_PRIM(${defType(t.t, true)},${name}_get_${f.name},_IDL);');
-								add('DEFINE_PRIM(${defType(t.t)},${name}_set_${f.name},_IDL ${defType(t.t)});');
+								var td = defType(t, true);
+								add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
+								add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
 								add('');
 							case DConst(_, _, _):
 						}

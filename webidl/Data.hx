@@ -16,7 +16,7 @@ typedef Definition = {
 enum DefinitionKind {
 	DInterface( name : String, attrs : Array<Attrib>, fields : Array<Field> );
 	DImplements( type : String, interfaceName : String );
-	DEnum( name : String, values : Array<String> );
+	DEnum( name : String, attrs : Array<Attrib>, values : Array<String> );
 }
 
 typedef Field = {
@@ -45,20 +45,28 @@ enum Type {
 	TAny;
 	TVoidPtr;
 	THString;
+	TBytes;
+	TEnum(name : String );
 	TCustom( id : String );
 	TArray( t : Type );
+	TInt64;
 }
 
 enum Attrib {
 	// fields
 	AValue;
 	ARef;
+	ACast( type : String );
 	AConst;
+	AHString;
+	AOut;
 	AOperator( op : String );
 	// interfaces
 	ANoDelete;
 	AStatic;
+	ASynthetic;
 	AReturn;
+	ASubstitute(expression : String);
 	AThrow(msg :String);
 	AValidate(expression : String);
 	ACObject;

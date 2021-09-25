@@ -92,7 +92,7 @@ class Parser {
 						}
 					}
 				ensure(TSemicolon);
-				return {pos: makePos(pmin), kind: DEnum(name, values)};
+				return {pos: makePos(pmin), kind: DEnum(name, attr, values)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;
@@ -122,6 +122,9 @@ class Parser {
 				case "Const": AConst;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
+				case "Out": AOut;
+				case "HString" : AHString;
+				case "Synthetic": ASynthetic;
 				case "Return": AReturn;
 				case "CObject": ACObject;
 				case "Throw":
@@ -145,6 +148,12 @@ class Parser {
 				case "Get":
 					ensure(TOp("="));
 					AGet(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+					case "Cast":
+					ensure(TOp("="));
+					ACast(switch (token()) {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
@@ -172,6 +181,12 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
+				case "Substitute":
+					ensure(TOp("="));
+					ASubstitute(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
 				case var attr:
 					error("Unsupported attribute " + attr);
 					null;
@@ -194,11 +209,15 @@ class Parser {
 			case "double": TDouble;
 			case "long", "int": TInt; // long ensures 32 bits
 			case "short": TShort;
+			case "int64": TInt64;
 			case "boolean", "bool": TBool;
 			case "any": TAny;
 			case "VoidPtr": TVoidPtr;
+			case "bytes": TBytes;
 			case "String": THString;
-			default: TCustom(id);
+			case "string": THString;
+			default: 
+				TCustom(id);
 		};
 		if (maybe(TBkOpen)) {
 			ensure(TBkClose);

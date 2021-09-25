@@ -4,7 +4,6 @@ package webidl;
 import webidl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
-import tink.MacroApi;
 
 class Module {
 	var p : Position;
@@ -12,6 +11,7 @@ class Module {
 	var pack : Array<String>;
 	var opts : Options;
 	var types : Array<TypeDefinition> = [];
+	var typeNames = new Map();
 
 	function new(p, pack, hl, opts) {
 		this.p = p;
@@ -39,17 +39,20 @@ class Module {
 		return types;
 	}
 
-	function makeType( t : TypeAttr ) : ComplexType {
+	function makeType( t : TypeAttr,isReturn:Bool ) : ComplexType {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
-		case TInt: macro : Int;
+		case TInt: (t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
+		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? macro : Single : macro : Float;
 		case TDouble: macro : Float;
 		case TBool: macro : Bool;
-		case THString : macro : String;
+		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
+		case TEnum(_): macro : Int;
+		case TBytes: macro : hl.Bytes;
 		case TArray(at):
 			switch(at) {
 				case TChar: macro : hl.NativeArray<Int>;
@@ -63,17 +66,31 @@ class Module {
 //			var tt = makeType({ t : t, attr : [] });
 //			macro : webidl.Types.NativePtr<$tt>;
 		case TVoidPtr: macro : webidl.Types.VoidPtr;
-		case TCustom(id): TPath({ pack : [], name : makeName(id) });
+		case TCustom(id): 
+			if (typeNames.exists(id)) {
+				TPath( typeNames[id]);
+			}
+			else
+				TPath({ pack : [], name : makeName(id) });
 		}
 	}
 
 	function defVal( t : TypeAttr ) : Expr {
 		return switch( t.t ) {
 		case TVoid: throw "assert";
-		case TInt, TShort, TChar: { expr : EConst(CInt("0")), pos : p };
+		case TInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
 		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
 		case TBool: { expr : EConst(CIdent("false")), pos : p };
-		default: { expr : EConst(CIdent("null")), pos : p };
+		case TCustom(id):
+			var ex = { expr : EConst(CInt("0")), pos : p };
+			var tp = TPath({ pack : [], name : id });
+
+			if (typeNames.exists(id))  
+				{ expr : ECast(ex, tp), pos : p };
+			else
+				{ expr : EConst(CIdent("null")), pos : p };
+		default: 
+			{ expr : EConst(CIdent("null")), pos : p };
 		}
 	}
 
@@ -123,11 +140,22 @@ class Module {
 			meta : [makeNative(iname+"_" + name + (name == "delete" ? "" : ""+args.length))],
 			access : access,
 			kind : FFun({
-				ret : makeType(ret),
+				ret : makeType(ret, true),
 				expr : expr,
 				args : [for( a in args ) {
-					if (a.t.attr.contains(AReturn)) {continue;}
-					{ name : a.name, opt : a.opt, type : makeType(a.t) }}],
+
+					//This pattern is brutallly bad There must be a cleaner way to do this
+					var sub = false;
+					for(aattr in a.t.attr) {
+						switch(aattr) {
+								case ASubstitute(_): 
+								sub = true;
+								break;
+							default: 
+						}
+					}
+					if (a.t.attr.contains(AReturn) || sub) {continue;}
+					{ name : a.name, opt : a.opt, type : makeType(a.t, false) }}],
 			}),
 		};
 
@@ -211,7 +239,7 @@ class Module {
 							targs.push({
 								name : names.join("_"),
 								opt : opt,
-								type : makeEither([for( t in types ) makeType(t.t)]),
+								type : makeEither([for( t in types ) makeType(t.t, false)]),
 							});
 						}
 
@@ -260,7 +288,7 @@ class Module {
 							kind : FFun({
 								expr : expr,
 								args : targs,
-								ret : makeEither([for( t in retTypes ) makeType(t.t)]),
+								ret : makeEither([for( t in retTypes ) makeType(t.t, false)]),
 							}),
 						});
 
@@ -269,7 +297,7 @@ class Module {
 
 
 				case FAttribute(t):
-					var tt = makeType(t);
+					var tt = makeType(t, false);
 					dfields.push({
 						pos : p,
 						name : f.name,
@@ -302,7 +330,7 @@ class Module {
 						name : name,
 						access : [APublic, AStatic, AInline],
 						kind : FVar(
-							makeType({t : type, attr : []}),
+							makeType({t : type, attr : []}, false),
 							macro $i{value}
 						)
 					});
@@ -317,8 +345,9 @@ class Module {
 				fields : dfields,
 			};
 
-			if( attrs.indexOf(ANoDelete) < 0 )
+			if( attrs.indexOf(ANoDelete) < 0 ) {
 				dfields.push(makeNativeField(iname, { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
+			}
 
 			if( !hl ) {
 				for( f in dfields )
@@ -398,13 +427,19 @@ class Module {
 				}
 			if( !found )
 				Context.warning("Class " + name+" not found for implements " + intf, p);
-		case DEnum(name, values):
+		case DEnum(name, attrs, values):
 			var index = 0;
 			var cfields = [for( v in values ) { pos : p, name : v, kind : FVar(null,{ expr : EConst(CInt(""+(index++))), pos : p }) }];
 
 			// Add Int Conversion
 			var ta : TypeAttr = { t : TInt, attr : [] };
-			var toInt = makeNativeFieldRaw( name, "ToInt", p, [], ta,true );
+			var toInt = makeNativeFieldRaw( name, "indexToValue", p, [], ta,true );
+			cfields.push(toInt);
+
+			toInt = makeNativeFieldRaw( name, "valueToIndex", p, [], ta,true );
+			cfields.push(toInt);
+
+			toInt = makeNativeFieldRaw( name, "toValue", p, [], ta,true );
 			cfields.push(toInt);
 
 			var enumT = {
@@ -415,6 +450,9 @@ class Module {
 				kind : TDAbstract(macro : Int),
 				fields : cfields,
 			};
+//			trace("Enum Name" + name + " | " + makeName(name));
+			
+			typeNames[name] = enumT;
 			types.push(enumT);
 
 		}
