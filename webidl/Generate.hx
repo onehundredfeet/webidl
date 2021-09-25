@@ -73,6 +73,73 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 	return r;
 }
 
+inline static varray* _idc_alloc_array(float *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	float *p;
+	a = hl_alloc_array(&hlt_f32, count);
+	p = hl_aptr(a, float);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+}
+
+
+inline static varray* _idc_alloc_array(int *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	int *p;
+	a = hl_alloc_array(&hlt_i32, count);
+	p = hl_aptr(a, int);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+
+}
+
+inline static varray* _idc_alloc_array(double *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	double *p;
+	a = hl_alloc_array(&hlt_f64, count);
+	p = hl_aptr(a, double);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+
+}
+
+inline static void _idc_copy_array( float *dst, varray *src, int count) {
+	float *p = hl_aptr(src, float);
+	for (int i = 0; i < count; i++) {
+		dst[i] = p[i];
+	}
+}
+
+inline static void _idc_copy_array( int *dst, varray *src, int count) {
+	int *p = hl_aptr(src, int);
+	for (int i = 0; i < count; i++) {
+		dst[i] = p[i];
+	}
+}
+
+inline static void _idc_copy_array( double *dst, varray *src, int count) {
+	double *p = hl_aptr(src, double);
+	for (int i = 0; i < count; i++) {
+		dst[i] = p[i];
+	}
+}
+
+
 ";
 
 
@@ -304,6 +371,7 @@ private:
 			}
 		}
 
+
 		function makeType(t:webidl.Data.TypeAttr,  isReturn : Bool= false) {
 			var x = switch (t.t) {
 				case TChar: "unsigned char";
@@ -327,6 +395,7 @@ private:
 							typeNames.get(id).full;
 						}
 					}
+				case TVector(vt, vdim): "varray*";
 				default:
 					throw "Unknown type " + t;
 			}
@@ -348,6 +417,7 @@ private:
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
+				case TVector(t, dim): "_ARR";
 				case THString:  "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
@@ -696,6 +766,14 @@ private:
 									case TCustom(id): id;
 									default: null;
 								};
+								
+								var vt = null;
+								var vdim = 0;
+
+								var isVector = switch(t.t) {
+									case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; true;
+									default:false;
+								}
 								var isRef = tname != null;
 								var enumName = getEnumName(t.t);
 								var isConst = t.attr.indexOf(AConst) >= 0;
@@ -715,8 +793,11 @@ private:
 								}
 								// Get
 								add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).full} _this ) {');
-								
-								if (getter != null) 
+
+								 if (isVector) {
+									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');									
+								}
+								else if (getter != null) 
 									add('\treturn ${getter}(_unref(_this)->${internalName});');
 								else if (enumName != null) 
 									add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
@@ -732,7 +813,11 @@ private:
 
 								//Set
 								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
-								if (setter != null) 
+
+								if (isVector) {
+									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');									
+								}
+								 else if (setter != null) 
 									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 								else if (enumName != null)
 									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');

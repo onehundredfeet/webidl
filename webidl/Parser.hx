@@ -248,6 +248,15 @@ class Parser {
 			case "bytes": TBytes;
 			case "String": THString;
 			case "string": THString;
+			case "float2": TVector(TFloat, 2);
+			case "float3": TVector(TFloat, 3);
+			case "float4": TVector(TFloat, 4);
+			case "int2": TVector(TInt, 2);
+			case "int3": TVector(TInt, 3);
+			case "int4": TVector(TInt, 4);
+			case "double2": TVector(TInt, 2);
+			case "double3": TVector(TDouble, 3);
+			case "double4": TVector(TDouble, 4);
 			default: 
 				TCustom(id);
 		};

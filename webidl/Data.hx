@@ -51,6 +51,7 @@ enum Type {
 	TCustom( id : String );
 	TArray( t : Type );
 	TInt64;
+	TVector( t : Type, dim: Int);
 }
 
 enum Attrib {

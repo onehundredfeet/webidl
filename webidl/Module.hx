@@ -39,6 +39,15 @@ class Module {
 		return types;
 	}
 
+	function makeVectorType( t : TypeAttr, vt : Type, vdim : Int, isReturn:Bool ): ComplexType {
+		return switch(vt) {
+			case TFloat: macro : Array<Single>;
+			case TInt:macro : Array<Int>;
+			case TDouble:macro : Array<Float>;
+			
+			default: throw "Unsupported vector type " + vt;
+		};
+	}
 	function makeType( t : TypeAttr,isReturn:Bool ) : ComplexType {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
@@ -53,6 +62,7 @@ class Module {
 		case TAny: macro : webidl.Types.Any;
 		case TEnum(_): macro : Int;
 		case TBytes: macro : hl.Bytes;
+		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
 		case TArray(at):
 			switch(at) {
 				case TChar: macro : hl.NativeArray<Int>;
@@ -454,6 +464,7 @@ class Module {
 			
 			typeNames[name] = enumT;
 			types.push(enumT);
+		case DTypeDef(name, attrs, type):
 
 		}
 	}
