@@ -160,6 +160,34 @@ public:
 private:
 	unsigned char* list;
 };
+
+class ShortArray
+{
+public:
+    ShortArray() {}
+
+    ShortArray(int size)
+	{
+		list = new unsigned short[size];
+	}
+
+	short Get(int index)
+	{
+		return list[index];
+	}
+
+	void Set(int index, unsigned short value)
+	{
+		list[index] = value;
+	}
+
+	unsigned short* GetPtr() {
+		return list;
+	}
+
+private:
+	unsigned short* list;
+};
 	";
 
 	static function initOpts(opts:Options) {
@@ -403,7 +431,25 @@ private:
 											case TArray(t):
 												output.add(makeType({t : t, attr : a.t.attr}) + "*");
 											default:
-												if (isDyn(a)) output.add("_OPT(" + makeType(a.t) + ")"); else output.add(makeType(a.t));
+												if (isDyn(a)) {
+													// output.add("_OPT(" + makeType(a.t.t) + ")"); 
+													output.add("_OPT(" + makeType({t : a.t.t, attr : a.t.attr}) + ")"); 
+												}
+												else {
+													//output.add(makeType(a.t.t));
+													output.add(makeType({t : a.t.t, attr : a.t.attr}));
+													// Add '&' for referenced primitive types
+													for (attr in a.t.attr) {
+														switch (attr) {
+															case ARef:
+																switch(a.t.t){
+																	case TChar, TInt, TShort, TFloat, TDouble, TBool: output.add("&"); // Reference primitive types with &
+																	default: output.add(""); // Do nothung for custom types
+																}			
+															default:
+														}
+													}
+												}
 										}
 										output.add(" " + a.name);
 									}
@@ -525,20 +571,25 @@ private:
 											first = false
 										else
 											output.add(", ");
-										
-										for (a in a.t.attr) {
-											switch (a) {
+
+										for (attr in a.t.attr) {
+											switch (attr) {
 												case ACast(type):
 													output.add("(" + type + ")"); // unref
-												case ARef:
-													output.add("*"); // unref
 												case ASubstitute(expression):
 													output.add(expression);
 													skip = true;
 													break;
+												case ARef:
+													switch(a.t.t){
+														case TChar, TInt, TShort, TFloat, TDouble, TBool: output.add(""); // Reference primitive types don't need any symbol
+														default: output.add("*"); // Unreference custom type
+													}			
+
 												default:
 											}
 										}
+
 										if (skip) continue;
 
 										if (a.name == returnField) {
@@ -551,7 +602,7 @@ private:
 												switch (a.t.t) {
 													case TCustom(st):
 														output.add('_unref(${a.name})');
-														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray"){
+														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
 															output.add("->GetPtr()");
 														}								
 													case THString:
