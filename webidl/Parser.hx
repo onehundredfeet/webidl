@@ -27,12 +27,15 @@ class Parser {
 	var tokens:Array<Token>;
 	var pos = 0;
 	var fileName:String;
+	var typeDefs:Map<String,String>;
 
 	public function new() {
 		var opChars = "+*/-=!><&|^%~";
 		var identChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
 		idents = new Array();
 		ops = new Array();
+		typeDefs = new Map<String,String>();
+
 		for (i in 0...identChars.length)
 			idents[identChars.charCodeAt(i)] = true;
 		for (i in 0...opChars.length)
@@ -102,6 +105,7 @@ class Parser {
 					first = false;
 					typeStr = typeStr + token();
 				}
+				typeDefs[name] = typeStr;
 				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr)};
 			case TId(name):
 				if (attr == null) {
@@ -212,6 +216,9 @@ class Parser {
 
 	function type():Type {
 		var id = ident();
+		while (typeDefs.exists(id)) {
+			id = typeDefs[id];
+		}
 		var t = switch (id) {
 			case "void": TVoid;
 			case "char": TChar;
@@ -229,6 +236,9 @@ class Parser {
 			default: 
 				TCustom(id);
 		};
+
+
+
 		if (maybe(TBkOpen)) {
 			ensure(TBkClose);
 			t = TArray(t);
