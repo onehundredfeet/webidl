@@ -93,6 +93,16 @@ class Parser {
 					}
 				ensure(TSemicolon);
 				return {pos: makePos(pmin), kind: DEnum(name, attr, values)};
+			case TId("typedef"):
+				var name = ident();
+				var typeStr = "";
+				var first = true;
+				while (!maybe(TSemicolon)) {
+					if (!first) typeStr = typeStr + " ";
+					first = false;
+					typeStr = typeStr + token();
+				}
+				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;

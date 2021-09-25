@@ -17,6 +17,7 @@ enum DefinitionKind {
 	DInterface( name : String, attrs : Array<Attrib>, fields : Array<Field> );
 	DImplements( type : String, interfaceName : String );
 	DEnum( name : String, attrs : Array<Attrib>, values : Array<String> );
+	DTypeDef( name : String, attrs : Array<Attrib>, type : String );
 }
 
 typedef Field = {

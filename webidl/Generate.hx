@@ -264,6 +264,7 @@ private:
 					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					add('DEFINE_PRIM(_I32, ${name}_valueToIndex0, _I32);');
+				case DTypeDef(name, attrs, type):
 				case DImplements(_):
 			}
 		}
@@ -696,7 +697,7 @@ private:
 							case DConst(_, _, _):
 						}
 					}
-
+				case DTypeDef(name, attrs, type):
 				case DEnum(_), DImplements(_):
 			}
 		}
