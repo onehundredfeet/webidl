@@ -41,9 +41,9 @@ class Module {
 
 	function makeVectorType( t : TypeAttr, vt : Type, vdim : Int, isReturn:Bool ): ComplexType {
 		return switch(vt) {
-			case TFloat: macro : Array<Single>;
-			case TInt:macro : Array<Int>;
-			case TDouble:macro : Array<Float>;
+			case TFloat: macro : hl.NativeArray<Single>;
+			case TInt:macro : hl.NativeArray<Int>;
+			case TDouble:macro : hl.NativeArray<Float>;
 			
 			default: throw "Unsupported vector type " + vt;
 		};
@@ -334,6 +334,30 @@ class Module {
 							args : [{ name : "_v", type : tt }],
 						}),
 					});
+					
+					var vt : Type = null;
+					var vta : TypeAttr = null;
+					var vdim = 0;
+
+					var isVector = switch(t.t) {
+						case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
+						default:false;
+					}
+
+					if (isVector) {
+						dfields.push({
+							pos : p,
+							name : "set" + f.name + vdim,
+							meta : [makeNative(iname+"_set" + f.name + vdim)],
+							access : [APublic, AInline],
+							kind : FFun({
+								ret : macro : Void,
+								expr : macro return,
+								args :[for (c in 0...vdim) { name : "_v" + c, type : makeType(vta, false) } ],
+						}),
+					});
+					}
+
 				case DConst(name, type, value):
 					dfields.push({
 						pos : p,
