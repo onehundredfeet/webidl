@@ -261,8 +261,6 @@ class Parser {
 				TCustom(id);
 		};
 
-
-
 		if (maybe(TBkOpen)) {
 			ensure(TBkClose);
 			t = TArray(t);

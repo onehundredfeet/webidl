@@ -523,7 +523,7 @@ private:
 											output.add(", ");
 										switch (a.t.t) {
 											case TArray(t):
-												output.add(makeType({t : t, attr : a.t.attr}) + "*");
+												output.add(makeType(a.t));
 											default:
 												if (isDyn(a)) {
 													// output.add("_OPT(" + makeType(a.t.t) + ")"); 
@@ -657,6 +657,7 @@ private:
 									var first = (ret.attr.indexOf(ACObject) >= 0 ? false : true);
 									
 
+									// Actually process arguments for call
 									for (a in margs) {
 										var skip = false;
 										if (first)
@@ -692,6 +693,8 @@ private:
 												output.add('${e}__values[${a.name}]');
 											else
 												switch (a.t.t) {
+													case TArray(t):
+														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
 													case TVector(vt, vdim):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: vt, attr : a.t.attr})})');
 													case TCustom(st):
