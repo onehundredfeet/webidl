@@ -41,10 +41,28 @@ class Module {
 
 	function makeVectorType( t : TypeAttr, vt : Type, vdim : Int, isReturn:Bool ): ComplexType {
 		return switch(vt) {
-			case TFloat: macro : hl.NativeArray<Single>;
-			case TInt:macro : hl.NativeArray<Int>;
-			case TDouble:macro : hl.NativeArray<Float>;
-			
+			case TFloat: 
+				switch(vdim) {
+					case 2: macro : Vec2;
+					case 3: macro : Vec3;
+					case 4: macro : Vec4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+			case TInt:   
+				switch(vdim) {
+					case 2: macro : Int2;
+					case 3: macro : Int3;
+					case 4: macro : Int4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+			case TDouble:
+				switch(vdim) {
+					case 2: macro : Float2;
+					case 3: macro : Float3;
+					case 4: macro : Float4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+	
 			default: throw "Unsupported vector type " + vt;
 		};
 	}

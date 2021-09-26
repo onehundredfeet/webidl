@@ -57,6 +57,66 @@ template<typename T> void free_ref( pref<T> *r ) {
 	r->finalize = NULL;
 }
 
+// Float vector
+struct _hl_float2 {
+	float x;
+	float y;
+};
+
+struct _hl_float3 {
+	float x;
+	float y;
+	float z;
+};
+
+struct _hl_float4 {
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
+// int vector
+struct _hl_int2 {
+	int x;
+	int y;
+};
+
+struct _hl_int3 {
+	int x;
+	int y;
+	int z;
+};
+
+struct _hl_int4 {
+	int x;
+	int y;
+	int z;
+	int w;
+};
+
+// double vector
+struct _hl_double2 {
+	double x;
+	double y;
+};
+
+struct _hl_double3 {
+	double x;
+	double y;
+	double z;
+};
+
+struct _hl_double4 {
+	double x;
+	double y;
+	double z;
+	double w;
+};
+
+inline void testvector(_hl_float3 *v) {
+  printf(\"v: %f %f %f\\n\", v->x, v->y, v->z);
+}
 template<typename T> pref<T> *_alloc_ref( T *value, void (*finalize)( pref<T> * ) ) {
 	if (value == nullptr) return nullptr;
 	pref<T> *r = (pref<T>*)hl_gc_alloc_finalizer(sizeof(pref<T>));
@@ -418,7 +478,13 @@ private:
 							typeNames.get(id).full;
 						}
 					}
-				case TVector(vt, vdim): "varray*";
+				case TVector(vt, vdim):
+					switch(vt) {
+						case TFloat: "_hl_float" + vdim + "*";
+						case TDouble: "_hl_double" + vdim+ "*";
+						case TInt: "_hl_int" + vdim+ "*";
+						default: throw "Unsupported vector type";
+					}
 				default:
 					throw "Unknown type " + t;
 			}
@@ -440,7 +506,7 @@ private:
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
-				case TVector(t, dim): "_ARR";
+				case TVector(t, dim): "_STRUCT";
 				case THString:  "_STRING";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
 			}
@@ -695,13 +761,13 @@ private:
 												switch (a.t.t) {
 													case TArray(t):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
-													case TVector(vt, vdim):
-														output.add('hl_aptr(${a.name},${makeTypeDecl({t: vt, attr : a.t.attr})})');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
 														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
 															output.add("->GetPtr()");
-														}								
+														}		
+													case TVector(vt, vdim):
+														output.add('(${makeTypeDecl({t: vt, attr : a.t.attr})}*)${a.name}');
 													case THString:
 														if (!a.t.attr.contains(AHString))
 															output.add(a.name + "__cstr");
@@ -822,7 +888,9 @@ private:
 								add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).full} _this ) {');
 
 								 if (isVector) {
-									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');									
+									add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
+									 
+//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');									
 								}
 								else if (getter != null) 
 									add('\treturn ${getter}(_unref(_this)->${internalName});');
@@ -841,17 +909,22 @@ private:
 								if (isVector) {
 									// Add vector getter
 									add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
-									add('\t_idc_copy_array( value, ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}), ${vdim} );');									
+									add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+									add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
+									add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');						
 									add('}');
 
-									add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _ARR  );');
+									add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
 
 								}
 								//Set
 								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
 
 								if (isVector) {
-									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');									
+									add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+									add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) value;');
+									add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');						
+//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');									
 								}
 								 else if (setter != null) 
 									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
@@ -863,7 +936,7 @@ private:
 								add('}');
 
 								if (isVector) {
-									// Add componentwise getter
+									// Add componentwise setter
 
 									var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
 									add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
