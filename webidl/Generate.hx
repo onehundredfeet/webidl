@@ -125,12 +125,28 @@ inline static void _idc_copy_array( float *dst, varray *src, int count) {
 	}
 }
 
+inline static void _idc_copy_array( varray *dst, float *src,  int count) {
+	float *p = hl_aptr(dst, float);
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+}
+
+
 inline static void _idc_copy_array( int *dst, varray *src, int count) {
 	int *p = hl_aptr(src, int);
 	for (int i = 0; i < count; i++) {
 		dst[i] = p[i];
 	}
 }
+
+inline static void _idc_copy_array( varray *dst, int *src,  int count) {
+	int *p = hl_aptr(dst, int);
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+}
+
 
 inline static void _idc_copy_array( double *dst, varray *src, int count) {
 	double *p = hl_aptr(src, double);
@@ -139,6 +155,12 @@ inline static void _idc_copy_array( double *dst, varray *src, int count) {
 	}
 }
 
+inline static void _idc_copy_array( varray *dst, double *src,  int count) {
+	double *p = hl_aptr(dst, double);
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+}
 
 ";
 
@@ -767,11 +789,12 @@ private:
 									default: null;
 								};
 								
-								var vt = null;
+								var vt : Type = null;
+								var vta : TypeAttr = null;
 								var vdim = 0;
 
 								var isVector = switch(t.t) {
-									case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; true;
+									case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
 									default:false;
 								}
 								var isRef = tname != null;
@@ -811,6 +834,15 @@ private:
 									add('\treturn _unref(_this)->${internalName};');
 								add('}');
 
+								if (isVector) {
+									// Add vector getter
+									add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
+									add('\t_idc_copy_array( value, ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}), ${vdim} );');									
+									add('}');
+
+									add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _ARR  );');
+
+								}
 								//Set
 								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
 
@@ -825,6 +857,21 @@ private:
 									add('\t_unref(_this)->${internalName} = ${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 								add('\treturn value;');
 								add('}');
+
+								if (isVector) {
+									// Add componentwise getter
+
+									var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
+									add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
+									add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});'); 						
+
+									var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
+									add('\t${vcopy}');
+									add('}');
+									var vprim = [for (c in 0...vdim) '${defType(vta)}'].join(' ');
+									add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
+
+								}
 
 								var td = defType(t, true);
 								add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
