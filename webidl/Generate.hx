@@ -162,6 +162,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 	}
 }
 
+
 ";
 
 
@@ -584,8 +585,6 @@ private:
 									
 									if (isConstr) {
 										refRet = name;
-
-										
 										if (preamble) {
 											output.add('auto ___retvalue = alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
 										} else {
@@ -693,6 +692,8 @@ private:
 												output.add('${e}__values[${a.name}]');
 											else
 												switch (a.t.t) {
+													case TVector(vt, vdim):
+														output.add('hl_aptr(${a.name},${makeTypeDecl({t: vt, attr : a.t.attr})})');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
 														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
