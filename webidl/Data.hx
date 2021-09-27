@@ -49,7 +49,7 @@ enum Type {
 	TBytes;
 	TEnum(name : String );
 	TCustom( id : String );
-	TArray( t : Type );
+	TArray( t : Type, sizeField : String );
 	TPointer( t : Type );
 	TInt64;
 	TVector( t : Type, dim: Int);

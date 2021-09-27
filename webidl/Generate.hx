@@ -19,6 +19,10 @@ class Generate {
 	static var HEADER_HL = "
 
 #include <hl.h>
+
+// Need to link in helpers
+HL_API hl_type hltx_ui16;
+
 #define _IDL _BYTES
 #define _OPT(t) vdynamic *
 #define _GET_OPT(value,t) (value)->v.t
@@ -175,7 +179,35 @@ inline static varray* _idc_alloc_array(double *src, int count) {
 		p[i] = src[i];
 	}
 	return a;
+}
 
+
+inline static varray* _idc_alloc_array(const unsigned short *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	unsigned short *p;
+	a = hl_alloc_array(&hltx_ui16, count);
+	p = hl_aptr(a, unsigned short);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+}
+
+inline static varray* _idc_alloc_array(unsigned short *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	unsigned short *p;
+	a = hl_alloc_array(&hltx_ui16, count);
+	p = hl_aptr(a, unsigned short);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
 }
 
 inline static void _idc_copy_array( float *dst, varray *src, int count) {
@@ -196,6 +228,21 @@ inline static void _idc_copy_array( varray *dst, float *src,  int count) {
 inline static void _idc_copy_array( int *dst, varray *src, int count) {
 	int *p = hl_aptr(src, int);
 	for (int i = 0; i < count; i++) {
+		dst[i] = p[i];
+	}
+}
+
+inline static void _idc_copy_array( unsigned short *dst, varray *src) {
+	unsigned short *p = hl_aptr(src, unsigned short);
+	for (int i = 0; i < src->size; i++) {
+		dst[i] = p[i];
+	}
+}
+
+inline static void _idc_copy_array( const unsigned short *cdst, varray *src) {
+	unsigned short *p = hl_aptr(src, unsigned short);
+	unsigned short *dst = (unsigned short *)cdst;
+	for (int i = 0; i < src->size; i++) {
 		dst[i] = p[i];
 	}
 }
@@ -465,8 +512,8 @@ private:
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(t):  "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
-				case TPointer(t): "vbyte *";
+				case TArray(_,_):  "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
 				case THString: "vstring *";
@@ -504,7 +551,7 @@ private:
 				case TEnum(_): "_I32";
 				case TVoid: "_VOID";
 				case TPointer(_),TAny, TVoidPtr: "_BYTES";
-				case TArray(t): "_ARR";
+				case TArray(_,_): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
 				case TVector(t, dim): "_STRUCT";
@@ -589,7 +636,7 @@ private:
 										else
 											output.add(", ");
 										switch (a.t.t) {
-											case TArray(t):
+											case TArray(t,sizeField):
 												output.add(makeType(a.t));
 											default:
 												if (isDyn(a)) {
@@ -760,10 +807,10 @@ private:
 												output.add('${e}__values[${a.name}]');
 											else
 												switch (a.t.t) {
-													case TArray(t):
+													case TArray(t, sizefield):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
 													case TPointer(t):
-														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
+														output.add('(${makeTypeDecl({t: t, attr : a.t.attr})} *)${a.name}');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
 														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
@@ -872,8 +919,9 @@ private:
 								}
 
 								var at : Type = null;
+								var al : String = null;
 								var isArray = switch(t.t) {
-									case TArray(aat): at = aat; true;
+									case TArray(aat, aal): at = aat; al = aal; true;
 									default:false;
 								}
 
@@ -921,7 +969,7 @@ private:
 								else if (isPointer) {
 									add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
 								} else if (isArray) {
-									add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]); // This is wrong, needs to copy');
+									add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
 								} else {
 									add('\treturn _unref(_this)->${internalName};');
 								}
@@ -948,8 +996,11 @@ private:
 //									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');									
 								}
 								else if (isArray) {
-									add('// Dirrect pointer assignment - likely brittle, needs to have a copy option');
-									add('\t_unref(_this)->${internalName} = hl_aptr((value), ${makeTypeDecl({t : at, attr: []})});');
+									add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
+									add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
+									add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
+									add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
+									add('\t_unref(_this)->${al} = (value->size);');
 								}
 								else if (isPointer) {
 									add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');

@@ -262,8 +262,13 @@ class Parser {
 				TCustom(id);
 		};
 		if (maybe(TBkOpen)) {
-			ensure(TBkClose);
-			t = TArray(t);
+			if (maybe(TBkClose)) {
+				t = TArray(t, null);
+			} else {
+				var size = ident();
+				ensure(TBkClose);
+				t = TArray(t, size);
+			}
 		} else if (maybe(TAsterisk)) {
 			t = TPointer(t);
 		}

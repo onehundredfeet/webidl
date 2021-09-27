@@ -92,7 +92,7 @@ class Module {
 				default:
 					throw "Unsupported array type. Sorry";
 			}
-		case TArray(at):
+		case TArray(at, _):
 			switch(at) {
 				case TChar: macro : hl.NativeArray<hl.UI8>;
 				case TInt: macro : hl.NativeArray<Int>;
