@@ -81,13 +81,25 @@ class Module {
 		case TEnum(_): macro : Int;
 		case TBytes: macro : hl.Bytes;
 		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
+		case TPointer(pt):
+			switch(pt) {
+				case TChar: macro : hl.BytesAccess<hl.UI8>;
+				case TInt: macro :  hl.BytesAccess<Int>;
+				case TFloat:  macro : hl.BytesAccess<Single>;
+				case TDouble: macro :  hl.BytesAccess<Float>;
+				case TBool: macro : hl.BytesAccess<Bool>;
+				case TShort:  macro : hl.BytesAccess<hl.UI16>;
+				default:
+					throw "Unsupported array type. Sorry";
+			}
 		case TArray(at):
 			switch(at) {
-				case TChar: macro : hl.NativeArray<Int>;
+				case TChar: macro : hl.NativeArray<hl.UI8>;
 				case TInt: macro : hl.NativeArray<Int>;
-				case TFloat: macro : hl.NativeArray<Single>;
+				case TFloat:  macro : hl.NativeArray<Single>;
 				case TDouble: macro : hl.NativeArray<Float>;
 				case TBool: macro : hl.NativeArray<Bool>;
+				case TShort:  macro : hl.NativeArray<hl.UI16>;
 				default:
 					throw "Unsupported array type. Sorry";
 			}
@@ -337,7 +349,7 @@ class Module {
 						name : "get_" + f.name,
 						meta : [makeNative(iname+"_get_" + f.name)],
 						kind : FFun({
-							ret : tt,
+							ret : makeType(t, true),
 							expr : macro return ${defVal(t)},
 							args : [],
 						}),

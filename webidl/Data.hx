@@ -50,6 +50,7 @@ enum Type {
 	TEnum(name : String );
 	TCustom( id : String );
 	TArray( t : Type );
+	TPointer( t : Type );
 	TInt64;
 	TVector( t : Type, dim: Int);
 }

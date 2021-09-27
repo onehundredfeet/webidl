@@ -11,6 +11,7 @@ private enum Token {
 	TBrClose;
 	TBkOpen;
 	TBkClose;
+	TAsterisk;
 	TSemicolon;
 	TComma;
 	TOp(op:String);
@@ -240,7 +241,7 @@ class Parser {
 			case "float": TFloat;
 			case "double": TDouble;
 			case "long", "int": TInt; // long ensures 32 bits
-			case "short": TShort;
+			case "short", "uint16": TShort;
 			case "int64": TInt64;
 			case "boolean", "bool": TBool;
 			case "any": TAny;
@@ -260,10 +261,11 @@ class Parser {
 			default: 
 				TCustom(id);
 		};
-
 		if (maybe(TBkOpen)) {
 			ensure(TBkClose);
 			t = TArray(t);
+		} else if (maybe(TAsterisk)) {
+			t = TPointer(t);
 		}
 		return t;
 	}
@@ -338,6 +340,7 @@ class Parser {
 			case TId(id): id;
 			case TPOpen: "(";
 			case TPClose: ")";
+			case TAsterisk: "*";
 			case TBkOpen: "[";
 			case TBkClose: "]";
 			case TBrOpen: "{";
@@ -501,6 +504,8 @@ class Parser {
 						this.char = char;
 						return TDot;
 				}*/
+				case 0x2A: 
+					return TAsterisk;
 				case 123:
 					return TBrOpen;
 				case 125:

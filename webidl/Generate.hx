@@ -460,12 +460,13 @@ private:
 				case TChar: "unsigned char";
 				case TFloat: "float";
 				case TDouble: "double";
-				case TShort: "short";
+				case TShort: "unsigned short";
 				case TInt64: "int64_t";
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(t): "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TArray(t):  "varray*"; //makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TPointer(t): "vbyte *";
 				case TBool: "bool";
 				case TEnum(_): "int";
 				case THString: "vstring *";
@@ -502,7 +503,7 @@ private:
 				case TInt: "_I32";
 				case TEnum(_): "_I32";
 				case TVoid: "_VOID";
-				case TAny, TVoidPtr: "_BYTES";
+				case TPointer(_),TAny, TVoidPtr: "_BYTES";
 				case TArray(t): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
@@ -761,6 +762,8 @@ private:
 												switch (a.t.t) {
 													case TArray(t):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
+													case TPointer(t):
+														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
 														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray"){
@@ -867,6 +870,19 @@ private:
 									case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
 									default:false;
 								}
+
+								var at : Type = null;
+								var isArray = switch(t.t) {
+									case TArray(aat): at = aat; true;
+									default:false;
+								}
+
+								var pt : Type = null;
+								var isPointer = switch(t.t) {
+									case TPointer(ppt): pt = ppt; true;
+									default: false;
+								}
+
 								var isRef = tname != null;
 								var enumName = getEnumName(t.t);
 								var isConst = t.attr.indexOf(AConst) >= 0;
@@ -902,8 +918,13 @@ private:
 								} 
 								else if (isRef)
 									add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
-								else
+								else if (isPointer) {
+									add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
+								} else if (isArray) {
+									add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]); // This is wrong, needs to copy');
+								} else {
 									add('\treturn _unref(_this)->${internalName};');
+								}
 								add('}');
 
 								if (isVector) {
@@ -926,11 +947,18 @@ private:
 									add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');						
 //									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');									
 								}
+								else if (isArray) {
+									add('// Dirrect pointer assignment - likely brittle, needs to have a copy option');
+									add('\t_unref(_this)->${internalName} = hl_aptr((value), ${makeTypeDecl({t : at, attr: []})});');
+								}
+								else if (isPointer) {
+									add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');
+								}
 								 else if (setter != null) 
 									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 								else if (enumName != null)
 									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
-								else
+								else 
 									add('\t_unref(_this)->${internalName} = ${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 								add('\treturn value;');
 								add('}');
