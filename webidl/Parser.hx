@@ -11,6 +11,7 @@ private enum Token {
 	TBrClose;
 	TBkOpen;
 	TBkClose;
+	TAsterisk;
 	TSemicolon;
 	TComma;
 	TOp(op:String);
@@ -27,12 +28,15 @@ class Parser {
 	var tokens:Array<Token>;
 	var pos = 0;
 	var fileName:String;
+	var typeDefs:Map<String,String>;
 
 	public function new() {
 		var opChars = "+*/-=!><&|^%~";
 		var identChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
 		idents = new Array();
 		ops = new Array();
+		typeDefs = new Map<String,String>();
+
 		for (i in 0...identChars.length)
 			idents[identChars.charCodeAt(i)] = true;
 		for (i in 0...opChars.length)
@@ -93,6 +97,23 @@ class Parser {
 					}
 				ensure(TSemicolon);
 				return {pos: makePos(pmin), kind: DEnum(name, attr, values)};
+			case TId("typedef"):
+				var name = ident();
+				var typeStr = "";
+				var first = true;
+				while (!maybe(TSemicolon)) {
+					if (!first) typeStr = typeStr + " ";
+					first = false;
+					var tk = token();
+					switch(tk) {
+						case TId(id):
+							typeStr = typeStr + id;
+						default:
+							throw ("Unknown type " + tk);
+					}
+				}
+				typeDefs[name] = typeStr;
+				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;
@@ -200,15 +221,27 @@ class Parser {
 		return attrs;
 	}
 
-	function type():Type {
-		var id = ident();
+	function type(attrs : Array<Attrib> = null):Type {
+		// Type defs
+		var original_id = ident();
+		var id = original_id;
+		var remapped = false;
+		while (typeDefs.exists(id)) {
+			id = typeDefs[id];
+			remapped = true;
+		}
+		if (remapped && attrs != null) {
+			attrs.push(ARemap(original_id, id));
+		}
+
+		
 		var t = switch (id) {
 			case "void": TVoid;
 			case "char": TChar;
 			case "float": TFloat;
 			case "double": TDouble;
 			case "long", "int": TInt; // long ensures 32 bits
-			case "short": TShort;
+			case "short", "uint16": TShort;
 			case "int64": TInt64;
 			case "uint": TUInt;
 			case "boolean", "bool": TBool;
@@ -217,12 +250,28 @@ class Parser {
 			case "bytes": TBytes;
 			case "String": THString;
 			case "string": THString;
+			case "float2": TVector(TFloat, 2);
+			case "float3": TVector(TFloat, 3);
+			case "float4": TVector(TFloat, 4);
+			case "int2": TVector(TInt, 2);
+			case "int3": TVector(TInt, 3);
+			case "int4": TVector(TInt, 4);
+			case "double2": TVector(TInt, 2);
+			case "double3": TVector(TDouble, 3);
+			case "double4": TVector(TDouble, 4);
 			default: 
 				TCustom(id);
 		};
 		if (maybe(TBkOpen)) {
-			ensure(TBkClose);
-			t = TArray(t);
+			if (maybe(TBkClose)) {
+				t = TArray(t, null);
+			} else {
+				var size = ident();
+				ensure(TBkClose);
+				t = TArray(t, size);
+			}
+		} else if (maybe(TAsterisk)) {
+			t = TPointer(t);
 		}
 		return t;
 	}
@@ -236,7 +285,7 @@ class Parser {
 		var pmin = this.pos;
 
 		if (maybe(TId("attribute"))) {
-			var t = type();
+			var t = type(attr);
 			var name = ident();
 			ensure(TSemicolon);
 			return {name: name, kind: FAttribute({t: t, attr: attr}), pos: makePos(pmin)};
@@ -297,6 +346,7 @@ class Parser {
 			case TId(id): id;
 			case TPOpen: "(";
 			case TPClose: ")";
+			case TAsterisk: "*";
 			case TBkOpen: "[";
 			case TBkClose: "]";
 			case TBrOpen: "{";
@@ -460,6 +510,8 @@ class Parser {
 						this.char = char;
 						return TDot;
 				}*/
+				case 0x2A: 
+					return TAsterisk;
 				case 123:
 					return TBrOpen;
 				case 125:

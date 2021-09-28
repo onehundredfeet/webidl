@@ -39,6 +39,33 @@ class Module {
 		return types;
 	}
 
+	function makeVectorType( t : TypeAttr, vt : Type, vdim : Int, isReturn:Bool ): ComplexType {
+		return switch(vt) {
+			case TFloat: 
+				switch(vdim) {
+					case 2: macro : Vec2;
+					case 3: macro : Vec3;
+					case 4: macro : Vec4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+			case TInt:   
+				switch(vdim) {
+					case 2: macro : Int2;
+					case 3: macro : Int3;
+					case 4: macro : Int4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+			case TDouble:
+				switch(vdim) {
+					case 2: macro : Float2;
+					case 3: macro : Float3;
+					case 4: macro : Float4;
+					default: throw "Unsupported vector dimension" + vdim;
+				}
+	
+			default: throw "Unsupported vector type " + vt;
+		};
+	}
 	function makeType( t : TypeAttr,isReturn:Bool ) : ComplexType {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
@@ -53,13 +80,26 @@ class Module {
 		case TAny: macro : webidl.Types.Any;
 		case TEnum(_): macro : Int;
 		case TBytes: macro : hl.Bytes;
-		case TArray(at):
+		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
+		case TPointer(pt):
+			switch(pt) {
+				case TChar: macro : hl.BytesAccess<hl.UI8>;
+				case TInt: macro :  hl.BytesAccess<Int>;
+				case TFloat:  macro : hl.BytesAccess<Single>;
+				case TDouble: macro :  hl.BytesAccess<Float>;
+				case TBool: macro : hl.BytesAccess<Bool>;
+				case TShort:  macro : hl.BytesAccess<hl.UI16>;
+				default:
+					throw "Unsupported array type. Sorry";
+			}
+		case TArray(at, _):
 			switch(at) {
-				case TChar: macro : hl.NativeArray<Int>;
+				case TChar: macro : hl.NativeArray<hl.UI8>;
 				case TInt: macro : hl.NativeArray<Int>;
-				case TFloat: macro : hl.NativeArray<Single>;
+				case TFloat:  macro : hl.NativeArray<Single>;
 				case TDouble: macro : hl.NativeArray<Float>;
 				case TBool: macro : hl.NativeArray<Bool>;
+				case TShort:  macro : hl.NativeArray<hl.UI16>;
 				default:
 					throw "Unsupported array type. Sorry";
 			}
@@ -309,7 +349,7 @@ class Module {
 						name : "get_" + f.name,
 						meta : [makeNative(iname+"_get_" + f.name)],
 						kind : FFun({
-							ret : tt,
+							ret : makeType(t, true),
 							expr : macro return ${defVal(t)},
 							args : [],
 						}),
@@ -324,6 +364,30 @@ class Module {
 							args : [{ name : "_v", type : tt }],
 						}),
 					});
+					
+					var vt : Type = null;
+					var vta : TypeAttr = null;
+					var vdim = 0;
+
+					var isVector = switch(t.t) {
+						case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
+						default:false;
+					}
+
+					if (isVector) {
+						dfields.push({
+							pos : p,
+							name : "set" + f.name + vdim,
+							meta : [makeNative(iname+"_set" + f.name + vdim)],
+							access : [APublic, AInline],
+							kind : FFun({
+								ret : macro : Void,
+								expr : macro return,
+								args :[for (c in 0...vdim) { name : "_v" + c, type : makeType(vta, false) } ],
+						}),
+					});
+					}
+
 				case DConst(name, type, value):
 					dfields.push({
 						pos : p,
@@ -454,6 +518,7 @@ class Module {
 			
 			typeNames[name] = enumT;
 			types.push(enumT);
+		case DTypeDef(name, attrs, type):
 
 		}
 	}
