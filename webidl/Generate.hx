@@ -310,6 +310,7 @@ private:
 				case TDouble: "double";
 				case TShort: "short";
 				case TInt64: "int64_t";
+				case TUInt: "unsigned int";
 				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
@@ -340,6 +341,7 @@ private:
 				case TDouble: "_F64";
 				case TShort: "_I16";
 				case TInt64: "_I64";
+				case TUInt: "_I32";
 				case TInt: "_I32";
 				case TEnum(_): "_I32";
 				case TVoid: "_VOID";
@@ -362,6 +364,7 @@ private:
 				case TShort: "ui16";
 				case TInt64: "i64";
 				case TInt: "i";
+				case TUInt: "i";
 				case TBool: "b";
 				default: throw "assert";
 			}
