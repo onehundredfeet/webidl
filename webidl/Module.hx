@@ -70,7 +70,7 @@ class Module {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
-		case TInt: (t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
+		case TInt, TUInt: (t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
 		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? macro : Single : macro : Float;
@@ -84,7 +84,7 @@ class Module {
 		case TPointer(pt):
 			switch(pt) {
 				case TChar: macro : hl.BytesAccess<hl.UI8>;
-				case TInt: macro :  hl.BytesAccess<Int>;
+				case TInt, TUInt: macro :  hl.BytesAccess<Int>;
 				case TFloat:  macro : hl.BytesAccess<Single>;
 				case TDouble: macro :  hl.BytesAccess<Float>;
 				case TBool: macro : hl.BytesAccess<Bool>;
@@ -118,7 +118,7 @@ class Module {
 	function defVal( t : TypeAttr ) : Expr {
 		return switch( t.t ) {
 		case TVoid: throw "assert";
-		case TInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
+		case TInt, TUInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
 		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
 		case TBool: { expr : EConst(CIdent("false")), pos : p };
 		case TCustom(id):

@@ -39,6 +39,7 @@ enum Type {
 	TVoid;
 	TChar;
 	TInt;
+	TUInt; // 32 bits unsigned int
 	TShort;
 	TFloat;
 	TDouble;
