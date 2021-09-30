@@ -374,7 +374,7 @@ class Module {
 						default:false;
 					}
 
-					if (isVector) {
+					if (isVector && false) {
 						dfields.push({
 							pos : p,
 							name : "set" + f.name + vdim,
