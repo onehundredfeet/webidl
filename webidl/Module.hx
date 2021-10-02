@@ -171,7 +171,9 @@ class Module {
 		if( !hl ) access.push(AInline);
 		if( pub ) access.push(APublic);
 		if( isConstr ) access.push(AStatic);
-		if (ret.attr.contains(AStatic)) access.push(AStatic);
+		if (ret.attr.contains(AStatic)) {
+			access.push(AStatic);
+		}
 
 		var x =
 		 {
@@ -423,8 +425,9 @@ class Module {
 								case FFun(df):
 									var call = opts.nativeLib + "._eb_" + switch( m.params[1].expr ) { case EConst(CString(name)): name; default: throw "!"; };
 									var args : Array<Expr> = [for( a in df.args ) { expr : EConst(CIdent(a.name)), pos : p }];
-									if( f.access.indexOf(AStatic) < 0 )
+									if( f.access.contains(AStatic) ) {
 										args.unshift(macro this);
+									}
 									df.expr = macro return untyped $i{call}($a{args});
 								default: throw "assert";
 								}
@@ -514,7 +517,6 @@ class Module {
 				kind : TDAbstract(macro : Int),
 				fields : cfields,
 			};
-//			trace("Enum Name" + name + " | " + makeName(name));
 			
 			typeNames[name] = enumT;
 			types.push(enumT);

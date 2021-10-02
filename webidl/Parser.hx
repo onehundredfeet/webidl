@@ -140,9 +140,13 @@ class Parser {
 			var attr = switch (ident()) {
 				case "Value": AValue;
 				case "Ref": ARef;
+				case "Deref":ADeref;
 				case "Const": AConst;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
+				case "ReadOnly": AReadOnly;
+				case "CStruct": ACStruct;
+				case "Indexed": AIndexed;
 				case "Out": AOut;
 				case "HString" : AHString;
 				case "Synthetic": ASynthetic;

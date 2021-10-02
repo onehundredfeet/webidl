@@ -60,9 +60,13 @@ enum Attrib {
 	// fields
 	AValue;
 	ARef;
+	ADeref;
 	ACast( type : String );
 	AConst;
 	AHString;
+	ACStruct;
+	AReadOnly;
+	AIndexed;
 	AOut;
 	AOperator( op : String );
 	// interfaces
