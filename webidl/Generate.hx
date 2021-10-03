@@ -656,13 +656,10 @@ private:
 													for (attr in a.t.attr) {
 														switch (attr) {
 															case ARef:
-																output.add("&"); // Reference  with &
-															/*
 																switch (a.t.t) {
-																	case TChar, TInt, TShort, TFloat, TDouble,
-																		TBool: output.add("&"); // Reference primitive types with &
+																	case TChar, TInt, TShort, TFloat, TDouble,TBool: output.add("&"); // Reference primitive types with &
 																	default: output.add(""); // Do nothung for custom types
-															}*/
+																}
 															default:
 														}
 													}
