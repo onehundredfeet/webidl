@@ -209,6 +209,22 @@ class Module {
 		return makeNativeFieldRaw(iname, f.name, makePosition(f.pos), args, ret, pub);
 	}
 
+	function filterArgs( args : Array<FArg>) {
+		var b : Array<FArg> = [];
+
+		for(a in args) {
+			var skip = false;
+			for (at in a.t.attr) {
+				switch(at) {
+					case AVirtual: skip = true;
+					default:
+				}
+			}
+			if (!skip) 
+				b.push(a);
+		}
+		return b;
+	}
 	function buildDecl( d : Definition ) {
 		var p = makePosition(d.pos);
 		switch( d.kind ) {
@@ -225,7 +241,7 @@ class Module {
 					if( f.name == name )
 						switch( f.kind ) {
 						case FMethod(args, ret):
-							fl.push({args:args, ret:ret,pos:f.pos});
+							fl.push({args:filterArgs(args), ret:ret,pos:f.pos});
 						default:
 						}
 				return fl;

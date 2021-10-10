@@ -22,6 +22,7 @@ class Generate {
 
 // Need to link in helpers
 HL_API hl_type hltx_ui16;
+HL_API hl_type hltx_ui8;
 
 #define _IDL _BYTES
 #define _OPT(t) vdynamic *
@@ -150,7 +151,23 @@ inline static varray* _idc_alloc_array(float *src, int count) {
 	}
 	return a;
 }
+inline static varray* _idc_alloc_array(unsigned char *src, int count) {
+	if (src == nullptr) return nullptr;
 
+	varray *a = NULL;
+	float *p;
+	a = hl_alloc_array(&hltx_ui8, count);
+	p = hl_aptr(a, float);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+}
+
+inline static varray* _idc_alloc_array( char *src, int count) {
+	return _idc_alloc_array((unsigned char *)src, count);
+}
 
 inline static varray* _idc_alloc_array(int *src, int count) {
 	if (src == nullptr) return nullptr;
@@ -500,6 +517,7 @@ private:
 			}
 		}
 
+		
 		function makeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case TChar: "unsigned char";
@@ -538,6 +556,12 @@ private:
 			return t.attr.contains(AOut) ? x + "*" : x;
 		}
 
+		function makeElementType(t:webidl.Data.TypeAttr) {
+			return switch (t.t) {
+				case TPointer(at), TArray(at, _): makeType( { t: at, attr: t.attr });
+					default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+			}
+		}
 		function defType(t:TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case TChar: "_I8";
@@ -598,6 +622,15 @@ private:
 
 						switch (f.kind) {
 							case FMethod(margs, ret):
+								function findArg( name : String ) {
+									for(a in margs) {
+										if (a.name == name) {
+											return a;
+										}
+									}
+									return null;
+								}
+
 								var isConstr = f.name == name;
 								var args = (isConstr || ret.attr.indexOf(AStatic) >= 0) ? margs : [
 									{
@@ -610,9 +643,13 @@ private:
 								var returnField:String = null;
 								var returnType:TypeAttr;
 								var ignore:Array<String> = [];
+								var argCount =  ret.attr.contains(AStatic) ? 0 : -1;
 
 								for (a in args) {
+									var addToCount = true;
+
 									for (attr in a.t.attr) {
+										
 										switch (attr) {
 											case AReturn:
 												returnField = a.name;
@@ -620,24 +657,54 @@ private:
 												ignore.push(a.name);
 											case ASubstitute(_):
 												ignore.push(a.name);
+											case AVirtual:addToCount = false;
 											default:
 										}
+									}
+									if (addToCount) {
+										argCount++;
 									}
 								}
 
 								var tret = isConstr ? {t: TCustom(name), attr: []} : ret;
 								var isIndexed = tret.attr.contains(AIndexed);
+								var isReturnArray = false;
+								var rapIdx : String = null;
+								var ralIdx : String  = null;
+								var rapArg : FArg = null;
+								var ralArg : FArg = null;
+								
+
+								for(ta in tret.attr) {
+									switch(ta) {
+										case AReturnArray(pIdx, lengthIdx):
+											rapIdx = pIdx;
+											ralIdx = lengthIdx;
+											isReturnArray = true;
+											rapArg = findArg(rapIdx);
+											ralArg = findArg(ralIdx);
+										default:
+									}
+								}
 
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
-								var argsSuffix = (ret.attr.indexOf(AStatic) >= 0) ? args.length : args.length - 1;
-								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argsSuffix);
+								
+								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argCount);
 
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
 								output.add('HL_PRIM ${makeTypeDecl(returnField == null ? tret : returnType, true)} HL_NAME($funName)(');
 								var first = true;
 
 								for (a in args) {
-									if (!ignore.contains(a.name)) {
+									var skipa = ignore.contains(a.name);
+
+									for (attr in a.t.attr) {
+										switch(attr) {
+											case AVirtual: skipa = true;
+											default:
+										}
+									}
+									if (!skipa) {
 										if (first)
 											first = false
 										else
@@ -670,12 +737,25 @@ private:
 								}
 								add(') {');
 
+
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
 									// preamble
-									var preamble = returnField != null;
+									var preamble = returnField != null || isReturnArray;
 
 									if (returnField != null) {
-										output.add(makeType(returnType) + " __tmpret;");
+										output.add(makeType(returnType) + " __tmpret;\n");
+									} else if (isReturnArray) {
+										switch(tret.t) {
+											case TVoidPtr:
+												output.add(makeElementType(rapArg.t) + " *__tmparray = nullptr;\n");
+												output.add("\t" + "int __tmpLength = -1;\n");
+												output.add("\t" + makeType(tret) + " __tmpret;\n");
+											case TPointer(at), TArray(at, _):
+												output.add(makeType({t: at, attr : []}) + " *__tmparray = nullptr;\n");
+												output.add("\t" + "int __tmpLength = -1;\n");
+												output.add("\t" + makeType(tret) + " __tmpret;\n");
+											default:throw "Needs to be array";
+										}
 									}
 
 									for (a in margs) {
@@ -691,6 +771,7 @@ private:
 									}
 									var retCast = "";
 									var getter = "";
+									
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -699,6 +780,7 @@ private:
 												retCast = "(" + t + ")";
 											case AGet(g):
 												getter = g;
+			
 											default:
 										}
 									}
@@ -789,6 +871,9 @@ private:
 											output.add(", ");
 
 										var argGetter = null;
+										var isVirtual = false;
+										
+
 										for (attr in a.t.attr) {
 											switch (attr) {
 												case ACast(type):
@@ -801,6 +886,10 @@ private:
 													argGetter = expr;
 												case ADeref:
 													argGetter = "*";
+												case AAddressOf:	
+													argGetter = "&";
+												case AVirtual:
+													isVirtual = true;
 												case ARef:
 													switch(a.t.t){
 														case TChar, TInt, TShort, TFloat, TDouble,TBool: output.add(""); // Reference primitive types don't need any symbol
@@ -816,7 +905,10 @@ private:
 										if (argGetter != null) {
 											output.add(argGetter + " (");
 										}
-										if (a.name == returnField) {
+										if (isReturnArray && isVirtual && a.name == rapIdx) {
+											output.add('&__tmparray');
+										}
+										else if (a.name == returnField) {
 											output.add('&__tmpret');
 										} else {
 											var e = getEnumName(a.t.t);
@@ -827,7 +919,8 @@ private:
 													case TArray(t, sizefield):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
 													case TPointer(t):
-														output.add('(${makeTypeDecl({t: t, attr : a.t.attr})} *)${a.name}');
+														//(${makeTypeDecl({t: t, attr : a.t.attr})} *)
+														output.add('${a.name}');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
 														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
@@ -888,7 +981,16 @@ private:
 										}
 
 										if (tret.t != TVoid)
-											if (returnField != null) {
+											if (isReturnArray) {
+												if (tret.t.match(TPointer(_)) || tret.t.match(TVoidPtr)) {
+													add('\t__tmpret = __tmparray;');
+												} else if (tret.t.match(TArray(_,_))) {
+													add('\t__tmpret = _idc_alloc_array(__tmparray, __tmpLength);');
+												} else {
+													throw "Unsupported array type";
+												}
+											}
+											if (returnField != null || isReturnArray) {
 												add("\treturn __tmpret;");
 											} else {
 												add("\treturn ___retvalue;");
@@ -919,9 +1021,18 @@ private:
 								add('}');
 								output.add('DEFINE_PRIM(${defType(tret, true)}, $funName,');
 								for (a in args) {
-									if (!ignore.contains(a.name)) {
-										output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
+									var dskip = ignore.contains(a.name);
+									for( attr in a.t.attr) {
+										switch(attr) {
+											case AVirtual:
+												dskip = true;
+											default:
+										}
 									}
+									if (dskip)
+										continue;
+
+									output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
 								}
 								add(');');
 								add('');

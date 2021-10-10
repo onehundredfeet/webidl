@@ -144,6 +144,7 @@ class Parser {
 				case "Const": AConst;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
+				case "Virtual": AVirtual;
 				case "ReadOnly": AReadOnly;
 				case "CStruct": ACStruct;
 				case "Indexed": AIndexed;
@@ -194,6 +195,22 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
+				case "ReturnArray":
+					ensure(TOp("="));
+					ensure(TPOpen);
+					var pIdx = switch (token()) {
+						case TId(s):s;
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					};
+					ensure(TComma);
+					var lIdx = switch (token()) {
+						case TId(s):s;
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					};
+					ensure(TPClose);
+					AReturnArray(pIdx, lIdx);
 				case "JSImplementation":
 					ensure(TOp("="));
 					AJSImplementation(switch (token()) {
@@ -241,7 +258,7 @@ class Parser {
 		
 		var t = switch (id) {
 			case "void": TVoid;
-			case "char": TChar;
+			case "byte", "uchar", "char": TChar;
 			case "float": TFloat;
 			case "double": TDouble;
 			case "long", "int": TInt; // long ensures 32 bits
@@ -250,7 +267,7 @@ class Parser {
 			case "uint": TUInt;
 			case "boolean", "bool": TBool;
 			case "any": TAny;
-			case "VoidPtr": TVoidPtr;
+			case "VoidPointer", "VoidPtr": TVoidPtr;
 			case "bytes": TBytes;
 			case "String": THString;
 			case "string": THString;

@@ -60,6 +60,7 @@ enum Attrib {
 	// fields
 	AValue;
 	ARef;
+	AAddressOf;
 	ADeref;
 	ACast( type : String );
 	AConst;
@@ -72,6 +73,7 @@ enum Attrib {
 	// interfaces
 	ANoDelete;
 	AStatic;
+	AVirtual;
 	ASynthetic;
 	AReturn;
 	ASubstitute(expression : String);
@@ -84,4 +86,5 @@ enum Attrib {
 	APrefix( prefix : String );
 	AJSImplementation( name : String );	
 	ARemap(original:String, remapped: String);
+	AReturnArray(pointerArg : String, lengthArg : String);
 }
