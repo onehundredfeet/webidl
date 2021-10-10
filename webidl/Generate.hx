@@ -980,7 +980,7 @@ private:
 											}
 										}
 
-										if (tret.t != TVoid)
+										if (tret.t != TVoid) {
 											if (isReturnArray) {
 												if (tret.t.match(TPointer(_)) || tret.t.match(TVoidPtr)) {
 													add('\t__tmpret = __tmparray;');
@@ -995,6 +995,7 @@ private:
 											} else {
 												add("\treturn ___retvalue;");
 											}
+										}
 									}
 								} // end add call
 

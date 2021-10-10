@@ -579,8 +579,11 @@ class Module {
 		var file = opts.idlFile;
 		var module = Context.getLocalModule();
 		var types = buildTypes(opts, Context.defined("hl"));
-		if (types == null) return macro : Void;
-
+		
+		if (types == null) {
+			throw "Could not find types for IDL " + opts.idlFile;
+			return macro : Void;
+		}
 		
 		// Add an init function for initializing the JS module
 		if (Context.defined("js")) {
