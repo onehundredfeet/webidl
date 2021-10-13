@@ -142,6 +142,7 @@ class Parser {
 				case "Ref": ARef;
 				case "Deref":ADeref;
 				case "Const": AConst;
+				case "AddressOf": AAddressOf;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
 				case "Virtual": AVirtual;

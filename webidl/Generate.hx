@@ -772,7 +772,7 @@ private:
 									var retCast = "";
 									var getter = "";
 									var derefReturn = false;
-
+									var addressOfReturn = false;
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -783,6 +783,8 @@ private:
 												getter = g;
 											case ADeref:
 												derefReturn = true;
+											case AAddressOf:
+												addressOfReturn = true;
 											default:
 										}
 									}
@@ -827,7 +829,8 @@ private:
 												output.add('alloc_ref_const(${retCast}${getter}(');
 											} else {
 												output.add('alloc_ref(');
-												if (derefReturn) output.add('&');
+												if (derefReturn) output.add('*');
+												if (addressOfReturn) output.add('&');
 												output.add('${retCast}${getter}(');
 											}
 										} else {
