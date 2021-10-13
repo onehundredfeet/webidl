@@ -771,7 +771,8 @@ private:
 									}
 									var retCast = "";
 									var getter = "";
-									
+									var derefReturn = false;
+
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -780,7 +781,8 @@ private:
 												retCast = "(" + t + ")";
 											case AGet(g):
 												getter = g;
-			
+											case ADeref:
+												derefReturn = true;
 											default:
 										}
 									}
@@ -824,7 +826,9 @@ private:
 											} else if (isConst) {
 												output.add('alloc_ref_const(${retCast}${getter}(');
 											} else {
-												output.add('alloc_ref(${retCast}${getter}(');
+												output.add('alloc_ref(');
+												if (derefReturn) output.add('&');
+												output.add('${retCast}${getter}(');
 											}
 										} else {
 											output.add('${retCast}${getter}(');
