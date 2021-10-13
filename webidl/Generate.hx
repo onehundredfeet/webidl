@@ -830,7 +830,7 @@ private:
 											} else {
 												output.add('alloc_ref(');
 												if (derefReturn) output.add('*');
-												if (addressOfReturn) output.add('&');
+												if (addressOfReturn) output.add('new $refRet(');
 												output.add('${retCast}${getter}(');
 											}
 										} else {
@@ -963,7 +963,7 @@ private:
 									if (enumName != null)
 										output.add(')');
 									else if (refRet != null)
-										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + '),$refRet');
+										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + ')' + (addressOfReturn ? ')' : '') + ',$refRet');
 									else
 										output.add(')');
 									add(");");
