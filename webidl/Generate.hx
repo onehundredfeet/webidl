@@ -874,10 +874,14 @@ private:
 										var isVirtual = false;
 										
 
+										var argCast = "";
+										var argDeref = "";
+										var argAddressOf = "";
+										
 										for (attr in a.t.attr) {
 											switch (attr) {
 												case ACast(type):
-													output.add("(" + type + ")"); // unref
+													argCast = "(" + type + ")"; // unref
 												case ASubstitute(expression):
 													output.add(expression);
 													skip = true;
@@ -885,9 +889,9 @@ private:
 												case AGet(expr):
 													argGetter = expr;
 												case ADeref:
-													argGetter = "*";
+													argDeref = "*";
 												case AAddressOf:	
-													argGetter = "&";
+													argAddressOf = "&";
 												case AVirtual:
 													isVirtual = true;
 												case ARef:
@@ -901,6 +905,8 @@ private:
 										}
 
 										if (skip) continue;
+
+										output.add(argDeref +argCast + argAddressOf);
 
 										if (argGetter != null) {
 											output.add(argGetter + " (");
