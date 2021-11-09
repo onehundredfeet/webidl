@@ -54,6 +54,8 @@ enum Type {
 	TPointer( t : Type );
 	TInt64;
 	TVector( t : Type, dim: Int);
+	TDynamic;
+	TStruct;
 }
 
 enum Attrib {
@@ -61,6 +63,7 @@ enum Attrib {
 	AValue;
 	ARef;
 	AAddressOf;
+	AClone;
 	ADeref;
 	ACast( type : String );
 	AConst;

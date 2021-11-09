@@ -143,6 +143,7 @@ class Parser {
 				case "Deref":ADeref;
 				case "Const": AConst;
 				case "AddressOf": AAddressOf;
+				case "Clone" : AClone;
 				case "NoDelete": ANoDelete;
 				case "Static": AStatic;
 				case "Virtual": AVirtual;
@@ -270,8 +271,8 @@ class Parser {
 			case "any": TAny;
 			case "VoidPointer", "VoidPtr": TVoidPtr;
 			case "bytes": TBytes;
-			case "String": THString;
-			case "string": THString;
+			case "string", "String": THString;
+			case "struct": TStruct;  // Doesn't work yet
 			case "float2": TVector(TFloat, 2);
 			case "float3": TVector(TFloat, 3);
 			case "float4": TVector(TFloat, 4);
@@ -281,6 +282,7 @@ class Parser {
 			case "double2": TVector(TDouble, 2);
 			case "double3": TVector(TDouble, 3);
 			case "double4": TVector(TDouble, 4);
+			case "dynamic": TDynamic;
 			default: 
 				TCustom(id);
 		};

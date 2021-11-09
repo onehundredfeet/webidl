@@ -530,6 +530,7 @@ private:
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TDynamic:"vdynamic*";
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
@@ -578,8 +579,11 @@ private:
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
 				case TVector(t, dim): "_STRUCT";
+				case TStruct: "_STRUCT";
 				case THString: "_STRING";
-				case TCustom(name): enumNames.exists(name) ? "_I32" : "_IDL";
+				case TCustom(name): enumNames.exists(name) ? "_I32" : 
+					t.attr.contains(ACStruct) ? "_STRUCT" :	"_IDL";
+				case TDynamic: "_DYN";
 			}
 
 			return t.attr.contains(AOut) ? "_REF(" + x + ")" : x;
@@ -773,6 +777,8 @@ private:
 									var getter = "";
 									var derefReturn = false;
 									var addressOfReturn = false;
+									var cloneReturn = false;
+
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -785,6 +791,8 @@ private:
 												derefReturn = true;
 											case AAddressOf:
 												addressOfReturn = true;
+											case AClone:
+												cloneReturn = true;
 											default:
 										}
 									}
@@ -884,7 +892,7 @@ private:
 										var argCast = "";
 										var argDeref = "";
 										var argAddressOf = "";
-										
+
 										for (attr in a.t.attr) {
 											switch (attr) {
 												case ACast(type):

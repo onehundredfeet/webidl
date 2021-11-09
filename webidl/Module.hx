@@ -43,23 +43,23 @@ class Module {
 		return switch(vt) {
 			case TFloat: 
 				switch(vdim) {
-					case 2: macro : Vec2;
-					case 3: macro : Vec3;
-					case 4: macro : Vec4;
+					case 2: macro : hvector.Vec2;
+					case 3: macro : hvector.Vec3;
+					case 4: macro : hvector.Vec4;
 					default: throw "Unsupported vector dimension" + vdim;
 				}
 			case TInt:   
 				switch(vdim) {
-					case 2: macro : Int2;
-					case 3: macro : Int3;
-					case 4: macro : Int4;
+					case 2: macro : hvector.Int2;
+					case 3: macro : hvector.Int3;
+					case 4: macro : hvector.Int4;
 					default: throw "Unsupported vector dimension" + vdim;
 				}
 			case TDouble:
 				switch(vdim) {
-					case 2: macro : Float2;
-					case 3: macro : Float3;
-					case 4: macro : Float4;
+					case 2: macro : hvector.Float2;
+					case 3: macro : hvector.Float3;
+					case 4: macro : hvector.Float4;
 					default: throw "Unsupported vector dimension" + vdim;
 				}
 	
@@ -76,9 +76,11 @@ class Module {
 		case TFloat: hl ? macro : Single : macro : Float;
 		case TDouble: macro : Float;
 		case TBool: macro : Bool;
+		case TDynamic: macro :Dynamic;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
 		case TEnum(_): macro : Int;
+		case TStruct: macro : hl.Bytes;
 		case TBytes: macro : hl.Bytes;
 		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
 		case TPointer(pt):
