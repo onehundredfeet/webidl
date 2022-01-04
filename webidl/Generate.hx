@@ -62,6 +62,13 @@ template<typename T> void free_ref( pref<T> *r ) {
 	r->finalize = NULL;
 }
 
+template<typename T> void free_ref( pref<T> *r, void (*deleteFunc)(T*) ) {
+	if( !r->finalize ) hl_error(\"delete() is not allowed on const value.\");
+	deleteFunc( r->value );
+	r->value = NULL;
+	r->finalize = NULL;
+}
+
 // Float vector
 struct _hl_float2 {
 	float x;
@@ -473,10 +480,14 @@ private:
 				case DInterface(name, attrs, _):
 					var prefix = "";
 					var intName = name;
+					var newName = null;
+					var deleteName = null;
 					for (a in attrs)
 						switch (a) {
 							case APrefix(name): prefix = name;
 							case AInternal(iname): intName = iname;
+							case ANew(name):newName = name;
+							case ADelete(name):deleteName = name;
 							default:
 						}
 
@@ -484,8 +495,11 @@ private:
 					typeNames.set(name, {full: fullName, constructor: prefix + intName});
 					if (attrs.indexOf(ANoDelete) >= 0)
 						continue;
-					add('static void finalize_$name( $fullName _this ) { free_ref(_this); }');
-					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\tfree_ref(_this);\n}');
+
+					
+					var freeRefText ='free_ref(_this ${deleteName != null ? "," + deleteName: ""})';
+					add('static void finalize_$name( $fullName _this ) { $freeRefText; }');
+					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\t$freeRefText;\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
 				case DEnum(name, attrs, values):
 					enumNames.set(name, true);

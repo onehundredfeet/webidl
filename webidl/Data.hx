@@ -90,4 +90,6 @@ enum Attrib {
 	AJSImplementation( name : String );	
 	ARemap(original:String, remapped: String);
 	AReturnArray(pointerArg : String, lengthArg : String);
+	ADelete( name : String );	
+	ANew( name : String );	
 }

@@ -173,6 +173,18 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
+				case "New":
+					ensure(TOp("="));
+					ANew(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+				case "Delete":
+					ensure(TOp("="));
+					ADelete(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
 				case "Get":
 					ensure(TOp("="));
 					AGet(switch (token()) {
