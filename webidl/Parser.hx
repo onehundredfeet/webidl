@@ -155,6 +155,10 @@ class Parser {
 				case "Synthetic": ASynthetic;
 				case "Return": AReturn;
 				case "CObject": ACObject;
+				case "STL" : ASTL;
+				case "Local": ALocal;
+				case "Ignore": AIgnore;
+
 				case "Throw":
 					ensure(TOp("="));
 					AThrow(switch (token()) {

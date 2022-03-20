@@ -297,117 +297,6 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 ";
 
 	static var HEADER_NATIVE_TYPES = "
-class FloatArray
-{
-public:
-	FloatArray() {}
-
-	FloatArray(int size)
-	{
-		list = new float[size];
-	}
-
-	float Get(int index)
-	{
-		return list[index];
-	}
-
-	void Set(int index, float value)
-	{
-		list[index] = value;
-	}
-
-	float* GetPtr() {
-		return list;
-	}
-
-private:
-	float* list;
-};
-
-class IntArray
-{
-public:
-	IntArray() {}
-
-	IntArray(int size)
-	{
-		list = new int[size];
-	}
-
-	int Get(int index)
-	{
-		return list[index];
-	}
-
-	void Set(int index, int value)
-	{
-		list[index] = value;
-	}
-
-	int* GetPtr() {
-		return list;
-	}
-
-private:
-	int* list;
-};
-
-class CharArray
-{
-public:
-	CharArray() {}
-
-	CharArray(int size)
-	{
-		list = new unsigned char[size];
-	}
-
-	char Get(int index)
-	{
-		return list[index];
-	}
-
-	void Set(int index, unsigned char value)
-	{
-		list[index] = value;
-	}
-
-	unsigned char* GetPtr() {
-		return list;
-	}
-
-private:
-	unsigned char* list;
-};
-
-class ShortArray
-{
-public:
-    ShortArray() {}
-
-    ShortArray(int size)
-	{
-		list = new unsigned short[size];
-	}
-
-	short Get(int index)
-	{
-		return list[index];
-	}
-
-	void Set(int index, unsigned short value)
-	{
-		list[index] = value;
-	}
-
-	unsigned short* GetPtr() {
-		return list;
-	}
-
-private:
-	unsigned short* list;
-};
 	";
 
 	static function initOpts(opts:Options) {
@@ -532,6 +421,46 @@ private:
 		}
 
 		
+		function makeNativeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
+			var x = switch (t.t) {
+				case TChar: "unsigned char";
+				case TFloat: "float";
+				case TDouble: "double";
+				case TShort: "unsigned short";
+				case TInt64: "int64_t";
+				case TUInt: "unsigned int";
+				case TInt: "int";
+				case TVoid: "void";
+				case TAny, TVoidPtr: "void*";
+				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TDynamic:"vdynamic*";
+				case TPointer(t): "vbyte*";
+				case TBool: "bool";
+				case TEnum(_): "int";
+				case THString: t.attr.contains(ASTL) ? "std::string" : "const char*";
+				case TBytes: "unsigned char*";
+				case TCustom(id): {
+						var t = typeNames.get(id);
+						if (t == null) {
+							throw "Unsupported type " + id;
+						} else {
+							typeNames.get(id).full;
+						}
+					}
+				case TVector(vt, vdim):
+					switch (vt) {
+						case TFloat: "_hl_float" + vdim + "*";
+						case TDouble: "_hl_double" + vdim + "*";
+						case TInt: "_hl_int" + vdim + "*";
+						default: throw "Unsupported vector type";
+					}
+				default:
+					throw "Unknown type " + t;
+			}
+			return t.attr.contains(AOut) ? x + "*" : x;
+		}
+
+
 		function makeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case TChar: "unsigned char";
@@ -676,6 +605,8 @@ private:
 											case ASubstitute(_):
 												ignore.push(a.name);
 											case AVirtual:addToCount = false;
+											case AIgnore:ignore.push(a.name);
+											case ALocal:ignore.push(a.name);
 											default:
 										}
 									}
@@ -777,14 +708,24 @@ private:
 									}
 
 									for (a in margs) {
-										switch (a.t.t) {
-											case THString:
-												preamble = true;
-												if (!a.t.attr.contains(AHString)) {
-													output.add("auto " + a.name + "__cstr = (" + a.name + " == nullptr) ? nullptr : hl_to_utf8( " + a.name
-														+ "->bytes ); // Should be garbage collected\n\t");
-												}
-											default:
+										if (a.t.attr.contains(ALocal)) {
+											switch (a.t.t) {
+												case THString:
+													output.add(makeNativeType(a.t) + " " + a.name + "__cstr;\n");
+												default:output.add(makeNativeType(a.t) + " " + a.name + ";\n");
+											}
+
+											
+										} else {
+											switch (a.t.t) {
+												case THString:
+													preamble = true;
+													if (!a.t.attr.contains(AHString)) {
+														output.add(makeNativeType(a.t) + " " + a.name + "__cstr = (" + a.name + " == nullptr) ? \"\" : hl_to_utf8( " + a.name
+															+ "->bytes ); // Should be garbage collected\n\t");
+													}
+												default:
+											}
 										}
 									}
 									var retCast = "";

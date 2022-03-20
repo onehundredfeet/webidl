@@ -83,6 +83,9 @@ enum Attrib {
 	AThrow(msg :String);
 	AValidate(expression : String);
 	ACObject;
+	ASTL;
+	ALocal;
+	AIgnore;
 	AInternal(name:String);
 	AGet(name:String);
 	ASet(name:String);
