@@ -527,7 +527,7 @@ class Module {
 			toInt = makeNativeFieldRaw( name, "toValue", p, [], ta,true );
 			cfields.push(toInt);
 
-			var enumT = {
+			var enumT :TypeDefinition = {
 				pos : p,
 				pack : pack,
 				name : makeName(name),
@@ -536,7 +536,13 @@ class Module {
 				fields : cfields,
 			};
 			
-			typeNames[name] = enumT;
+
+			var enumTP : TypePath = {
+				pack : pack,
+				name : enumT.name
+			};
+
+			typeNames[name] = enumTP;
 			types.push(enumT);
 		case DTypeDef(name, attrs, type):
 
