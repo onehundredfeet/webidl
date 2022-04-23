@@ -420,9 +420,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 
-		
-		function makeNativeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
-			var x = switch (t.t) {
+		function makeNativeTypeRaw(t:webidl.Data.Type, isReturn:Bool = false) {
+			return switch (t) {
 				case TChar: "unsigned char";
 				case TFloat: "float";
 				case TDouble: "double";
@@ -437,7 +436,6 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
-				case THString: t.attr.contains(ASTL) ? "std::string" : "const char*";
 				case TBytes: "unsigned char*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
@@ -456,6 +454,14 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					}
 				default:
 					throw "Unknown type " + t;
+			}
+		}
+
+		function makeNativeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
+			var x = switch (t.t) {
+				case THString: t.attr.contains(ASTL) ? "std::string" : "const char*";
+				default:makeNativeTypeRaw( t.t );
+					
 			}
 			return t.attr.contains(AOut) ? x + "*" : x;
 		}
@@ -843,10 +849,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										var argGetter = null;
 										var isVirtual = false;
 										
-
 										var argCast = "";
 										var argDeref = "";
 										var argAddressOf = "";
+
 
 										for (attr in a.t.attr) {
 											switch (attr) {
@@ -874,6 +880,16 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											}
 										}
 
+										switch (a.t.t) {
+											case TPointer(t):
+												if (isReturnArray && isVirtual && a.name == rapIdx &&argCast == "" ) {
+													//??
+												}else {
+													argCast = "(" + makeNativeTypeRaw(t) + "*)";
+												}
+											default:
+										}
+
 										if (skip) continue;
 
 										output.add(argDeref +argCast + argAddressOf);
@@ -899,9 +915,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														output.add('${a.name}');
 													case TCustom(st):
 														output.add('_unref(${a.name})');
-														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
-															output.add("->GetPtr()");
-														}		
+//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
+//															output.add("->GetPtr()");
+//														}		
 													case TVector(vt, vdim):
 														output.add('(${makeTypeDecl({t: vt, attr : a.t.attr})}*)${a.name}');
 													case THString:
@@ -1065,12 +1081,14 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 							var internalName = f.name;
 							var getter:String = null;
 							var setter:String = null;
+							var setCast:String= null;
 
 							for (a in t.attr) {
 								switch (a) {
 									case AInternal(name): internalName = name;
 									case AGet(name): getter = name;
 									case ASet(name): setter = name;
+									case ACast(type): setCast = type;
 									default:
 								}
 							}
@@ -1138,7 +1156,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								else if (enumName != null)
 									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
 								else
-									add('\t_unref(_this)->${internalName} = ${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
+									add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 								add('\treturn value;');
 								add('}');
 
