@@ -882,9 +882,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 										switch (a.t.t) {
 											case TPointer(t):
-												if (isReturnArray && isVirtual && a.name == rapIdx &&argCast == "" ) {
+												if (isReturnArray && isVirtual && a.name == rapIdx  ) {
 													//??
-												}else {
+												}else if (argCast == ""){
 													argCast = "(" + makeNativeTypeRaw(t) + "*)";
 												}
 											default:
