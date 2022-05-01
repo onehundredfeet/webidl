@@ -86,7 +86,8 @@ class Module {
 		case TPointer(pt):
 			switch(pt) {
 				case TChar: macro : hl.BytesAccess<hl.UI8>;
-				case TInt, TUInt: macro :  hl.BytesAccess<Int>;
+				case TInt: macro :  hl.BytesAccess<Int>;
+				case TUInt: macro :  hl.BytesAccess<UInt>;
 				case TFloat:  macro : hl.BytesAccess<Single>;
 				case TDouble: macro :  hl.BytesAccess<Float>;
 				case TBool: macro : hl.BytesAccess<Bool>;
@@ -98,6 +99,7 @@ class Module {
 			switch(at) {
 				case TChar: macro : hl.NativeArray<hl.UI8>;
 				case TInt: macro : hl.NativeArray<Int>;
+				case TUInt: macro : hl.NativeArray<UInt>;
 				case TFloat:  macro : hl.NativeArray<Single>;
 				case TDouble: macro : hl.NativeArray<Float>;
 				case TBool: macro : hl.NativeArray<Bool>;
