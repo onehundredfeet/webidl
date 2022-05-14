@@ -312,6 +312,10 @@ class Parser {
 			}
 		} else if (maybe(TAsterisk)) {
 			t = TPointer(t);
+		} else if (maybe(TPOpen)) {
+			trace('t = ${t} attrs = ${attrs}');
+			t = TFunction({t:t, attr: attrs == null ? [] : attrs}, []);
+			ensure(TPClose);
 		}
 		return t;
 	}

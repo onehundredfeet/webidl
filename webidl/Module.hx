@@ -110,6 +110,11 @@ class Module {
 //			var tt = makeType({ t : t, attr : [] });
 //			macro : webidl.Types.NativePtr<$tt>;
 		case TVoidPtr: macro : webidl.Types.VoidPtr;
+		case TFunction(ret, ta): 
+			var retT = makeType(ret, false);
+
+//			macro : GameControllerPtr -> hl.Bytes -> $retT;
+			TFunction( [], retT);
 		case TCustom(id): 
 			if (typeNames.exists(id)) {
 				TPath( typeNames[id]);

@@ -56,6 +56,7 @@ enum Type {
 	TVector( t : Type, dim: Int);
 	TDynamic;
 	TStruct;
+	TFunction(ret : TypeAttr, ta : Array<TypeAttr>);
 }
 
 enum Attrib {

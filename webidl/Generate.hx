@@ -500,6 +500,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						case TInt: "_hl_int" + vdim + "*";
 						default: throw "Unsupported vector type";
 					}
+				case TFunction(ret, ta):"vclosure*";
 				default:
 					throw "Unknown type " + t;
 			}
@@ -530,6 +531,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";
+				case TFunction(ret,ta): "_FUN(" + defType(ret) + ",_NO_ARG)";
 				case TCustom(name): enumNames.exists(name) ? "_I32" : 
 					t.attr.contains(ACStruct) ? "_STRUCT" :	"_IDL";
 				case TDynamic: "_DYN";
@@ -724,6 +726,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											
 										} else {
 											switch (a.t.t) {
+												case TFunction(ret, ta):
+													preamble = true;
+													output.add('\tif (${a.name}->hasValue) hl_error(\"Only static callbacks supported\");\n');
 												case THString:
 													preamble = true;
 													if (!a.t.attr.contains(AHString)) {
@@ -925,6 +930,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 															output.add(a.name + "__cstr");
 														else 
 															output.add(a.name);
+													case TFunction(ret, ta):
+														var fcast ='(${makeTypeDecl(ret)} (*)())';
+
+														output.add(fcast + a.name + "->fun");
 													default:
 														if (isDyn(a)) {
 															output.add("_GET_OPT(" + a.name + "," + dynamicAccess(a.t.t) + ")");
