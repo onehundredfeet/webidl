@@ -70,7 +70,7 @@ class Module {
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
-		case TInt, TUInt: (t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
+		case TInt, TUInt: (t.attr != null && t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
 		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
@@ -113,8 +113,9 @@ class Module {
 		case TFunction(ret, ta): 
 			var retT = makeType(ret, false);
 
+			var args = ta.map( (x) -> makeType(x, false));
 //			macro : GameControllerPtr -> hl.Bytes -> $retT;
-			TFunction( [], retT);
+			TFunction( args, retT);
 		case TCustom(id): 
 			if (typeNames.exists(id)) {
 				TPath( typeNames[id]);

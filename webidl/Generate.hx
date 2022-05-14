@@ -504,7 +504,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				default:
 					throw "Unknown type " + t;
 			}
-			return t.attr.contains(AOut) ? x + "*" : x;
+			return (t.attr != null && t.attr.contains(AOut)) ? x + "*" : x;
 		}
 
 		function makeElementType(t:webidl.Data.TypeAttr) {
@@ -531,13 +531,15 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";
-				case TFunction(ret,ta): "_FUN(" + defType(ret) + ",_NO_ARG)";
+				case TFunction(ret,ta): 
+					var args = (ta == null || ta.length == 0) ? "_NO_ARG" : ta.map((x) -> defType(x)).join(" ");
+					"_FUN(" + defType(ret) + ',${args})';
 				case TCustom(name): enumNames.exists(name) ? "_I32" : 
 					t.attr.contains(ACStruct) ? "_STRUCT" :	"_IDL";
 				case TDynamic: "_DYN";
 			}
 
-			return t.attr.contains(AOut) ? "_REF(" + x + ")" : x;
+			return (t.attr != null && t.attr.contains(AOut)) ? "_REF(" + x + ")" : x;
 		}
 
 		function dynamicAccess(t) {
@@ -556,13 +558,16 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		function makeTypeDecl(td:TypeAttr, isReturn:Bool = false) {
 			var prefix = "";
-			for (a in td.attr) {
-				switch (a) {
-					case AConst:
-						prefix += "HL_CONST ";
-					default:
+			if (td.attr != null) {
+				for (a in td.attr) {
+					switch (a) {
+						case AConst:
+							prefix += "HL_CONST ";
+						default:
+					}
 				}
 			}
+
 			return prefix + makeType(td, isReturn);
 		}
 
@@ -931,7 +936,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														else 
 															output.add(a.name);
 													case TFunction(ret, ta):
-														var fcast ='(${makeTypeDecl(ret)} (*)())';
+														var args = ta.map((x) -> makeTypeDecl(x)).join(',');
+
+														var fcast ='(${makeTypeDecl(ret)} (*)(${args}))';
 
 														output.add(fcast + a.name + "->fun");
 													default:

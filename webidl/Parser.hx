@@ -313,9 +313,16 @@ class Parser {
 		} else if (maybe(TAsterisk)) {
 			t = TPointer(t);
 		} else if (maybe(TPOpen)) {
-			trace('t = ${t} attrs = ${attrs}');
-			t = TFunction({t:t, attr: attrs == null ? [] : attrs}, []);
-			ensure(TPClose);
+//			trace('t = ${t} attrs = ${attrs}');
+			var args = [];
+			while (!maybe(TPClose)) {
+				var at = type( );
+				var name = ident();
+				args.push( {t : at, attr : null} );
+
+				maybe(TComma);
+			}
+			t = TFunction({t:t, attr: attrs == null ? [] : attrs}, args);
 		}
 		return t;
 	}
