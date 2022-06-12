@@ -95,5 +95,7 @@ enum Attrib {
 	ARemap(original:String, remapped: String);
 	AReturnArray(pointerArg : String, lengthArg : String);
 	ADelete( name : String );	
+	ADestruct( expression : String);
 	ANew( name : String );	
+	AInitialize;
 }

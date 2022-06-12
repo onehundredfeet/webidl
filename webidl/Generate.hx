@@ -51,6 +51,7 @@ template <typename T> struct pref {
 
 #define _ref(t) pref<t>
 #define _unref(v) v->value
+#define _unref_ptr_safe(v) (v != nullptr ? v->value : nullptr)
 #define alloc_ref(r,t) _alloc_ref(r,finalize_##t)
 #define alloc_ref_const(r, _) _alloc_const(r)
 #define HL_CONST
@@ -371,12 +372,14 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					var intName = name;
 					var newName = null;
 					var deleteName = null;
+					var destructExpr = null;
 					for (a in attrs)
 						switch (a) {
 							case APrefix(name): prefix = name;
 							case AInternal(iname): intName = iname;
 							case ANew(name):newName = name;
 							case ADelete(name):deleteName = name;
+							case ADestruct(expression):destructExpr = expression;
 							default:
 						}
 
@@ -387,6 +390,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 					
 					var freeRefText ='free_ref(_this ${deleteName != null ? "," + deleteName: ""})';
+					if (destructExpr != null) {
+						freeRefText = '${destructExpr}(_this->value )';
+					}
 					add('static void finalize_$name( $fullName _this ) { $freeRefText; }');
 					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\t$freeRefText;\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
@@ -749,7 +755,6 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									var derefReturn = false;
 									var addressOfReturn = false;
 									var cloneReturn = false;
-
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -776,12 +781,27 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									var isConst = ret.attr.contains(AConst);
 									var isCustomType = ret.t.match(TCustom(_));
 
+									var initConstructor = false;
 									if (isConstr) {
 										refRet = name;
+										var substitudeConstructor = null;
+										for (a in ret.attr) {
+											switch (a) {
+												case ASubstitute(expression):
+													substitudeConstructor = expression;
+												case AInitialize: 
+													initConstructor = true;
+													preamble = true;
+												default:
+											}
+										}
+
+										var constructorExpr = substitudeConstructor == null ? 'new ${typeNames.get(refRet).constructor}' : substitudeConstructor;
+
 										if (preamble) {
-											output.add('auto ___retvalue = alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
+											output.add('auto ___retvalue = alloc_ref(${retCast}(${constructorExpr}(');
 										} else {
-											output.add('return alloc_ref(${retCast}(new ${typeNames.get(refRet).constructor}(');
+											output.add('return alloc_ref(${retCast}(${constructorExpr}(');
 										}
 									} else {
 										if (tret.t != TVoid)
@@ -924,7 +944,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														//(${makeTypeDecl({t: t, attr : a.t.attr})} *)
 														output.add('${a.name}');
 													case TCustom(st):
-														output.add('_unref(${a.name})');
+														output.add('_unref_ptr_safe(${a.name})');
 //														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
 //															output.add("->GetPtr()");
 //														}		
@@ -965,6 +985,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 									// post amble
 									if (preamble) {
+										if (initConstructor) output.add('\t*(___retvalue->value) = {};\n');
+
 										for (a in margs) {
 											switch (a.t.t) {
 												case THString:

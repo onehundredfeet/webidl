@@ -145,6 +145,7 @@ class Parser {
 				case "AddressOf": AAddressOf;
 				case "Clone" : AClone;
 				case "NoDelete": ANoDelete;
+				case "Initialize": AInitialize;
 				case "Static": AStatic;
 				case "Virtual": AVirtual;
 				case "ReadOnly": AReadOnly;
@@ -244,6 +245,12 @@ class Parser {
 				case "Substitute":
 					ensure(TOp("="));
 					ASubstitute(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+				case "Destruct":
+					ensure(TOp("="));
+					ADestruct(switch (token()) {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
