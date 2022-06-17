@@ -377,28 +377,40 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						switch (a) {
 							case APrefix(name): prefix = name;
 							case AInternal(iname): intName = iname;
-							case ANew(name):newName = name;
-							case ADelete(name):deleteName = name;
-							case ADestruct(expression):destructExpr = expression;
+							case ANew(name): newName = name;
+							case ADelete(name): deleteName = name;
+							case ADestruct(expression): destructExpr = expression;
 							default:
 						}
 
-					var fullName = "_ref(" + prefix + intName + ")*";
-					typeNames.set(name, {full: fullName, constructor: prefix + intName});
+					//					var fullName = "_ref(" + prefix + intName + ")*"; // REF CHANGE [RC]
+					var refFullName = "_ref(" + prefix + intName + ")*";
+					typeNames.set(name, {
+						full: prefix + intName,
+						constructor: prefix + intName,
+						isInterface: true,
+						isEnum: false,
+						decl: refFullName
+					});
 					if (attrs.indexOf(ANoDelete) >= 0)
 						continue;
 
-					
-					var freeRefText ='free_ref(_this ${deleteName != null ? "," + deleteName: ""})';
+					var freeRefText = 'free_ref(_this ${deleteName != null ? "," + deleteName : ""})';
 					if (destructExpr != null) {
 						freeRefText = '${destructExpr}(_this->value )';
 					}
-					add('static void finalize_$name( $fullName _this ) { $freeRefText; }');
-					add('HL_PRIM void HL_NAME(${name}_delete)( $fullName _this ) {\n\t$freeRefText;\n}');
+					add('static void finalize_$name( $refFullName _this ) { $freeRefText; }');
+					add('HL_PRIM void HL_NAME(${name}_delete)( $refFullName _this ) {\n\t$freeRefText;\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
 				case DEnum(name, attrs, values):
 					enumNames.set(name, true);
-					typeNames.set(name, {full: "int", constructor: null});
+					typeNames.set(name, {
+						full: "int",
+						constructor: null,
+						isInterface: true,
+						isEnum: true,
+						decl: "int"
+					});
 
 					var etname = name;
 					for (a in attrs) {
@@ -438,7 +450,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
-				case TDynamic:"vdynamic*";
+				case TDynamic: "vdynamic*";
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
@@ -448,7 +460,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						if (t == null) {
 							throw "Unsupported type " + id;
 						} else {
-							typeNames.get(id).full;
+							typeNames.get(id).decl;
 						}
 					}
 				case TVector(vt, vdim):
@@ -466,12 +478,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		function makeNativeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case THString: t.attr.contains(ASTL) ? "std::string" : "const char*";
-				default:makeNativeTypeRaw( t.t );
-					
+				default: makeNativeTypeRaw(t.t);
 			}
 			return t.attr.contains(AOut) ? x + "*" : x;
 		}
-
 
 		function makeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
@@ -485,7 +495,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
-				case TDynamic:"vdynamic*";
+				case TDynamic: "vdynamic*";
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
@@ -496,7 +506,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						if (t == null) {
 							throw "Unsupported type " + id;
 						} else {
-							typeNames.get(id).full;
+							typeNames.get(id).decl;
 						}
 					}
 				case TVector(vt, vdim):
@@ -506,17 +516,49 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						case TInt: "_hl_int" + vdim + "*";
 						default: throw "Unsupported vector type";
 					}
-				case TFunction(ret, ta):"vclosure*";
+				case TFunction(ret, ta): "vclosure*";
 				default:
 					throw "Unknown type " + t;
 			}
 			return (t.attr != null && t.attr.contains(AOut)) ? x + "*" : x;
 		}
 
+		
+		function makeLocalType(t:webidl.Data.TypeAttr) {
+			return switch (t.t) {
+				case TCustom(id): {
+					var t = typeNames.get(id);
+					if (t == null) {
+						throw "Unsupported type " + id;
+					} else {
+						var x = typeNames.get(id);
+						x.isInterface ? x.full + "*" : x.full;
+					}
+				}
+				default: makeType(t);
+			}
+		}
+
+		function makeAllocRefType(t:webidl.Data.TypeAttr) {
+			return switch (t.t) {
+				case TCustom(id): {
+					var t = typeNames.get(id);
+					if (t == null) {
+						throw "Unsupported type " + id;
+					} else {
+						 typeNames.get(id).full;
+					}
+				}
+				default: makeType(t);
+			}
+		}
+
+		
+
 		function makeElementType(t:webidl.Data.TypeAttr) {
 			return switch (t.t) {
-				case TPointer(at), TArray(at, _): makeType( { t: at, attr: t.attr });
-					default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+				case TPointer(at), TArray(at, _): makeType({t: at, attr: t.attr});
+				default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
 			}
 		}
 		function defType(t:TypeAttr, isReturn:Bool = false) {
@@ -537,11 +579,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";
-				case TFunction(ret,ta): 
+				case TFunction(ret, ta):
 					var args = (ta == null || ta.length == 0) ? "_NO_ARG" : ta.map((x) -> defType(x)).join(" ");
 					"_FUN(" + defType(ret) + ',${args})';
-				case TCustom(name): enumNames.exists(name) ? "_I32" : 
-					t.attr.contains(ACStruct) ? "_STRUCT" :	"_IDL";
+				case TCustom(name): enumNames.exists(name) ? "_I32" : t.attr.contains(ACStruct) ? "_STRUCT" : "_IDL";
 				case TDynamic: "_DYN";
 			}
 
@@ -585,11 +626,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			switch (d.kind) {
 				case DInterface(name, attrs, fields):
 					for (f in fields) {
-
 						switch (f.kind) {
 							case FMethod(margs, ret):
-								function findArg( name : String ) {
-									for(a in margs) {
+								function findArg(name:String) {
+									for (a in margs) {
 										if (a.name == name) {
 											return a;
 										}
@@ -609,13 +649,12 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								var returnField:String = null;
 								var returnType:TypeAttr;
 								var ignore:Array<String> = [];
-								var argCount =  ret.attr.contains(AStatic) ? 0 : -1;
+								var argCount = ret.attr.contains(AStatic) ? 0 : -1;
 
 								for (a in args) {
 									var addToCount = true;
 
 									for (attr in a.t.attr) {
-										
 										switch (attr) {
 											case AReturn:
 												returnField = a.name;
@@ -623,9 +662,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												ignore.push(a.name);
 											case ASubstitute(_):
 												ignore.push(a.name);
-											case AVirtual:addToCount = false;
-											case AIgnore:ignore.push(a.name);
-											case ALocal:ignore.push(a.name);
+											case AVirtual: addToCount = false;
+											case AIgnore: ignore.push(a.name);
+											case ALocal: ignore.push(a.name);
 											default:
 										}
 									}
@@ -637,14 +676,13 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								var tret = isConstr ? {t: TCustom(name), attr: []} : ret;
 								var isIndexed = tret.attr.contains(AIndexed);
 								var isReturnArray = false;
-								var rapIdx : String = null;
-								var ralIdx : String  = null;
-								var rapArg : FArg = null;
-								var ralArg : FArg = null;
-								
+								var rapIdx:String = null;
+								var ralIdx:String = null;
+								var rapArg:FArg = null;
+								var ralArg:FArg = null;
 
-								for(ta in tret.attr) {
-									switch(ta) {
+								for (ta in tret.attr) {
+									switch (ta) {
 										case AReturnArray(pIdx, lengthIdx):
 											rapIdx = pIdx;
 											ralIdx = lengthIdx;
@@ -656,7 +694,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								}
 
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
-								
+
 								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argCount);
 
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
@@ -667,7 +705,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									var skipa = ignore.contains(a.name);
 
 									for (attr in a.t.attr) {
-										switch(attr) {
+										switch (attr) {
 											case AVirtual: skipa = true;
 											default:
 										}
@@ -692,7 +730,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														switch (attr) {
 															case ARef:
 																switch (a.t.t) {
-																	case TChar, TInt, TShort, TFloat, TDouble,TBool: output.add("&"); // Reference primitive types with &
+																	case TChar, TInt, TShort, TFloat, TDouble,
+																		TBool: output.add("&"); // Reference primitive types with &
 																	default: output.add(""); // Do nothung for custom types
 																}
 															default:
@@ -705,24 +744,24 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								}
 								add(') {');
 
-
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
 									// preamble
 									var preamble = returnField != null || isReturnArray;
 
 									if (returnField != null) {
-										output.add(makeType(returnType) + " __tmpret;\n");
+										output.add(makeLocalType(returnType) + " __tmpret;\n");
 									} else if (isReturnArray) {
-										switch(tret.t) {
+										switch (tret.t) {
 											case TVoidPtr:
 												output.add(makeElementType(rapArg.t) + " *__tmparray = nullptr;\n");
 												output.add("\t" + "int __tmpLength = -1;\n");
 												output.add("\t" + makeType(tret) + " __tmpret;\n");
 											case TPointer(at), TArray(at, _):
-												output.add(makeType({t: at, attr : []}) + " *__tmparray = nullptr;\n");
+												output.add(makeType({t: at, attr: []}) + " *__tmparray = nullptr;\n");
 												output.add("\t" + "int __tmpLength = -1;\n");
 												output.add("\t" + makeType(tret) + " __tmpret;\n");
-											default:throw "Needs to be array";
+											default:
+												throw "Needs to be array";
 										}
 									}
 
@@ -731,10 +770,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											switch (a.t.t) {
 												case THString:
 													output.add(makeNativeType(a.t) + " " + a.name + "__cstr;\n");
-												default:output.add(makeNativeType(a.t) + " " + a.name + ";\n");
+												default:
+													output.add(makeNativeType(a.t) + " " + a.name + ";\n");
 											}
-
-											
 										} else {
 											switch (a.t.t) {
 												case TFunction(ret, ta):
@@ -743,8 +781,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												case THString:
 													preamble = true;
 													if (!a.t.attr.contains(AHString)) {
-														output.add(makeNativeType(a.t) + " " + a.name + "__cstr = (" + a.name + " == nullptr) ? \"\" : hl_to_utf8( " + a.name
-															+ "->bytes ); // Should be garbage collected\n\t");
+														output.add(makeNativeType(a.t) + " " + a.name + "__cstr = (" + a.name
+															+ " == nullptr) ? \"\" : hl_to_utf8( " + a.name + "->bytes ); // Should be garbage collected\n\t");
 													}
 												default:
 											}
@@ -789,7 +827,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											switch (a) {
 												case ASubstitute(expression):
 													substitudeConstructor = expression;
-												case AInitialize: 
+												case AInitialize:
 													initConstructor = true;
 													preamble = true;
 												default:
@@ -804,12 +842,13 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											output.add('return alloc_ref(${retCast}(${constructorExpr}(');
 										}
 									} else {
-										if (tret.t != TVoid)
-											if (preamble)
-												output.add("auto ___retvalue = ");
-											else
+										if (tret.t != TVoid) {
+											if (preamble) {
+												if (returnField == null)
+													output.add("auto ___retvalue = ");
+											} else
 												output.add("return ");
-
+										}
 										if (isRef || isValue || isCustomType) {
 											refRet = switch (tret.t) {
 												case TCustom(id): id;
@@ -820,20 +859,26 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										if (enumName != null) {
 											output.add('HL_NAME(${enumName}_valueToIndex0)(');
 										} else if (isCustomType) {
-											if (isRef && isConst) {
-												output.add('alloc_ref_const(${retCast}${getter}&('); // we shouldn't call delete() on this one !
-											} else if (isValue) {
-												output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(${getter}(');
-											} else if (isConst) {
-												output.add('alloc_ref_const(${retCast}${getter}(');
-											} else {
-												output.add('alloc_ref(');
-												if (derefReturn) output.add('*');
-												if (addressOfReturn) output.add('&');
-												output.add('${retCast}${getter}(');
+											if (returnField == null) {
+												if (isRef && isConst) {
+													output.add('alloc_ref_const(${retCast}${getter}&('); // we shouldn't call delete() on this one !
+												} else if (isValue) {
+													output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(${getter}(');
+												} else if (isConst) {
+													output.add('alloc_ref_const(${retCast}${getter}(');
+												} else {
+													output.add('alloc_ref(');
+													if (derefReturn)
+														output.add('*');
+													if (addressOfReturn)
+														output.add('&');
+													output.add('${retCast}${getter}(');
+												}
 											}
 										} else {
-											output.add('${retCast}${getter}(');
+											if (returnField == null) {
+												output.add('${retCast}${getter}(');
+											}
 										}
 
 										switch (f.name) {
@@ -878,11 +923,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 										var argGetter = null;
 										var isVirtual = false;
-										
+
 										var argCast = "";
 										var argDeref = "";
 										var argAddressOf = "";
-
 
 										for (attr in a.t.attr) {
 											switch (attr) {
@@ -896,15 +940,16 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													argGetter = expr;
 												case ADeref:
 													argDeref = "*";
-												case AAddressOf:	
+												case AAddressOf:
 													argAddressOf = "&";
 												case AVirtual:
 													isVirtual = true;
 												case ARef:
-													switch(a.t.t){
-														case TChar, TInt, TShort, TFloat, TDouble,TBool: output.add(""); // Reference primitive types don't need any symbol
+													switch (a.t.t) {
+														case TChar, TInt, TShort, TFloat, TDouble,
+															TBool: output.add(""); // Reference primitive types don't need any symbol
 														default: output.add("*"); // Unreference custom type
-													}			
+													}
 
 												default:
 											}
@@ -912,25 +957,25 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 										switch (a.t.t) {
 											case TPointer(t):
-												if (isReturnArray && isVirtual && a.name == rapIdx  ) {
-													//??
-												}else if (argCast == ""){
+												if (isReturnArray && isVirtual && a.name == rapIdx) {
+													// ??
+												} else if (argCast == "") {
 													argCast = "(" + makeNativeTypeRaw(t) + "*)";
 												}
 											default:
 										}
 
-										if (skip) continue;
+										if (skip)
+											continue;
 
-										output.add(argDeref +argCast + argAddressOf);
+										output.add(argDeref + argCast + argAddressOf);
 
 										if (argGetter != null) {
 											output.add(argGetter + " (");
 										}
 										if (isReturnArray && isVirtual && a.name == rapIdx) {
 											output.add('&__tmparray');
-										}
-										else if (a.name == returnField) {
+										} else if (a.name == returnField) {
 											output.add('&__tmpret');
 										} else {
 											var e = getEnumName(a.t.t);
@@ -941,24 +986,24 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													case TArray(t, sizefield):
 														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
 													case TPointer(t):
-														//(${makeTypeDecl({t: t, attr : a.t.attr})} *)
+														// (${makeTypeDecl({t: t, attr : a.t.attr})} *)
 														output.add('${a.name}');
 													case TCustom(st):
 														output.add('_unref_ptr_safe(${a.name})');
-//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
-//															output.add("->GetPtr()");
-//														}		
+													//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
+													//															output.add("->GetPtr()");
+													//														}
 													case TVector(vt, vdim):
 														output.add('(${makeTypeDecl({t: vt, attr : a.t.attr})}*)${a.name}');
 													case THString:
 														if (!a.t.attr.contains(AHString))
 															output.add(a.name + "__cstr");
-														else 
+														else
 															output.add(a.name);
 													case TFunction(ret, ta):
 														var args = ta.map((x) -> makeTypeDecl(x)).join(',');
 
-														var fcast ='(${makeTypeDecl(ret)} (*)(${args}))';
+														var fcast = '(${makeTypeDecl(ret)} (*)(${args}))';
 
 														output.add(fcast + a.name + "->fun");
 													default:
@@ -972,20 +1017,20 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										if (argGetter != null) {
 											output.add(")");
 										}
-
 									}
 
 									if (enumName != null)
 										output.add(')');
-									else if (refRet != null)
+									else if (refRet != null && returnField == null)
 										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + '),$refRet');
-									else
+									else if (returnField == null)
 										output.add(')');
 									add(");");
 
 									// post amble
 									if (preamble) {
-										if (initConstructor) output.add('\t*(___retvalue->value) = {};\n');
+										if (initConstructor)
+											output.add('\t*(___retvalue->value) = {};\n');
 
 										for (a in margs) {
 											switch (a.t.t) {
@@ -1014,14 +1059,20 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											if (isReturnArray) {
 												if (tret.t.match(TPointer(_)) || tret.t.match(TVoidPtr)) {
 													add('\t__tmpret = __tmparray;');
-												} else if (tret.t.match(TArray(_,_))) {
+												} else if (tret.t.match(TArray(_, _))) {
 													add('\t__tmpret = _idc_alloc_array(__tmparray, __tmpLength);');
 												} else {
 													throw "Unsupported array type";
 												}
 											}
 											if (returnField != null || isReturnArray) {
-												add("\treturn __tmpret;");
+												if (isCustomType) {
+													if (isConst) 
+														add('\treturn alloc_ref_const( __tmpret, ${makeAllocRefType(returnType)} );');
+													else 
+														add('\treturn alloc_ref(__tmpret, ${makeAllocRefType(returnType)} );');
+												} else
+													add("\treturn __tmpret;");
 											} else {
 												add("\treturn ___retvalue;");
 											}
@@ -1053,8 +1104,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								output.add('DEFINE_PRIM(${defType(tret, true)}, $funName,');
 								for (a in args) {
 									var dskip = ignore.contains(a.name);
-									for( attr in a.t.attr) {
-										switch(attr) {
+									for (attr in a.t.attr) {
+										switch (attr) {
 											case AVirtual:
 												dskip = true;
 											default:
@@ -1067,220 +1118,220 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								}
 								add(');');
 								add('');
-						
-						case FAttribute(t):
-							var isVal = t.attr.indexOf(AValue) >= 0;
-							var isIndexed = t.attr.contains(AIndexed);
-							var isReadOnly = t.attr.contains(AReadOnly);
-							var needsGetter = true;
-							var needsSetter = !isReadOnly;
 
-							var tname = switch (t.t) {
-								case TCustom(id): id;
-								default: null;
-							};
+							case FAttribute(t):
+								var isVal = t.attr.indexOf(AValue) >= 0;
+								var isIndexed = t.attr.contains(AIndexed);
+								var isReadOnly = t.attr.contains(AReadOnly);
+								var needsGetter = true;
+								var needsSetter = !isReadOnly;
 
-							var vt:Type = null;
-							var vta:TypeAttr = null;
-							var vdim = 0;
+								var tname = switch (t.t) {
+									case TCustom(id): id;
+									default: null;
+								};
 
-							var isVector = switch (t.t) {
-								case TVector(vvt, vvdim):
-									vt = vvt;
-									vdim = vvdim;
-									vta = {t: vt, attr: t.attr};
-									true;
-								default: false;
-							}
+								var vt:Type = null;
+								var vta:TypeAttr = null;
+								var vdim = 0;
 
-							var at:Type = null;
-							var al:String = null;
-							var isArray = switch (t.t) {
-								case TArray(aat, aal):
-									at = aat;
-									al = aal;
-									true;
-								default: false;
-							}
-
-							var pt:Type = null;
-							var isPointer = switch (t.t) {
-								case TPointer(ppt):
-									pt = ppt;
-									true;
-								default: false;
-							}
-
-							var isRef = tname != null;
-							var enumName = getEnumName(t.t);
-							var isConst = t.attr.indexOf(AConst) >= 0;
-
-							// Translate name
-							var internalName = f.name;
-							var getter:String = null;
-							var setter:String = null;
-							var setCast:String= null;
-
-							for (a in t.attr) {
-								switch (a) {
-									case AInternal(name): internalName = name;
-									case AGet(name): getter = name;
-									case ASet(name): setter = name;
-									case ACast(type): setCast = type;
-									default:
+								var isVector = switch (t.t) {
+									case TVector(vvt, vvdim):
+										vt = vvt;
+										vdim = vvdim;
+										vta = {t: vt, attr: t.attr};
+										true;
+									default: false;
 								}
-							}
-							var td = defType(t, true);
 
-							// Get
-							if (needsGetter) {
-								add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).full} _this ) {');
-
-								if (isVector) {
-									add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
-
-									//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');
-								} else if (getter != null)
-									add('\treturn ${getter}(_unref(_this)->${internalName});');
-								else if (enumName != null)
-									add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
-								else if (isVal) {
-									var fname = typeNames.get(tname).constructor;
-									add('\treturn alloc_ref(new $fname(_unref(_this)->${f.name}),$tname);');
-								} else if (isRef)
-									add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
-								else if (isPointer) {
-									add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
-								} else if (isArray) {
-									add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
-								} else {
-									add('\treturn _unref(_this)->${internalName};');
+								var at:Type = null;
+								var al:String = null;
+								var isArray = switch (t.t) {
+									case TArray(aat, aal):
+										at = aat;
+										al = aal;
+										true;
+									default: false;
 								}
-								add('}');
 
-								if (isVector) {
-									// Add vector getter
-									add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
-									add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
-									add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
-									add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
+								var pt:Type = null;
+								var isPointer = switch (t.t) {
+									case TPointer(ppt):
+										pt = ppt;
+										true;
+									default: false;
+								}
+
+								var isRef = tname != null;
+								var enumName = getEnumName(t.t);
+								var isConst = t.attr.indexOf(AConst) >= 0;
+
+								// Translate name
+								var internalName = f.name;
+								var getter:String = null;
+								var setter:String = null;
+								var setCast:String = null;
+
+								for (a in t.attr) {
+									switch (a) {
+										case AInternal(name): internalName = name;
+										case AGet(name): getter = name;
+										case ASet(name): setter = name;
+										case ACast(type): setCast = type;
+										default:
+									}
+								}
+								var td = defType(t, true);
+
+								// Get
+								if (needsGetter) {
+									add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this ) {');
+
+									if (isVector) {
+										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
+
+										//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');
+									} else if (getter != null)
+										add('\treturn ${getter}(_unref(_this)->${internalName});');
+									else if (enumName != null)
+										add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
+									else if (isVal) {
+										var fname = typeNames.get(tname).constructor;
+										add('\treturn alloc_ref(new $fname(_unref(_this)->${f.name}),$tname);');
+									} else if (isRef)
+										add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
+									else if (isPointer) {
+										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
+									} else if (isArray) {
+										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
+									} else {
+										add('\treturn _unref(_this)->${internalName};');
+									}
 									add('}');
 
-									add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
+									if (isVector) {
+										// Add vector getter
+										add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
+										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
+										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
+										add('}');
+
+										add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
+									}
+
+									add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
 								}
 
-								add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
-							}
+								if (needsSetter) {
+									// Set
+									add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 
-							if (needsSetter) {
-								// Set
-								add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
-
-								if (isVector) {
-									add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
-									add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) value;');
-									add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
-									//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');
-								} else if (isArray) {
-									add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
-									add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
-									add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
-									add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
-									add('\t_unref(_this)->${al} = (value->size);');
-								} else if (isPointer) {
-									add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');
-								} else if (setter != null)
-									add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
-								else if (enumName != null)
-									add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
-								else
-									add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
-								add('\treturn value;');
-								add('}');
-
-								if (isVector) {
-									// Add componentwise setter
-
-									var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
-									add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
-									add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
-
-									var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
-									add('\t${vcopy}');
+									if (isVector) {
+										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) value;');
+										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
+										//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');
+									} else if (isArray) {
+										add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
+										add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
+										add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
+										add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
+										add('\t_unref(_this)->${al} = (value->size);');
+									} else if (isPointer) {
+										add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');
+									} else if (setter != null)
+										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
+									else if (enumName != null)
+										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
+									else
+										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
+									add('\treturn value;');
 									add('}');
-									var vprim = [for (c in 0...vdim) '${defType(vta)}'].join(' ');
-									add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
+
+									if (isVector) {
+										// Add componentwise setter
+
+										var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
+										add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
+										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
+
+										var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
+										add('\t${vcopy}');
+										add('}');
+										var vprim = [for (c in 0...vdim) '${defType(vta)}'].join(' ');
+										add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
+									}
+
+									add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
+									add('');
 								}
 
-								add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
-								add('');
-							}
-
-						case DConst(_, _, _):
+							case DConst(_, _, _):
+						}
 					}
+				case DTypeDef(name, attrs, type):
+				case DEnum(_), DImplements(_):
 			}
-			case DTypeDef(name, attrs, type):
-			case DEnum(_), DImplements(_):
 		}
-	}
-	add("}"); // extern C
-	sys.io.File.saveContent(opts.outputDir + opts.nativeLib + ".cpp", output.toString());
-}
-
-static function command(cmd, args:Array<String>) {
-	Sys.println("> " + cmd + " " + args.join(" "));
-	var ret = Sys.command(cmd, args);
-	if (ret != 0)
-		throw "Command '" + cmd + "' has exit with error code " + ret;
-}
-
-public static function generateJs(opts:Options, sources:Array<String>, ?params:Array<String>) {
-	if (params == null)
-		params = [];
-
-	initOpts(opts);
-
-	var hasOpt = false;
-	for (p in params)
-		if (p.substr(0, 2) == "-O")
-			hasOpt = true;
-	if (!hasOpt)
-		params.push("-O2");
-
-	var lib = opts.nativeLib;
-
-	var emSdk = Sys.getEnv("EMSCRIPTEN");
-	if (emSdk == null)
-		throw "Missing EMSCRIPTEN environment variable. Install emscripten";
-	var emcc = emSdk + "/emcc";
-
-	// build sources BC files
-	var outFiles = [];
-	sources.push(lib + ".cpp");
-	for (cfile in sources) {
-		var out = opts.outputDir + cfile.substr(0, -4) + ".bc";
-		var args = params.concat(["-c", cfile, "-o", out]);
-		command(emcc, args);
-		outFiles.push(out);
+		add("}"); // extern C
+		sys.io.File.saveContent(opts.outputDir + opts.nativeLib + ".cpp", output.toString());
 	}
 
-	// link : because too many files, generate Makefile
-	var tmp = opts.outputDir + "Makefile.tmp";
-	var args = params.concat([
-		"-s",
-		'EXPORT_NAME="\'$lib\'"',
-		"-s",
-		"MODULARIZE=1",
-		"--memory-init-file",
-		"0",
-		"-o",
-		'$lib.js'
-	]);
-	var output = "SOURCES = " + outFiles.join(" ") + "\n";
-	output += "all:\n";
-	output += "\t" + emcc + " $(SOURCES) " + args.join(" ");
-	sys.io.File.saveContent(tmp, output);
-	command("make", ["-f", tmp]);
-	sys.FileSystem.deleteFile(tmp);
-}
+	static function command(cmd, args:Array<String>) {
+		Sys.println("> " + cmd + " " + args.join(" "));
+		var ret = Sys.command(cmd, args);
+		if (ret != 0)
+			throw "Command '" + cmd + "' has exit with error code " + ret;
+	}
+
+	public static function generateJs(opts:Options, sources:Array<String>, ?params:Array<String>) {
+		if (params == null)
+			params = [];
+
+		initOpts(opts);
+
+		var hasOpt = false;
+		for (p in params)
+			if (p.substr(0, 2) == "-O")
+				hasOpt = true;
+		if (!hasOpt)
+			params.push("-O2");
+
+		var lib = opts.nativeLib;
+
+		var emSdk = Sys.getEnv("EMSCRIPTEN");
+		if (emSdk == null)
+			throw "Missing EMSCRIPTEN environment variable. Install emscripten";
+		var emcc = emSdk + "/emcc";
+
+		// build sources BC files
+		var outFiles = [];
+		sources.push(lib + ".cpp");
+		for (cfile in sources) {
+			var out = opts.outputDir + cfile.substr(0, -4) + ".bc";
+			var args = params.concat(["-c", cfile, "-o", out]);
+			command(emcc, args);
+			outFiles.push(out);
+		}
+
+		// link : because too many files, generate Makefile
+		var tmp = opts.outputDir + "Makefile.tmp";
+		var args = params.concat([
+			"-s",
+			'EXPORT_NAME="\'$lib\'"',
+			"-s",
+			"MODULARIZE=1",
+			"--memory-init-file",
+			"0",
+			"-o",
+			'$lib.js'
+		]);
+		var output = "SOURCES = " + outFiles.join(" ") + "\n";
+		output += "all:\n";
+		output += "\t" + emcc + " $(SOURCES) " + args.join(" ");
+		sys.io.File.saveContent(tmp, output);
+		command("make", ["-f", tmp]);
+		sys.FileSystem.deleteFile(tmp);
+	}
 }
