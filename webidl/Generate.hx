@@ -555,12 +555,21 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		
 
-		function makeElementType(t:webidl.Data.TypeAttr) {
+		function getElementType(t:TypeAttr) {
 			return switch (t.t) {
-				case TPointer(at), TArray(at, _): makeType({t: at, attr: t.attr});
+				case TPointer(at), TArray(at, _):{t: at, attr: t.attr};
 				default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
 			}
 		}
+		
+		function makeElementType(t:webidl.Data.TypeAttr, isReturn = false) {
+			return switch (t.t) {
+				case TPointer(at), TArray(at, _): makeType({t: at, attr: t.attr}, isReturn);
+				default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+			}
+		}
+
+
 		function defType(t:TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case TChar: "_I8";
@@ -588,6 +597,14 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 			return (t.attr != null && t.attr.contains(AOut)) ? "_REF(" + x + ")" : x;
 		}
+
+		inline function defElementType(t:TypeAttr, isReturn:Bool = false) {
+			return switch (t.t) {
+				case TPointer(at), TArray(at, _): defType({t: at, attr: t.attr}, isReturn);
+				default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+			}
+		}
+
 
 		function dynamicAccess(t) {
 			return switch (t) {
@@ -1185,7 +1202,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 								// Get
 								if (needsGetter) {
-									add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this ) {');
+									if (isArray)  {
+										add('HL_PRIM ${makeElementType(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this, int index ) {');
+									}else
+										add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this ) {');
 
 									if (isVector) {
 										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
@@ -1203,7 +1223,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									else if (isPointer) {
 										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
 									} else if (isArray) {
-										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
+										add('\treturn _unref(_this)->${internalName}[index];');
+//										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
 									} else {
 										add('\treturn _unref(_this)->${internalName};');
 									}
@@ -1220,12 +1241,19 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
 									}
 
-									add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
+									if (isArray)
+										add('DEFINE_PRIM(${defElementType(t, true)},${name}_get_${f.name},_IDL _I32);');
+									else
+										add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
 								}
 
 								if (needsSetter) {
 									// Set
-									add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
+									if (isArray)  {
+										add('HL_PRIM ${makeElementType(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
+									}
+									else 
+										add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 
 									if (isVector) {
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
@@ -1233,11 +1261,17 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
 										//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');
 									} else if (isArray) {
-										add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
-										add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
-										add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
-										add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
-										add('\t_unref(_this)->${al} = (value->size);');
+										var enumName = getEnumName(getElementType(t).t);
+
+										if (enumName != null) 
+											add('\t_unref(_this)->${internalName}[index] = (${enumName})(${enumName}__values[value]);');
+										else
+											add('\t_unref(_this)->${internalName}[index] = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
+//										add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
+//										add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
+//										add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
+//										add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
+//										add('\t_unref(_this)->${al} = (value->size);');
 									} else if (isPointer) {
 										add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');
 									} else if (setter != null)
@@ -1263,7 +1297,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
 									}
 
-									add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
+									if (isArray) {
+										add('DEFINE_PRIM(${defElementType(t)},${name}_set_${f.name},_IDL _I32 ${defElementType(t)}); // Array setter');
+									} else 
+										add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
 									add('');
 								}
 

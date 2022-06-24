@@ -219,6 +219,13 @@ class Module {
 		return makeNativeFieldRaw(iname, f.name, makePosition(f.pos), args, ret, pub);
 	}
 
+	function getElementType(t:TypeAttr) {
+		return switch (t.t) {
+			case TPointer(at), TArray(at, _):{t: at, attr: t.attr};
+			default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+		}
+	}
+
 	function filterArgs( args : Array<FArg>) {
 		var b : Array<FArg> = [];
 
@@ -365,65 +372,101 @@ class Module {
 
 
 				case FAttribute(t):
-					var tt = makeType(t, false);
-					dfields.push({
-						pos : p,
-						name : f.name,
-						kind : FProp("get", "set", tt),
-						access : [APublic],
-					});
-					dfields.push({
-						pos : p,
-						name : "get_" + f.name,
-						meta : [makeNative(iname+"_get_" + f.name)],
-						kind : FFun({
-							ret : makeType(t, true),
-							expr : macro return ${defVal(t)},
-							args : [],
-						}),
-					});
-					dfields.push({
-						pos : p,
-						name : "set_" + f.name,
-						meta : [makeNative(iname+"_set_" + f.name)],
-						kind : FFun({
-							ret : tt,
-							expr : macro return ${defVal(t)},
-							args : [{ name : "_v", type : tt }],
-						}),
-					});
-					
-					var vt : Type = null;
-					var vta : TypeAttr = null;
-					var vdim = 0;
+					switch(t.t) {
+						case TArray(at, sizeField):
+							var et = getElementType(t);
+							var cetr = makeType(et, true);
+							var cet = makeType(et, false);
 
-					var isVector = switch(t.t) {
-						case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
-						default:false;
+							dfields.push({
+								pos : p,
+								name : "get" + f.name,
+								meta : [makeNative(iname+"_get_" + f.name)],
+								kind : FFun({
+									ret : cetr,
+									expr : macro return ${defVal(et)},
+									args : [{ name : "index", type : macro : Int }],
+								}),
+								access: [APublic]
+							});
+							dfields.push({
+								pos : p,
+								name : "set" + f.name,
+								meta : [makeNative(iname+"_set_" + f.name)],
+								kind : FFun({
+									ret : cetr,
+									expr : macro return ${defVal(et)},
+									args : [
+										{ name : "index", type : macro : Int }, 
+										{ name : "_v", type : cet }],
+								}),
+								access: [APublic]
+							});
+
+						default:
+							var tt = makeType(t, false);
+							dfields.push({
+								pos : p,
+								name : f.name,
+								kind : FProp("get", "set", tt),
+								access : [APublic],
+							});
+							dfields.push({
+								pos : p,
+								name : "get_" + f.name,
+								meta : [makeNative(iname+"_get_" + f.name)],
+								kind : FFun({
+									ret : makeType(t, true),
+									expr : macro return ${defVal(t)},
+									args : [],
+								}),
+							});
+							dfields.push({
+								pos : p,
+								name : "set_" + f.name,
+								meta : [makeNative(iname+"_set_" + f.name)],
+								kind : FFun({
+									ret : tt,
+									expr : macro return ${defVal(t)},
+									args : [{ name : "_v", type : tt }],
+								}),
+							});
+							
+							var vt : Type = null;
+							var vta : TypeAttr = null;
+							var vdim = 0;
+		
+							var isVector = switch(t.t) {
+								case TVector(vvt, vvdim): vt = vvt; vdim = vvdim; vta = {t: vt, attr: t.attr}; true;
+								default:false;
+							}
+		
+							if (isVector && false) {
+								dfields.push({
+									pos : p,
+									name : "set" + f.name + vdim,
+									meta : [makeNative(iname+"_set" + f.name + vdim)],
+									access : [APublic, AInline],
+									kind : FFun({
+										ret : macro : Void,
+										expr : macro return,
+										args :[for (c in 0...vdim) { name : "_v" + c, type : makeType(vta, false) } ],
+								}),
+							});
+							}
 					}
 
-					if (isVector && false) {
-						dfields.push({
-							pos : p,
-							name : "set" + f.name + vdim,
-							meta : [makeNative(iname+"_set" + f.name + vdim)],
-							access : [APublic, AInline],
-							kind : FFun({
-								ret : macro : Void,
-								expr : macro return,
-								args :[for (c in 0...vdim) { name : "_v" + c, type : makeType(vta, false) } ],
-						}),
-					});
-					}
 
 				case DConst(name, type, value):
+					var num = Std.parseInt(value);
+					var vmac = num != null ? { expr: EConst(CInt(value)), pos:Context.currentPos()} : macro $i{value};
+
 					dfields.push({
 						pos : p,
 						name : name,
 						access : [APublic, AStatic, AInline],
 						kind : FVar(
-							makeType({t : type, attr : []}, false),
-							macro $i{value}
+							makeType({t : type, attr : []}, false), vmac
 						)
 					});
 				}
