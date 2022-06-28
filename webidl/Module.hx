@@ -71,7 +71,8 @@ class Module {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
 		case TInt, TUInt: (t.attr != null && t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
-		case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
+		//case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
+		case TInt64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
 		case TDouble: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
