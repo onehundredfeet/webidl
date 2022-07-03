@@ -1006,7 +1006,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														// (${makeTypeDecl({t: t, attr : a.t.attr})} *)
 														output.add('${a.name}');
 													case TCustom(st):
-														output.add('_unref_ptr_safe(${a.name})');
+														if (argAddressOf.length > 0)
+															output.add('_unref(${a.name})');
+														else
+															output.add('_unref_ptr_safe(${a.name})');
 													//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
 													//															output.add("->GetPtr()");
 													//														}
