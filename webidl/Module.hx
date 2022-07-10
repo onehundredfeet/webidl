@@ -105,6 +105,12 @@ class Module {
 				case TDouble: macro : hl.NativeArray<Float>;
 				case TBool: macro : hl.NativeArray<Bool>;
 				case TShort:  macro : hl.NativeArray<hl.UI16>;
+				case TCustom(id):
+					if (typeNames.exists(id))
+						TPath({pack:["hl"], name: "NativeArray",params:[TPType( TPath( typeNames[id] ) )]});
+					else
+						TPath({pack:["hl"], name: "NativeArray",params:[TPType( TPath({ pack : [], name : makeName(id) }) )]});
+
 				default:
 					throw "Unsupported array type. Sorry";
 			}
