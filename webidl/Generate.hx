@@ -810,6 +810,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									var derefReturn = false;
 									var addressOfReturn = false;
 									var cloneReturn = false;
+									var substitue = null;
 									for (a in tret.attr) {
 										switch (a) {
 											case AValidate(expr):
@@ -824,6 +825,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												addressOfReturn = true;
 											case AClone:
 												cloneReturn = true;
+											case ASubstitute(expression):
+												substitue = expression;
 											default:
 										}
 									}
@@ -1191,13 +1194,15 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								var getter:String = null;
 								var setter:String = null;
 								var setCast:String = null;
+								var getCast:String = "";
 
 								for (a in t.attr) {
 									switch (a) {
 										case AInternal(name): internalName = name;
 										case AGet(name): getter = name;
 										case ASet(name): setter = name;
-										case ACast(type): setCast = type;
+										case ASetCast(type): setCast = type;
+										case AGetCast(type): getCast = "(" + type + ")";
 										default:
 									}
 								}
@@ -1226,10 +1231,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									else if (isPointer) {
 										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
 									} else if (isArray) {
-										add('\treturn _unref(_this)->${internalName}[index];');
+										add('\treturn ${getCast}_unref(_this)->${internalName}[index];');
 //										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
 									} else {
-										add('\treturn _unref(_this)->${internalName};');
+										add('\treturn ${getCast}_unref(_this)->${internalName};');
 									}
 									add('}');
 
@@ -1281,6 +1286,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
 										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
+									else if (isRef )
+										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
 										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 									add('\treturn value;');

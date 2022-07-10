@@ -196,9 +196,21 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
-					case "Cast":
+				case "Cast":
 					ensure(TOp("="));
 					ACast(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+				case "GetCast":
+						ensure(TOp("="));
+						AGetCast(switch (token()) {
+							case TString(s): s;
+							case var tk: unexpected(tk);
+						});
+				case "SetCast":
+					ensure(TOp("="));
+					ASetCast(switch (token()) {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});

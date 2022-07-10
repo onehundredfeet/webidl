@@ -67,6 +67,8 @@ enum Attrib {
 	AClone;
 	ADeref;
 	ACast( type : String );
+	ASetCast( type : String );
+	AGetCast( type : String );
 	AConst;
 	AHString;
 	ACStruct;
