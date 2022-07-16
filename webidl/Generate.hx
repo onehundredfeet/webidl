@@ -1225,9 +1225,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
-										add('\treturn alloc_ref(new $fname(_unref(_this)->${f.name}),$tname);');
+										add('\treturn alloc_ref(new $fname(_unref(_this)->${internalName}),$tname);');
 									} else if (isRef)
-										add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${f.name},$tname);');
+										add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${internalName},$tname);');
 									else if (isPointer) {
 										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
 									} else if (isArray) {
