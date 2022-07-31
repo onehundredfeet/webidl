@@ -318,6 +318,7 @@ class Parser {
 			case "double3": TVector(TDouble, 3);
 			case "double4": TVector(TDouble, 4);
 			case "dynamic": TDynamic;
+			case "type": TType;
 			default: 
 				TCustom(id);
 		};

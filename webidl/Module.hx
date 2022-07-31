@@ -78,6 +78,7 @@ class Module {
 		case TDouble: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
 		case TBool: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Bool>) : (macro : Bool))) : (macro : Bool);
 		case TDynamic: macro :Dynamic;
+		case TType: macro  : hl.Type;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
 		case TEnum(_): macro : Int;

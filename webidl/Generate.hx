@@ -451,6 +451,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TDynamic: "vdynamic*";
+				case TType: "hl_type*";
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
@@ -496,6 +497,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TDynamic: "vdynamic*";
+				case TType: "hl_type*";
 				case TPointer(t): "vbyte*";
 				case TBool: "bool";
 				case TEnum(_): "int";
@@ -593,6 +595,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					"_FUN(" + defType(ret) + ',${args})';
 				case TCustom(name): enumNames.exists(name) ? "_I32" : t.attr.contains(ACStruct) ? "_STRUCT" : "_IDL";
 				case TDynamic: "_DYN";
+				case TType: "_TYPE";
 			}
 
 			return (t.attr != null && t.attr.contains(AOut)) ? "_REF(" + x + ")" : x;
