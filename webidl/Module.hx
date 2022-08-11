@@ -4,6 +4,7 @@ package webidl;
 import webidl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+using StringTools;
 
 class Module {
 	var p : Position;
@@ -573,7 +574,10 @@ class Module {
 				Context.warning("Class " + name+" not found for implements " + intf, p);
 		case DEnum(name, attrs, values):
 			var index = 0;
-			var cfields = [for( v in values ) { pos : p, name : v, kind : FVar(null,{ expr : EConst(CInt(""+(index++))), pos : p }) }];
+			function cleanEnum(v:String) : String{
+				return v.replace(":", "_");
+			}
+			var cfields = [for( v in values ) { pos : p, name : cleanEnum(v), kind : FVar(null,{ expr : EConst(CInt(""+(index++))), pos : p }) }];
 
 			// Add Int Conversion
 			var ta : TypeAttr = { t : TInt, attr : [] };

@@ -416,6 +416,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					for (a in attrs) {
 						switch (a) {
 							case AInternal(iname): etname = iname;
+							case APrefix(prefix): values = values.map((x) -> prefix + x);
 							default:
 						}
 					}
@@ -930,11 +931,13 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													output.add(callName + "(");
 												else if (ret.attr.indexOf(ACObject) >= 0)
 													output.add(callName + "( _unref(_this) ");
+												else if (ret.attr.indexOf(ACObjectRef) >= 0)
+													output.add(callName + "( *_unref(_this) ");
 												else
 													output.add("_unref(_this)->" + callName + (isIndexed ? "[" : "("));
 										}
 									}
-									var first = (ret.attr.indexOf(ACObject) >= 0 ? false : true);
+									var first = (ret.attr.indexOf(ACObject) >= 0 || ret.attr.indexOf(ACObjectRef) >= 0 ? false : true);
 
 									// Actually process arguments for call
 									for (a in margs) {

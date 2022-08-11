@@ -83,10 +83,12 @@ enum Attrib {
 	AVirtual;
 	ASynthetic;
 	AReturn;
+	AReplace(match : String, with : String);
 	ASubstitute(expression : String);
 	AThrow(msg :String);
 	AValidate(expression : String);
 	ACObject;
+	ACObjectRef;
 	ASTL;
 	ALocal;
 	AIgnore;

@@ -156,6 +156,7 @@ class Parser {
 				case "Synthetic": ASynthetic;
 				case "Return": AReturn;
 				case "CObject": ACObject;
+				case "CObjectRef": ACObjectRef;
 				case "STL" : ASTL;
 				case "Local": ALocal;
 				case "Ignore": AIgnore;
@@ -260,6 +261,15 @@ class Parser {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
+				case "Replace":
+						ensure(TOp("="));
+						AReplace(switch (token()) {
+							case TString(s): s;
+							case var tk: unexpected(tk);
+						},switch (token()) {
+							case TString(s): s;
+							case var tk: unexpected(tk);
+						});
 				case "Destruct":
 					ensure(TOp("="));
 					ADestruct(switch (token()) {
