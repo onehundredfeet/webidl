@@ -4,6 +4,7 @@ package webidl;
 import webidl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import hvector.Int2Array;
 using StringTools;
 
 class Module {
@@ -107,6 +108,21 @@ class Module {
 				case TDouble: macro : hl.NativeArray<Float>;
 				case TBool: macro : hl.NativeArray<Bool>;
 				case TShort:  macro : hl.NativeArray<hl.UI16>;
+				case TVector(t, dim): switch(t) {
+					case TInt: switch(dim) {
+						case 2: macro : hvector.Int2Array;
+						case 4: macro : hvector.Int4Array;
+						default: macro : hl.NativeArray<Int>;
+					}
+					case TFloat: 
+						switch(dim) {
+							case 2: macro : hvector.Vec2Array;
+							case 4: macro : hvector.Vec4Array;
+							default: macro : hl.NativeArray<Single>;
+						}	
+					case TDouble: macro : hl.NativeArray<Float>;
+					default: throw "Unsupported array type. Sorry";
+				}
 				case TCustom(id):
 					if (typeNames.exists(id))
 						TPath({pack:["hl"], name: "NativeArray",params:[TPType( TPath( typeNames[id] ) )]});
@@ -673,6 +689,7 @@ class Module {
 			});
 		}
 
+		
 		Context.defineModule(module, types);
 		Context.registerModuleDependency(module, file);
 

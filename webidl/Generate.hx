@@ -1010,7 +1010,16 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											else
 												switch (a.t.t) {
 													case TArray(t, sizefield):
-														output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
+														switch(t) {
+															case TVector(vt, vdim): 
+																switch (vt) {
+																	case TFloat:output.add('hl_aptr(${a.name},${"_hl_float" + vdim})');
+																	case TDouble: output.add('hl_aptr(${a.name},${"_hl_double" + vdim})');
+																	case TInt: output.add('hl_aptr(${a.name},${"_hl_int" + vdim})');
+																	default: throw "Unsupported vector type";
+																}
+															default: output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
+														}
 													case TPointer(t):
 														// (${makeTypeDecl({t: t, attr : a.t.attr})} *)
 														output.add('${a.name}');
