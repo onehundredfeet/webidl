@@ -4,71 +4,15 @@ import haxe.macro.Expr.Function;
 import webidl.Data;
 
 class Generate {
-	static var HEADER_EMSCRIPTEN = "
 
-#include <emscripten.h>
-#define HL_PRIM
-#define HL_NAME(n)	EMSCRIPTEN_KEEPALIVE eb_##n
-#define DEFINE_PRIM(ret, name, args)
-#define _OPT(t) t*
-#define _GET_OPT(value,t) *value
-
-
-";
-
-	static var HEADER_HL = "
+	static final HELPER_TEXT = "
+	#ifndef __HL_IDL_HELPERS_H_
+#define __HL_IDL_HELPERS_H_
 
 #include <hl.h>
 
-// Need to link in helpers
-HL_API hl_type hltx_ui16;
-HL_API hl_type hltx_ui8;
+#pragma once
 
-#define _IDL _BYTES
-#define _OPT(t) vdynamic *
-#define _GET_OPT(value,t) (value)->v.t
-
-
-";
-
-	static var HEADER_NO_GC = "
-
-#define alloc_ref(r, _) r
-#define alloc_ref_const(r,_) r
-#define _ref(t)			t
-#define _unref(v)		v
-#define free_ref(v) delete (v)
-#define HL_CONST const
-
-	";
-
-	static var HEADER_GC = "
-
-template <typename T> struct pref {
-	void (*finalize)( pref<T> * );
-	T *value;
-};
-
-#define _ref(t) pref<t>
-#define _unref(v) v->value
-#define _unref_ptr_safe(v) (v != nullptr ? v->value : nullptr)
-#define alloc_ref(r,t) _alloc_ref(r,finalize_##t)
-#define alloc_ref_const(r, _) _alloc_const(r)
-#define HL_CONST
-
-template<typename T> void free_ref( pref<T> *r ) {
-	if( !r->finalize ) hl_error(\"delete() is not allowed on const value.\");
-	delete r->value;
-	r->value = NULL;
-	r->finalize = NULL;
-}
-
-template<typename T> void free_ref( pref<T> *r, void (*deleteFunc)(T*) ) {
-	if( !r->finalize ) hl_error(\"delete() is not allowed on const value.\");
-	deleteFunc( r->value );
-	r->value = NULL;
-	r->finalize = NULL;
-}
 
 // Float vector
 struct _hl_float2 {
@@ -126,6 +70,101 @@ struct _hl_double4 {
 	double z;
 	double w;
 };
+
+
+template<class T, class C>
+class  IteratorWrapper {
+	private:
+		typename C::iterator _it;
+		C &_collection;
+	public:	
+		inline void reset() {
+			_it = _collection.begin();
+		}
+		inline IteratorWrapper( C&col ) : _collection(col) {
+			reset();
+		}
+		inline bool next() {
+			if (_it == _collection.end()) return false;
+			return true;
+		}
+		inline T &get() {
+			return *_it;
+		}
+        inline T *getPtr() {
+			return &(*_it);
+		}
+};
+
+#endif
+	";
+	static var HEADER_EMSCRIPTEN = "
+
+#include <emscripten.h>
+#define HL_PRIM
+#define HL_NAME(n)	EMSCRIPTEN_KEEPALIVE eb_##n
+#define DEFINE_PRIM(ret, name, args)
+#define _OPT(t) t*
+#define _GET_OPT(value,t) *value
+
+
+";
+
+	static var HEADER_HL = "
+
+#include <hl.h>
+#include \"hl-idl-helpers.hpp\"
+// Need to link in helpers
+//HL_API hl_type hltx_ui16;
+//HL_API hl_type hltx_ui8;
+HL_PRIM hl_type hltx_ui16 = { HUI16 };
+HL_PRIM hl_type hltx_ui8 = { HUI8 };
+
+#define _IDL _BYTES
+#define _OPT(t) vdynamic *
+#define _GET_OPT(value,t) (value)->v.t
+
+
+";
+
+	static var HEADER_NO_GC = "
+
+#define alloc_ref(r, _) r
+#define alloc_ref_const(r,_) r
+#define _ref(t)			t
+#define _unref(v)		v
+#define free_ref(v) delete (v)
+#define HL_CONST const
+
+	";
+
+	static var HEADER_GC = "
+
+template <typename T> struct pref {
+	void (*finalize)( pref<T> * );
+	T *value;
+};
+
+#define _ref(t) pref<t>
+#define _unref(v) v->value
+#define _unref_ptr_safe(v) (v != nullptr ? v->value : nullptr)
+#define alloc_ref(r,t) _alloc_ref(r,finalize_##t)
+#define alloc_ref_const(r, _) _alloc_const(r)
+#define HL_CONST
+
+template<typename T> void free_ref( pref<T> *r ) {
+	if( !r->finalize ) hl_error(\"delete() is not allowed on const value.\");
+	delete r->value;
+	r->value = NULL;
+	r->finalize = NULL;
+}
+
+template<typename T> void free_ref( pref<T> *r, void (*deleteFunc)(T*) ) {
+	if( !r->finalize ) hl_error(\"delete() is not allowed on const value.\");
+	deleteFunc( r->value );
+	r->value = NULL;
+	r->finalize = NULL;
+}
 
 inline void testvector(_hl_float3 *v) {
   printf(\"v: %f %f %f\\n\", v->x, v->y, v->z);
@@ -310,6 +349,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 	public static function generateCpp(opts:Options) {
 		initOpts(opts);
 
+		sys.io.File.saveContent(opts.outputDir + "hl-idl-helpers.hpp",HELPER_TEXT);
+
 		var file = opts.idlFile;
 		var content = sys.io.File.getBytes(file);
 		var parse = new webidl.Parser();
@@ -384,7 +425,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						}
 
 					//					var fullName = "_ref(" + prefix + intName + ")*"; // REF CHANGE [RC]
-					var refFullName = "_ref(" + prefix + intName + ")*";
+					var refFullName = "pref<" + prefix + intName + ">*";
 					typeNames.set(name, {
 						full: prefix + intName,
 						constructor: prefix + intName,
@@ -884,7 +925,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											output.add('HL_NAME(${enumName}_valueToIndex0)(');
 										} else if (isCustomType) {
 											if (returnField == null) {
-												if (isRef && isConst) {
+												if ((isRef || addressOfReturn) && isConst) {
 													output.add('alloc_ref_const(${retCast}${getter}&('); // we shouldn't call delete() on this one !
 												} else if (isValue) {
 													output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(${getter}(');
@@ -1032,7 +1073,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													//															output.add("->GetPtr()");
 													//														}
 													case TVector(vt, vdim):
-														output.add('(${makeTypeDecl({t: vt, attr : a.t.attr})}*)${a.name}');
+														
+														output.add('(${makeTypeDecl(a.t)})${a.name}');
 													case THString:
 														if (!a.t.attr.contains(AHString))
 															output.add(a.name + "__cstr");
