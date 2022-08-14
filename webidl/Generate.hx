@@ -75,18 +75,24 @@ struct _hl_double4 {
 template<class T, class C>
 class  IteratorWrapper {
 	private:
+		bool _initialized;
 		typename C::iterator _it;
 		C &_collection;
 	public:	
 		inline void reset() {
-			_it = _collection.begin();
+			_initialized = false;
 		}
 		inline IteratorWrapper( C&col ) : _collection(col) {
 			reset();
 		}
 		inline bool next() {
-			if (_it == _collection.end()) return false;
-			return true;
+			if (!_initialized) {
+				_initialized = true;
+				_it = _collection.begin();
+			} else {
+				_it++;
+			}
+			return  (_it != _collection.end());
 		}
 		inline T &get() {
 			return *_it;
