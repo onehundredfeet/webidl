@@ -10,6 +10,11 @@ class Generate {
 #define __HL_IDL_HELPERS_H_
 
 #include <hl.h>
+#include <string>
+
+void hl_cache_string_type( vstring *str);
+vstring * hl_utf8_to_hlstr( const char *str);
+vstring * hl_utf8_to_hlstr( const std::string &str);
 
 #pragma once
 
@@ -130,6 +135,32 @@ HL_PRIM hl_type hltx_ui8 = { HUI8 };
 #define _OPT(t) vdynamic *
 #define _GET_OPT(value,t) (value)->v.t
 
+static  hl_type *strType = nullptr;
+void hl_cache_string_type( vstring *str) {
+   strType = str->t;
+}
+
+vstring * hl_utf8_to_hlstr( const char *str) {
+    int strLen = (int)strlen( str );
+    uchar * ubuf = (uchar*)hl_gc_alloc_noptr((strLen + 1) << 1);
+    hl_from_utf8( ubuf, strLen, str );
+
+    vstring* vstr = (vstring *)hl_gc_alloc_raw(sizeof(vstring));
+
+    vstr->bytes = ubuf;
+    vstr->length = strLen;
+    vstr->t = strType;
+    return vstr;
+}
+vstring * hl_utf8_to_hlstr( const std::string &str) {
+	return hl_utf8_to_hlstr(str.c_str());
+}
+
+HL_PRIM vstring * HL_NAME(getdllversion)(vstring * haxeversion) {
+	strType = haxeversion->t;
+	return haxeversion;
+}
+DEFINE_PRIM(_STRING, getdllversion, _STRING);
 
 ";
 
@@ -748,6 +779,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								var ralIdx:String = null;
 								var rapArg:FArg = null;
 								var ralArg:FArg = null;
+								var return_converter = switch (tret.t) {
+									case THString:"hl_utf8_to_hlstr";
+									default:"";
+								}
 
 								for (ta in tret.attr) {
 									switch (ta) {
@@ -757,6 +792,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 											isReturnArray = true;
 											rapArg = findArg(rapIdx);
 											ralArg = findArg(ralIdx);
+										case AGet(name):return_converter = name;
 										default:
 									}
 								}
@@ -1151,6 +1187,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													throw "Unsupported array type";
 												}
 											}
+
+											
 											if (returnField != null || isReturnArray) {
 												if (isCustomType) {
 													if (isConst) 
@@ -1158,9 +1196,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													else 
 														add('\treturn alloc_ref(__tmpret, ${makeAllocRefType(returnType)} );');
 												} else
-													add("\treturn __tmpret;");
+													add('\treturn ${return_converter}(__tmpret);');
 											} else {
-												add("\treturn ___retvalue;");
+												add('\treturn ${return_converter}(___retvalue);');
 											}
 										}
 									}

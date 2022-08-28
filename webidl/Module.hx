@@ -1,5 +1,6 @@
 package webidl;
 
+import haxe.macro.Printer;
 #if macro
 import webidl.Data;
 import haxe.macro.Context;
@@ -662,6 +663,10 @@ class Module {
 		return new Module(p, pack, hl, opts).buildModule(decls);
 	}
 
+	static function makeNativeInLib( nativeLib : String, name : String, p : Position ) : MetadataEntry {
+		return { name : ":hlNative", params : [{ expr : EConst(CString(nativeLib)), pos : p },{ expr : EConst(CString(name)), pos : p }], pos : p };
+	}
+
 	public static function build( opts : Options ) {
 		var file = opts.idlFile;
 		var module = Context.getLocalModule();
@@ -682,11 +687,20 @@ class Module {
 
 		// For HL no initialization is required so execute the callback immediately
 		} else if (Context.defined("hl")) {
-			types.push(macro class Init {
+			var lib = {expr: EConst(CString(opts.nativeLib)), pos: Context.currentPos()};
+			var t = macro class Init {
+				public static var dllversion : String;
 				public static function init(onReady:Void->Void) {
-					onReady();
+					dllversion = getdllversion("version");
+					if (onReady != null ) onReady();
+				};
+				@:hlNative($lib, "getdllversion")
+				static function getdllversion(s : String) {
+					return "";
 				}
-			});
+			};
+
+			types.push(t);
 		}
 
 		
