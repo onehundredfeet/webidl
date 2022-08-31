@@ -7,6 +7,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import hvector.Int2Array;
 using StringTools;
+using tink.MacroApi;
 
 class Module {
 	var p : Position;
@@ -84,7 +85,7 @@ class Module {
 		case TType: macro  : hl.Type;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
 		case TAny: macro : webidl.Types.Any;
-		case TEnum(_): macro : Int;
+		case TEnum(enumName): isReturn ? enumName.asComplexType() : macro : Int;
 		case TStruct: macro : hl.Bytes;
 		case TBytes: macro : hl.Bytes;
 		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
@@ -157,6 +158,7 @@ class Module {
 		case TInt, TUInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
 		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
 		case TBool: { expr : EConst(CIdent("false")), pos : p };
+		case TEnum(name): ECall(EField(EConst(CIdent(name)).at(p),"fromIndex").at(p), [EConst(CInt("0")).at(p)] ).at(p); //{ expr : , pos : p };
 		case TCustom(id):
 			var ex = { expr : EConst(CInt("0")), pos : p };
 			var tp = TPath({ pack : [], name : id });
@@ -597,15 +599,26 @@ class Module {
 			var cfields = [for( v in values ) { pos : p, name : cleanEnum(v), kind : FVar(null,{ expr : EConst(CInt(""+(index++))), pos : p }) }];
 
 			// Add Int Conversion
-			var ta : TypeAttr = { t : TInt, attr : [] };
-			var toInt = makeNativeFieldRaw( name, "indexToValue", p, [], ta,true );
-			cfields.push(toInt);
+			var ta : TypeAttr = { t : TInt, attr : [AStatic] };
+			var toValue = makeNativeFieldRaw( name, "indexToValue", p, [{ name : "index", opt : false, t : { t : TInt, attr : [] } }], ta,true );
+			cfields.push(toValue);
 
-			toInt = makeNativeFieldRaw( name, "valueToIndex", p, [], ta,true );
-			cfields.push(toInt);
+			ta = { t : TInt, attr : [AStatic] };
+			var toIndex = makeNativeFieldRaw( name, "valueToIndex", p, [{ name : "value", opt : false, t : { t : TInt, attr : [] } }], ta,true );
+			cfields.push(toIndex);
 
-			toInt = makeNativeFieldRaw( name, "toValue", p, [], ta,true );
-			cfields.push(toInt);
+			ta = { t : TEnum(name), attr : [AStatic] };
+			var fromValue = makeNativeFieldRaw( name, "fromValue", p, [{ name : "value", opt : false, t : { t : TInt, attr : [] } }], ta,true );
+			cfields.push(fromValue);
+
+			ta = { t : TEnum(name), attr : [AStatic] };
+			var fromIndex = makeNativeFieldRaw( name, "fromIndex", p, [{ name : "index", opt : false, t : { t : TInt, attr : [] } }], ta,true );
+			cfields.push(fromIndex);
+
+
+			ta = { t : TInt, attr : [] };
+			var toValue = makeNativeFieldRaw( name, "toValue", p, [], ta,true );
+			cfields.push(toValue);
 
 			var enumT :TypeDefinition = {
 				pos : p,
