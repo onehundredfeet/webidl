@@ -958,7 +958,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												if (returnField == null)
 													output.add("auto ___retvalue = ");
 											} else
-												output.add("return ");
+												output.add('return ${return_converter}');
 										}
 										if (isRef || isValue || isCustomType) {
 											refRet = switch (tret.t) {
