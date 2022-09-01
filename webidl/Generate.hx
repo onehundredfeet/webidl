@@ -503,12 +503,12 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_valueToIndex0)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
-					add('DEFINE_PRIM(_I32, ${name}_valueToIndex0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_fromValue0)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
-					add('DEFINE_PRIM(_I32, ${name}_fromValue0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_fromIndex0)( int index ) {return index;}');
-					add('DEFINE_PRIM(_I32, ${name}_fromIndex0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_valueToIndex1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_fromValue1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_fromIndex1)( int index ) {return index;}');
+					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
 				case DTypeDef(name, attrs, type):
 				case DImplements(_):
 			}
@@ -968,7 +968,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										}
 
 										if (enumName != null) {
-											output.add('HL_NAME(${enumName}_valueToIndex0)(');
+											output.add('HL_NAME(${enumName}_valueToIndex1)(');
 										} else if (isCustomType) {
 											if (returnField == null) {
 												if ((isRef || addressOfReturn) && isConst) {
@@ -1327,7 +1327,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									} else if (getter != null)
 										add('\treturn ${getter}(_unref(_this)->${internalName});');
 									else if (enumName != null)
-										add('\treturn HL_NAME(${enumName}_valueToIndex0)(_unref(_this)->${internalName});');
+										add('\treturn HL_NAME(${enumName}_valueToIndex1)(_unref(_this)->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
 										add('\treturn alloc_ref(new $fname(_unref(_this)->${internalName}),$tname);');
