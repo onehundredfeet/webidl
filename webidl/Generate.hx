@@ -501,8 +501,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
 					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_indexToValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
-					add('DEFINE_PRIM(_I32, ${name}_indexToValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_indexToValue1)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_indexToValue1, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_valueToIndex1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_fromValue1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
@@ -1390,7 +1390,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									} else if (setter != null)
 										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
-										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue0)(value);');
+										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue1)(value);');
 									else if (isRef )
 										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
