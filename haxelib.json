@@ -6,5 +6,5 @@
 	"description" : "C/C++ Interface Definition Language support for Haxe HL/JS.",
 	"version" : "1.0.0",
 	"releasenote" : "",
-	"dependencies": {"hvector": ""}
+	"dependencies": {"hvector": "git:https://github.com/onehundredfeet/hvector.git"}
 }
