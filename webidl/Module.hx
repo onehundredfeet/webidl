@@ -714,6 +714,8 @@ class Module {
 			};
 
 			types.push(t);
+		} else {
+			Context.fatalError( "Unrecognized target", Context.currentPos() ) ;
 		}
 
 		
