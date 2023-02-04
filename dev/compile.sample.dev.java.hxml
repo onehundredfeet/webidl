@@ -1,0 +1,3 @@
+--java bin/java
+--main sample.SampleJava
+-cp ..

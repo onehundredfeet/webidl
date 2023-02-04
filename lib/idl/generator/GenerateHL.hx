@@ -1,9 +1,9 @@
-package webidl;
+package idl.generator;
 
 import haxe.macro.Expr.Function;
-import webidl.Data;
+import idl.Data;
 
-class GenerateJVM {
+class GenerateHL {
 
 	static final HELPER_TEXT = "
 	#ifndef __HL_IDL_HELPERS_H_
@@ -112,8 +112,8 @@ class  IteratorWrapper {
 	static var HEADER_EMSCRIPTEN = "
 
 #include <emscripten.h>
-#define JNIEXPORT
-#define JNICALL n)	EMSCRIPTEN_KEEPALIVE eb_##n
+#define HL_PRIM
+#define HL_NAME(n)	EMSCRIPTEN_KEEPALIVE eb_##n
 #define DEFINE_PRIM(ret, name, args)
 #define _OPT(t) t*
 #define _GET_OPT(value,t) *value
@@ -122,16 +122,14 @@ class  IteratorWrapper {
 ";
 
 	static var HEADER_HL = "
-	#include <jni.h>
-	";
-/*
+
 #include <hl.h>
 #include \"hl-idl-helpers.hpp\"
 // Need to link in helpers
 //HL_API hl_type hltx_ui16;
 //HL_API hl_type hltx_ui8;
-JNIEXPORT hl_type hltx_ui16 = { HUI16 };
-JNIEXPORT hl_type hltx_ui8 = { HUI8 };
+HL_PRIM hl_type hltx_ui16 = { HUI16 };
+HL_PRIM hl_type hltx_ui8 = { HUI8 };
 
 #define _IDL _BYTES
 #define _OPT(t) vdynamic *
@@ -158,12 +156,13 @@ vstring * hl_utf8_to_hlstr( const std::string &str) {
 	return hl_utf8_to_hlstr(str.c_str());
 }
 
-JNIEXPORT vstring * JNICALL getdllversion)(vstring * haxeversion) {
+HL_PRIM vstring * HL_NAME(getdllversion)(vstring * haxeversion) {
 	strType = haxeversion->t;
 	return haxeversion;
 }
-*/
+DEFINE_PRIM(_STRING, getdllversion, _STRING);
 
+";
 
 	static var HEADER_NO_GC = "
 
@@ -377,20 +376,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 	static var HEADER_NATIVE_TYPES = "
 	";
 
-	static final JNI_PARAMETER_PREFIX = "JNIEnv *__env, jobject __obj";
 
-	static function makeJNIFunctionDeclaration(jniName : String) {
-		return 'JNIEXPORT void JNICALL ${jniName}'; 
-	}
-	static function makeJNIFunctionName(packageName : String, className : String, functionName) {
-		return '${packageName}_jni_${className}_${functionName}'; 
-	}
-	static function initOpts(opts:Options) {
-		if (opts.outputDir == null)
-			opts.outputDir = "";
-		else if (!StringTools.endsWith(opts.outputDir, "/"))
-			opts.outputDir += "/";
-	}
 
 	public static function generateCpp(opts:Options) {
 
@@ -398,7 +384,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		var file = opts.idlFile;
 		var content = sys.io.File.getBytes(file);
-		var parse = new webidl.Parser();
+		var parse = new idl.generator.Parser();
 		var decls = null;
 		var gc = opts.autoGC;
 		try {
@@ -410,7 +396,6 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		function add(str:String) {
 			output.add(str.split("\r\n").join("\n") + "\n");
 		}
-		var packageName = opts.packageName;
 		add("#ifdef EMSCRIPTEN");
 		add("");
 		add(StringTools.trim(HEADER_EMSCRIPTEN));
@@ -418,7 +403,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		add("");
 		add("#else");
 		add("");
-//		add('#define JNICALL x) ${opts.nativeLib}_##x');
+		add('#define HL_NAME(x) ${opts.nativeLib}_##x');
 		add(StringTools.trim(HEADER_HL));
 		add(StringTools.trim(gc ? HEADER_GC : HEADER_NO_GC));
 		add("");
@@ -471,8 +456,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						}
 
 					//					var fullName = "_ref(" + prefix + intName + ")*"; // REF CHANGE [RC]
-					//var refFullName = "pref<" + prefix + intName + ">*";
-					var refFullName = "jobject";
+					var refFullName = "pref<" + prefix + intName + ">*";
 					typeNames.set(name, {
 						full: prefix + intName,
 						constructor: prefix + intName,
@@ -487,9 +471,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					if (destructExpr != null) {
 						freeRefText = '${destructExpr}(_this->value )';
 					}
-					add('JNIEXPORT void JNICALL finalize_$name( ${JNI_PARAMETER_PREFIX}, $refFullName _this ) { $freeRefText; }');
-					add('JNIEXPORT void JNICALL ${name}_delete( ${JNI_PARAMETER_PREFIX}, $refFullName _this ) {\n\t$freeRefText;\n}');
-//					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
+					add('static void finalize_$name( $refFullName _this ) { $freeRefText; }');
+					add('HL_PRIM void HL_NAME(${name}_delete)( $refFullName _this ) {\n\t$freeRefText;\n}');
+					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
 				case DEnum(name, attrs, values):
 					enumNames.set(name, true);
 					typeNames.set(name, {
@@ -509,45 +493,45 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						}
 					}
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
-					add('JNIEXPORT int JNICALL ${name}_toValue0(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
-//					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_indexToValue1(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
-//					add('DEFINE_PRIM(_I32, ${name}_indexToValue1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_valueToIndex1(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
-//					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_fromValue1(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
-//					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_fromIndex1(${JNI_PARAMETER_PREFIX}, int index ) {return index;}');
-//					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_indexToValue1)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('DEFINE_PRIM(_I32, ${name}_indexToValue1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_valueToIndex1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_fromValue1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
+					add('HL_PRIM int HL_NAME(${name}_fromIndex1)( int index ) {return index;}');
+					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
 				case DTypeDef(name, attrs, type):
 				case DImplements(_):
 			}
 		}
 
-		function getEnumName(t:webidl.Data.Type) {
+		function getEnumName(t:idl.Data.Type) {
 			return switch (t) {
 				case TCustom(id): enumNames.exists(id) ? id : null;
 				default: null;
 			}
 		}
 
-		function makeNativeTypeRaw(t:webidl.Data.Type, isReturn:Bool = false) {
+		function makeNativeTypeRaw(t:idl.Data.Type, isReturn:Bool = false) {
 			return switch (t) {
-				case TChar: "jcharr";
-				case TFloat: "jfloat";
-				case TDouble: "jdouble";
-				case TShort: "jshort";
-				case TInt64: "jlong";
-				case TUInt: "jint";
-				case TInt: "jint";
+				case TChar: "unsigned char";
+				case TFloat: "float";
+				case TDouble: "double";
+				case TShort: "unsigned short";
+				case TInt64: "int64_t";
+				case TUInt: "unsigned int";
+				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TDynamic: "vdynamic*";
 				case TType: "hl_type*";
 				case TPointer(t): "vbyte*";
-				case TBool: "jboolean";
-				case TEnum(_): "jint";
+				case TBool: "bool";
+				case TEnum(_): "int";
 				case TBytes: "unsigned char*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
@@ -569,7 +553,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 
-		function makeNativeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
+		function makeNativeType(t:idl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case THString: t.attr.contains(ASTL) ? "std::string" : "const char*";
 				default: makeNativeTypeRaw(t.t);
@@ -577,24 +561,24 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			return t.attr.contains(AOut) ? x + "*" : x;
 		}
 
-		function makeType(t:webidl.Data.TypeAttr, isReturn:Bool = false) {
+		function makeType(t:idl.Data.TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
-				case TChar: "jchar";
-				case TFloat: "jfloat";
-				case TDouble: "jdouble";
-				case TShort: "jshort";
-				case TInt64: "jlong";
-				case TUInt: "jint";
-				case TInt: "jint";
+				case TChar: "unsigned char";
+				case TFloat: "float";
+				case TDouble: "double";
+				case TShort: "unsigned short";
+				case TInt64: "int64_t";
+				case TUInt: "unsigned int";
+				case TInt: "int";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
 				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
 				case TDynamic: "vdynamic*";
 				case TType: "hl_type*";
 				case TPointer(t): "vbyte*";
-				case TBool: "jboolean";
-				case TEnum(_): "jint";
-				case THString: "jstring";
+				case TBool: "bool";
+				case TEnum(_): "int";
+				case THString: "vstring *";
 				case TBytes: "vbyte*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
@@ -619,7 +603,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		}
 
 		
-		function makeLocalType(t:webidl.Data.TypeAttr) {
+		function makeLocalType(t:idl.Data.TypeAttr) {
 			return switch (t.t) {
 				case TCustom(id): {
 					var t = typeNames.get(id);
@@ -634,7 +618,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 
-		function makeAllocRefType(t:webidl.Data.TypeAttr) {
+		function makeAllocRefType(t:idl.Data.TypeAttr) {
 			return switch (t.t) {
 				case TCustom(id): {
 					var t = typeNames.get(id);
@@ -657,7 +641,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 		
-		function makeElementType(t:webidl.Data.TypeAttr, isReturn = false) {
+		function makeElementType(t:idl.Data.TypeAttr, isReturn = false) {
 			return switch (t.t) {
 				case TPointer(at), TArray(at, _): makeType({t: at, attr: t.attr}, isReturn);
 				default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
@@ -814,10 +798,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
 
 								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argCount);
-								var funName = makeJNIFunctionName(packageName, name, (isConstr ? "new" + args.length : f.name + argCount));
+
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
-								output.add('JNIEXPORT ${makeTypeDecl(returnField == null ? tret : returnType, true)} JNICALL $funName(${JNI_PARAMETER_PREFIX}');
-								var first = false;
+								output.add('HL_PRIM ${makeTypeDecl(returnField == null ? tret : returnType, true)} HL_NAME($funName)(');
+								var first = true;
 
 								for (a in args) {
 									var skipa = ignore.contains(a.name);
@@ -978,7 +962,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										}
 
 										if (enumName != null) {
-											output.add('JNICALL ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX} ');
+											output.add('HL_NAME(${enumName}_valueToIndex1)(');
 										} else if (isCustomType) {
 											if (returnField == null) {
 												if ((isRef || addressOfReturn) && isConst) {
@@ -1239,8 +1223,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									addCall(margs);
 								}
 								add('}');
-								/*
-//								output.add('DEFINE_PRIM(${defType(tret, true)}, $funName,');
+								output.add('DEFINE_PRIM(${defType(tret, true)}, $funName,');
 								for (a in args) {
 									var dskip = ignore.contains(a.name);
 									for (attr in a.t.attr) {
@@ -1255,7 +1238,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 									output.add(' ' + (isDyn(a) ? "_NULL(" + defType(a.t) + ")" : defType(a.t)));
 								}
-								add(');');*/
+								add(');');
 								add('');
 
 							case FAttribute(t):
@@ -1327,18 +1310,18 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								// Get
 								if (needsGetter) {
 									if (isArray)  {
-										add('JNIEXPORT ${makeElementType(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, int index ) {');
+										add('HL_PRIM ${makeElementType(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this, int index ) {');
 									}else
-										add('JNIEXPORT ${makeTypeDecl(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this ) {');
+										add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this ) {');
 
 									if (isVector) {
-										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(${JNI_PARAMETER_PREFIX}, _unref(_this)->${internalName});');
+										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
 
 										//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');
 									} else if (getter != null)
 										add('\treturn ${getter}(_unref(_this)->${internalName});');
 									else if (enumName != null)
-										add('\treturn JNICALL ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX}, _unref(_this)->${internalName});');
+										add('\treturn HL_NAME(${enumName}_valueToIndex1)(_unref(_this)->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
 										add('\treturn alloc_ref(new $fname(_unref(_this)->${internalName}),$tname);');
@@ -1356,30 +1339,28 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 									if (isVector) {
 										// Add vector getter
-										add('JNIEXPORT void JNICALL ${name}_get${f.name}v( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
+										add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
 										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
 										add('}');
 
-//										add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
+										add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
 									}
 
-									/*
 									if (isArray)
 										add('DEFINE_PRIM(${defElementType(t, true)},${name}_get_${f.name},_IDL _I32);');
 									else
 										add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
-									*/
 								}
 
 								if (needsSetter) {
 									// Set
 									if (isArray)  {
-										add('JNIEXPORT ${makeElementType(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
+										add('HL_PRIM ${makeElementType(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
 									}
 									else 
-										add('JNIEXPORT ${makeTypeDecl(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
+										add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 
 									if (isVector) {
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
@@ -1399,11 +1380,11 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 //										add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
 //										add('\t_unref(_this)->${al} = (value->size);');
 									} else if (isPointer) {
-										add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*(value);');
+										add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*)(value);');
 									} else if (setter != null)
 										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
-										add('\t_unref(_this)->${internalName} = (${enumName})JNICALL ${JNI_PARAMETER_PREFIX},${enumName}_indexToValue1(value);');
+										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue1)(value);');
 									else if (isRef )
 										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
@@ -1415,21 +1396,20 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										// Add componentwise setter
 
 										var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
-										add('JNIEXPORT void JNICALL ${name}_set${f.name}${vdim}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).full} _this, ${vparams} ) {');
+										add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
 										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
 
 										var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
 										add('\t${vcopy}');
 										add('}');
 										var vprim = [for (c in 0...vdim) '${defType(vta)}'].join(' ');
-										//add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
+										add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
 									}
 
 									if (isArray) {
-										//add('DEFINE_PRIM(${defElementType(t)},${name}_set_${f.name},_IDL _I32 ${defElementType(t)}); // Array setter');
-									} else {
-										//add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
-									}
+										add('DEFINE_PRIM(${defElementType(t)},${name}_set_${f.name},_IDL _I32 ${defElementType(t)}); // Array setter');
+									} else 
+										add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
 									add('');
 								}
 
@@ -1441,6 +1421,10 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 		add("}"); // extern C
-		sys.io.File.saveContent(opts.outputDir + opts.nativeLib + "_jvm.cpp", output.toString());
+		sys.io.File.saveContent(opts.outputDir + "idl_hl.cpp", output.toString());
 	}
+
+	
+
+	
 }

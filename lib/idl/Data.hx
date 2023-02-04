@@ -1,4 +1,4 @@
-package webidl;
+package idl;
 
 typedef Data = Array<Definition>;
 

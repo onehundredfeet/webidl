@@ -1,4 +1,4 @@
-package webidl;
+package idl.generator;
 
 class GenerateJS {
     static function command(cmd, args:Array<String>) {

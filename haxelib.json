@@ -3,8 +3,9 @@
 	"url" : "https://github.com/onehundredfeet/hl-idl",
 	"license" : "MIT",
 	"contributors" : ["ncannasse","onehundredfeet"],
-	"description" : "C/C++ Interface Definition Language support for Haxe HL/JS/JVM.",
-	"version" : "1.0.0",
+	"description" : "C/C++ Interface Definition Language support for Haxe HL/Java/JVM.",
+	"version" : "2.0.0",
+	"classPath": "lib/",
 	"releasenote" : "",
 	"dependencies": {"hvector": "git:https://github.com/onehundredfeet/hvector.git"}
 }

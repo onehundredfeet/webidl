@@ -1,6 +1,6 @@
-package webidl;
+package idl.generator;
 
-import webidl.Data;
+import idl.Data;
 
 private enum Token {
 	TEof;

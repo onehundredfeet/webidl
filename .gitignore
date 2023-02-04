@@ -5,3 +5,11 @@
 *.js
 *.bc
 .vscode
+bin
+.DS_Store
+example/build
+example/src/sample/*.java
+example/src/hl-idl-helpers.hpp
+example/src/jvm-idl-helpers.hpp
+example/src/idl_hl.cpp
+example/src/idl_jvm.cpp

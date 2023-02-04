@@ -1,15 +1,16 @@
-package webidl;
+package idl;
 
+#if (java || jvm)
 import haxe.macro.Printer;
 #if macro
-import webidl.Data;
+import idl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import hvector.Int2Array;
 using StringTools;
 using tink.MacroApi;
 
-class Module {
+class ModuleJVM {
 	var p : Position;
 	var hl : Bool;
 	var pack : Array<String>;
@@ -84,7 +85,7 @@ class Module {
 		case TDynamic: macro :Dynamic;
 		case TType: macro  : hl.Type;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
-		case TAny: macro : webidl.Types.Any;
+		case TAny: macro : idl.Types.Any;
 		case TEnum(enumName): isReturn ? enumName.asComplexType() : macro : Int;
 		case TStruct: macro : hl.Bytes;
 		case TBytes: macro : hl.Bytes;
@@ -135,8 +136,8 @@ class Module {
 					throw "Unsupported array type. Sorry";
 			}
 //			var tt = makeType({ t : t, attr : [] });
-//			macro : webidl.Types.NativePtr<$tt>;
-		case TVoidPtr: macro : webidl.Types.VoidPtr;
+//			macro : idl.Types.NativePtr<$tt>;
+		case TVoidPtr: macro : idl.Types.VoidPtr;
 		case TFunction(ret, ta): 
 			var retT = makeType(ret, false);
 
@@ -186,7 +187,7 @@ class Module {
 		return t;
 	}
 
-	function makePosition( pos : webidl.Data.Position ) {
+	function makePosition( pos : idl.Data.Position ) {
 		if( pos == null )
 			return p;
 		return Context.makePosition({ min : pos.pos, max : pos.pos + 1, file : pos.file });
@@ -243,7 +244,7 @@ class Module {
 		return x;
 	}
 
-	function makeNativeField( iname : String, f : webidl.Data.Field, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
+	function makeNativeField( iname : String, f : idl.Data.Field, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
 		return makeNativeFieldRaw(iname, f.name, makePosition(f.pos), args, ret, pub);
 	}
 
@@ -504,7 +505,7 @@ class Module {
 				pack : pack,
 				name : makeName(iname),
 				meta : [],
-				kind : TDAbstract(macro : webidl.Types.Ref, [], [macro : webidl.Types.Ref]),
+				kind : TDAbstract(macro : idl.Types.Ref, [], [macro : idl.Types.Ref]),
 				fields : dfields,
 			};
 
@@ -659,7 +660,7 @@ class Module {
 		}
 
 		// parse IDL
-		var parse = new webidl.Parser();
+		var parse = new idl.generator.Parser();
 		var decls = null;
 		try {
 			decls = parse.parseFile(file,new haxe.io.BytesInput(content));
@@ -734,4 +735,5 @@ class Module {
 	}
 }
 
+#end
 #end

@@ -1,4 +1,4 @@
-package webidl;
+package idl.generator;
 
 @:enum abstract Target(String) from String to String{
 	var TargetHL = "hl";

@@ -1,4 +1,4 @@
-package webidl;
+package idl.generator;
 
 class Generate {
     static function initOpts(opts:Options) {

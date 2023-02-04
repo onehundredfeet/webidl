@@ -1,4 +1,4 @@
-package webidl;
+package idl;
 
 abstract Ref(#if hl hl.Bytes #else Dynamic #end) {
 }

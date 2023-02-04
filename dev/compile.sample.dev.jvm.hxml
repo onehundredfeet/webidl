@@ -1,0 +1,3 @@
+--jvm bin/sample.jar
+--main sample.SampleJava
+-cp .
