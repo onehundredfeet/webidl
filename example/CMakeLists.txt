@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 #you need to modify this yourself
-project(sample)
+project(sample C CXX)
 
 set(PATH_TO_IDL "..")
 # a bunch of pre-configured options that may or may not be useful

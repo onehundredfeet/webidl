@@ -7,13 +7,6 @@ TARGET=hl
 #TARGET=jvm
 CONFIG=Debug
 
-if [ ${BUILDER} = "make" ]; then
-    BUILDER="Unix Makefiles"
-fi
-
-if [ ${BUILDER} = "ninja" ]; then
-    BUILDER="Ninja"
-fi
 
 while getopts p:b:c:a:t: flag
 do
@@ -26,6 +19,15 @@ do
     esac
 done
 
+GENERATOR=${BUILDER}
+
+if [ ${BUILDER} = "make" ]; then
+    GENERATOR="Unix Makefiles"
+fi
+
+if [ ${BUILDER} = "ninja" ]; then
+    GENERATOR="Ninja"
+fi
 
 
 
@@ -34,6 +36,6 @@ mkdir -p installed/${TARGET}/${ARCH}/${CONFIG}
 
 mkdir -p build/${TARGET}/${ARCH}/${CONFIG}
 pushd build/${TARGET}/${ARCH}/${CONFIG}
-cmake -G"${BUILDER}" -DTARGET_ARCH=${ARCH} -DTARGET_HOST=${TARGET} -DCMAKE_BUILD_TYPE=${CONFIG} -DCMAKE_INSTALL_PREFIX=../../../../installed/${TARGET}/${ARCH}/${CONFIG} ../../../.. 
+cmake -G"${GENERATOR}" -DTARGET_ARCH=${ARCH} -DTARGET_HOST=${TARGET} -DCMAKE_BUILD_TYPE=${CONFIG} -DCMAKE_INSTALL_PREFIX=../../../../installed/${TARGET}/${ARCH}/${CONFIG} ../../../.. 
 popd
 

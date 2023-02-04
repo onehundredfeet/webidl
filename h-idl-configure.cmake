@@ -1,4 +1,9 @@
 
+if(APPLE)
+    enable_language(OBJC)
+    enable_language(OBJCXX)
+endif()
+
 add_library(${PROJECT_LIB_NAME} SHARED
 #Input C++ files go here
 ${PROJECT_ADDITIONAL_SOURCES}
@@ -33,6 +38,9 @@ ${PROJECT_ADDITIONAL_LIBS}
 )
 
 target_link_libraries(${PROJECT_LIB_NAME} ${ALL_LIBS})
+
+set_property(TARGET ${PROJECT_LIB_NAME} PROPERTY CXX_STANDARD 17)
+
 
 if (UNIX)
     # Some special flags are needed for GNU GCC compiler

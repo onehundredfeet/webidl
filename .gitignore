@@ -13,3 +13,4 @@ example/src/hl-idl-helpers.hpp
 example/src/jvm-idl-helpers.hpp
 example/src/idl_hl.cpp
 example/src/idl_jvm.cpp
+example/installed
