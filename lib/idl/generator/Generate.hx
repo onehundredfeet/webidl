@@ -1,4 +1,5 @@
 package idl.generator;
+import idl.Options;
 
 class Generate {
     static function initOpts(opts:Options) {

@@ -1,4 +1,4 @@
-package idl.generator;
+package idl;
 
 @:enum abstract Target(String) from String to String{
 	var TargetHL = "hl";
@@ -10,8 +10,8 @@ package idl.generator;
 typedef Options = {
 	var idlFile : String;
 	var nativeLib : String;
-	var target : Target;
 	var packageName : String; // usually the same as nativeLib
+	@:optional var target : Target;
 	@:optional var helperHeaderFile : String;
 	@:optional var outputDir : String;
 	@:optional var includeCode : String;

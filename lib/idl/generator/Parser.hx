@@ -1,6 +1,7 @@
 package idl.generator;
 
 import idl.Data;
+import idl.Options;
 
 private enum Token {
 	TEof;

@@ -1,6 +1,7 @@
 #ifndef __SAMPLE_CUSTOM_H__
 #define __SAMPLE_CUSTOM_H__
 #pragma once
+#include <stdio.h>
 
 class SampleA {
    public:
@@ -14,6 +15,7 @@ struct SampleBStruct {
 };
 
 void SampleBStruct_print(SampleBStruct *obj) {
+    printf("SampleBStruct_print: %p\n", obj);
 }
 
 class Sample {

@@ -8,7 +8,6 @@ import haxe.macro.Expr;
 import hvector.Int2Array;
 using StringTools;
 using tink.MacroApi;
-
 class ModuleHL {
 	var p : Position;
 	var hl : Bool;
@@ -673,7 +672,7 @@ class ModuleHL {
 		var module = Context.getLocalModule();
 		var pack = module.split(".");
 		pack.pop();
-		return new Module(p, pack, hl, opts).buildModule(decls);
+		return new ModuleHL(p, pack, hl, opts).buildModule(decls);
 	}
 
 	static function makeNativeInLib( nativeLib : String, name : String, p : Position ) : MetadataEntry {

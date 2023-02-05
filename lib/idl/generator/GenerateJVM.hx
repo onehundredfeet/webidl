@@ -2,6 +2,7 @@ package idl.generator;
 
 import haxe.macro.Expr.Function;
 import idl.Data;
+import idl.Options;
 
 class GenerateJVM {
 	static final HELPER_TEXT = "
