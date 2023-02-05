@@ -1,2 +1,7 @@
+-cp .
+-cp lib
 --library tink_macro
 --library hvector
+--library hl-idl
+--java bin/sample
+--main SampleMain

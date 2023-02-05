@@ -11,7 +11,7 @@ typedef Options = {
 	var idlFile : String;
 	var nativeLib : String;
 	var packageName : String; // usually the same as nativeLib
-	@:optional var target : Target;
+	var target : Target;
 	@:optional var helperHeaderFile : String;
 	@:optional var outputDir : String;
 	@:optional var includeCode : String;

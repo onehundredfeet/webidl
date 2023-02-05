@@ -5,13 +5,14 @@ package ;
 
 class SampleMain {
     static function main() {
-        trace("Hello, world!");
+        trace("Forcing bootstrap");
+        trace('DLL Version ${sample.Native.Init.dllversion}');
         var x = new sample.Native.Sample();
 
         var a = x.makeA();
         var b = x.makeB();
         b.print();
-        trace("Done");
+        trace("Done Sample Main");
     }
     
 }

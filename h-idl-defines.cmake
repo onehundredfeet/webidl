@@ -79,8 +79,8 @@ if (NOT TARGET_LIB_DIR)
 endif()
 
 
-set(PROJECT_LIB_SUFFIX ".dylib")
-set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.dylib")
+set(PROJECT_LIB_SUFFIX ".jnilib")
+set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.jnilib")
 set(TARGET_LIBS )
 endif() #hl
 

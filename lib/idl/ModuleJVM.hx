@@ -1,8 +1,7 @@
 package idl;
 
-#if (java || jvm)
-import haxe.macro.Printer;
 #if macro
+import haxe.macro.Printer;
 import idl.Data;
 import haxe.macro.Context;
 import haxe.macro.Expr;
@@ -207,7 +206,7 @@ class ModuleJVM {
 			{ expr : EReturn(defVal(ret)), pos : p };
 
 		var access : Array<Access> = [];
-		if( !hl ) access.push(AInline);
+//		if( !hl ) access.push(AInline);
 		if( pub ) access.push(APublic);
 		if( isConstr ) access.push(AStatic);
 		if (ret.attr.contains(AStatic)) {
@@ -276,6 +275,10 @@ class ModuleJVM {
 		switch( d.kind ) {
 		case DInterface(iname, attrs, fields):
 			var dfields : Array<Field> = [];
+
+//			[{ name : "index", opt : false, t : { t : TInt, attr : [] } }]
+
+			dfields.push( makeNativeFieldRaw(iname, "nativeNew", p, [ { name : "_this", opt: false, t : { t : TCustom(iname), attr : [] }}],{t: TVoid, attr: []}, true) );
 
 			var variants = new Map();
 			function getVariants( name : String ) {
@@ -372,8 +375,9 @@ class ModuleJVM {
 							var e : Expr = { expr : ECall(ident, [for( i in 0...v.args.length ) { expr : ECast({ expr : EConst(CIdent(targs[i].name)), pos : p }, null), pos : p }]), pos : p };
 							if( v.ret.t != TVoid )
 								e = { expr : EReturn(e), pos : p };
-							else if( isConstr )
-								e = macro this = $e;
+							else if( isConstr ) {
+								e = macro nativeNew(this);
+							}
 							return e;
 						}
 
@@ -388,7 +392,7 @@ class ModuleJVM {
 						dfields.push({
 							name : isConstr ? "new" : f.name,
 							pos : makePosition(f.pos),
-							access : [APublic, AInline],
+							access : [APublic],
 							kind : FFun({
 								expr : expr,
 								args : targs,
@@ -475,7 +479,7 @@ class ModuleJVM {
 									pos : p,
 									name : "set" + f.name + vdim,
 									meta : [makeNative(iname+"_set" + f.name + vdim)],
-									access : [APublic, AInline],
+									access : [APublic],
 									kind : FFun({
 										ret : macro : Void,
 										expr : macro return,
@@ -493,7 +497,7 @@ class ModuleJVM {
 					dfields.push({
 						pos : p,
 						name : name,
-						access : [APublic, AStatic, AInline],
+						access : [APublic, AStatic],
 						kind : FVar(
 							makeType({t : type, attr : []}, false), vmac
 						)
@@ -505,7 +509,8 @@ class ModuleJVM {
 				pack : pack,
 				name : makeName(iname),
 				meta : [],
-				kind : TDAbstract(macro : idl.Types.Ref, [], [macro : idl.Types.Ref]),
+				//kind : TDAbstract(macro : idl.Types.Ref, [], [macro : idl.Types.Ref]),
+				kind : TDClass(),
 				fields : dfields,
 			};
 
@@ -513,7 +518,6 @@ class ModuleJVM {
 				dfields.push(makeNativeField(iname, { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
 			}
 
-			if( !hl ) {
 				for( f in dfields )
 					if( f.meta != null )
 						for( m in f.meta )
@@ -527,13 +531,15 @@ class ModuleJVM {
 										args.unshift(macro this);
 									}
 									df.expr = macro return untyped $i{call}($a{args});
+									df.expr = null;
 								default: throw "assert";
 								}
-								if (f.access.indexOf(AInline) == -1) f.access.push(AInline);
+								//if (f.access.indexOf(AInline) == -1) f.access.push(AInline);
 								f.meta.remove(m);
+								f.meta.push({ name : ":java.native", pos : p, params : null });
 								break;
 							}
-			}
+			
 
 			types.push(td);
 		case DImplements(name,intf):
@@ -549,7 +555,7 @@ class ModuleJVM {
 							pos : p,
 							name : "_to" + intf,
 							meta : [{ name : ":to", pos : p }],
-							access : [AInline],
+							access : [],
 							kind : FFun({
 								args : [],
 								expr : macro return cast this,
@@ -674,7 +680,7 @@ class ModuleJVM {
 		var module = Context.getLocalModule();
 		var pack = module.split(".");
 		pack.pop();
-		return new Module(p, pack, hl, opts).buildModule(decls);
+		return new ModuleJVM(p, pack, hl, opts).buildModule(decls);
 	}
 
 	static function makeNativeInLib( nativeLib : String, name : String, p : Position ) : MetadataEntry {
@@ -684,7 +690,7 @@ class ModuleJVM {
 	public static function build( opts : Options ) {
 		var file = opts.idlFile;
 		var module = Context.getLocalModule();
-		var types = buildTypes(opts, Context.defined("hl"));
+		var types = buildTypes(opts, Context.defined(opts.target));
 		
 		if (types == null) {
 			throw "Could not find types for IDL " + opts.idlFile;
@@ -700,18 +706,19 @@ class ModuleJVM {
 			});
 
 		// For HL no initialization is required so execute the callback immediately
-		} else if (Context.defined("hl")) {
+		} else if (Context.defined("java") || Context.defined("jvm")) {
 			var lib = {expr: EConst(CString(opts.nativeLib)), pos: Context.currentPos()};
 			var t = macro class Init {
-				public static var dllversion : String;
-				public static function init(onReady:Void->Void) {
-					dllversion = getdllversion("version");
-					if (onReady != null ) onReady();
+				public static var dllversion : String = init();
+				public static function init() : String{
+					trace("Loading library...");
+	//				java.lang.System.loadLibrary($v{opts.nativeLib});
+					java.lang.System.load(sys.FileSystem.absolutePath($v{opts.nativeLib} + ".jnilib"));
+					trace("done");				
+					return getdllversion("version");
 				};
-				@:hlNative($lib, "getdllversion")
-				static function getdllversion(s : String) {
-					return "";
-				}
+				
+				@:java.native static function getdllversion(s : String);
 			};
 
 			types.push(t);
@@ -719,6 +726,10 @@ class ModuleJVM {
 			Context.fatalError( "Unrecognized target", Context.currentPos() ) ;
 		}
 
+		var p = new Printer();
+		for (t in types) {
+			trace(p.printTypeDefinition(t));
+		}
 		
 		Context.defineModule(module, types);
 		Context.registerModuleDependency(module, file);
@@ -735,5 +746,4 @@ class ModuleJVM {
 	}
 }
 
-#end
 #end

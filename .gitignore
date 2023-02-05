@@ -15,3 +15,5 @@ example/src/idl_hl.cpp
 example/src/idl_jvm.cpp
 example/installed
 example/sample.hdll
+example/sample.dylib
+example/sample.jnilib

@@ -15,7 +15,7 @@ struct SampleBStruct {
 };
 
 void SampleBStruct_print(SampleBStruct *obj) {
-    printf("SampleBStruct_print: %p\n", obj);
+    //printf("SampleBStruct_print: %p\n", obj);
 }
 
 class Sample {
