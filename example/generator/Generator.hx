@@ -26,11 +26,11 @@ class Generator {
 		autoGC: true
 	};
 
-	public static function generateCpp(target = idl.generator.Options.Target.TargetHL) {
+	public static function generateCpp(target = idl.Options.Target.TargetHL) {
 		options.target = target;
 		options.includeCode = switch (target) {
-			case idl.generator.Options.Target.TargetHL: HL_INCLUDE;
-			case idl.generator.Options.Target.TargetJVM: JVM_INCLUDE;
+			case idl.Options.Target.TargetHL: HL_INCLUDE;
+			case idl.Options.Target.TargetJVM: JVM_INCLUDE;
 			default: "";
 		};
 		idl.generator.Generate.generateCpp(options);

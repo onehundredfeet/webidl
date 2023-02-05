@@ -112,6 +112,18 @@ class  IteratorWrapper {
 
 	static var HEADER_JVM = "
 	#include <jni.h>
+
+	static JNIEnv *__s_haxe_env = nullptr;
+
+	static inline void cacheJavaEnv(JNIEnv *p ) {
+		if (__s_haxe_env == nullptr) {
+			__s_haxe_env = p;
+		} else if (__s_haxe_env != p) {
+			printf(\"ERROR: Java env changed!\\n\");
+		}
+	}
+	
+
 	";
 
 	/*
@@ -369,7 +381,7 @@ class  IteratorWrapper {
 	static var HEADER_NATIVE_TYPES = "
 	";
 
-	static final JNI_PARAMETER_PREFIX = "JNIEnv *__env, jobject __obj";
+	static final JNI_PARAMETER_PREFIX = "JNIEnv *__env";
 
 	static function makeJNIFunctionDeclaration(jniName:String) {
 		return 'JNIEXPORT void JNICALL ${jniName}';
@@ -463,6 +475,23 @@ class  IteratorWrapper {
 					var deleteName = null;
 					var destructExpr = null;
 			
+					add('static jclass __h_c_${name};');
+					add('static jfieldID __h_f_${name}_this;');
+					
+					add('static inline void cache__h_c_${name}( JNIEnv *env){
+						if (__h_c_${name} == nullptr){
+							__h_c_${name} = env->FindClass(\"${packageName}/${name}\");
+							__h_f_${name}_this = env->GetFieldID(__h_c_${name} , \"_this\", \"J\");
+						}
+					}\n');
+					// Create the object of the class UserData
+//    jclass userDataClass = env->FindClass("com/baeldung/jni/UserData");
+	
+    // Get the UserData fields to be set
+  //  jfieldID nameField = env->GetFieldID(userDataClass , "name", "Ljava/lang/String;");
+    //jfieldID balanceField = env->GetFieldID(userDataClass , "balance", "D");
+
+
 
 					for (a in attrs)
 						switch (a) {
@@ -490,8 +519,8 @@ class  IteratorWrapper {
 						if (destructExpr != null) {
 							freeRefText = '${destructExpr}(_this->value )';
 						}
-						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_finalize")} ( ${JNI_PARAMETER_PREFIX}, $refFullName _this ) { $freeRefText; }');
-						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_dispose")}( ${JNI_PARAMETER_PREFIX}, $refFullName _this ) {\n\t$freeRefText;\n}');
+						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_finalize")} ( ${JNI_PARAMETER_PREFIX} ) { $freeRefText; }');
+						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_dispose")}( ${JNI_PARAMETER_PREFIX} ) {\n\t$freeRefText;\n}');
 					}
 
 				//					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
@@ -738,6 +767,14 @@ class  IteratorWrapper {
 		for (d in decls) {
 			switch (d.kind) {
 				case DInterface(name, attrs, fields):
+					var intName = name;
+
+					for (a in attrs)
+						switch (a) {
+							case AInternal(iname): intName = iname;
+							default:
+						}
+
 					for (f in fields) {
 						switch (f.kind) {
 							case FMethod(margs, ret):
@@ -753,7 +790,7 @@ class  IteratorWrapper {
 								var isConstr = f.name == name;
 								var args = (isConstr || ret.attr.indexOf(AStatic) >= 0) ? margs : [
 									{
-										name: "_this",
+										name: "_obj",
 										t: {t: TCustom(name), attr: []},
 										opt: false
 									}
@@ -862,6 +899,12 @@ class  IteratorWrapper {
 								}
 								add(') {');
 
+								// preamble
+								add('cache__h_c_${name}(__env);');
+								if (!isConstr) {
+									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
+								}
+								
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
 									// preamble
 									var preamble = returnField != null || isReturnArray;
@@ -1004,15 +1047,15 @@ class  IteratorWrapper {
 
 										switch (f.name) {
 											case "op_mul":
-												output.add("*_unref(_this) * (");
+												output.add("*_this * (");
 											case "op_add":
-												output.add("*_unref(_this) + (");
+												output.add("*_this + (");
 											case "op_sub":
-												output.add("*_unref(_this) - (");
+												output.add("*_this - (");
 											case "op_div":
-												output.add("*_unref(_this) / (");
+												output.add("*_this / (");
 											case "op_mulq":
-												output.add("*_unref(_this) *= (");
+												output.add("*_this *= (");
 											default:
 												var callName = f.name;
 
@@ -1027,11 +1070,11 @@ class  IteratorWrapper {
 												if (ret.attr.contains(AStatic))
 													output.add(callName + "(");
 												else if (ret.attr.indexOf(ACObject) >= 0)
-													output.add(callName + "( _unref(_this) ");
+													output.add(callName + "( _this ");
 												else if (ret.attr.indexOf(ACObjectRef) >= 0)
-													output.add(callName + "( *_unref(_this) ");
+													output.add(callName + "( *_this ");
 												else
-													output.add("_unref(_this)->" + callName + (isIndexed ? "[" : "("));
+													output.add("_this->" + callName + (isIndexed ? "[" : "("));
 										}
 									}
 									var first = (ret.attr.indexOf(ACObject) >= 0 || ret.attr.indexOf(ACObjectRef) >= 0 ? false : true);
@@ -1326,37 +1369,40 @@ class  IteratorWrapper {
 								// Get
 								if (needsGetter) {
 									if (isArray) {
-										add('JNIEXPORT ${makeElementType(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, int index ) {');
+										add('JNIEXPORT ${makeElementType(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj, int index ) {');
 									} else
-										add('JNIEXPORT ${makeTypeDecl(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this ) {');
+										add('JNIEXPORT ${makeTypeDecl(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj ) {');
+
+									add('cache__h_c_${name}(__env);');
+									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
 
 									if (isVector) {
-										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(${JNI_PARAMETER_PREFIX}, _unref(_this)->${internalName});');
+										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(${JNI_PARAMETER_PREFIX}, _this->${internalName});');
 
-										//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');
+										//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_this->${internalName}),${vdim});');
 									} else if (getter != null)
-										add('\treturn ${getter}(_unref(_this)->${internalName});');
+										add('\treturn ${getter}(_this->${internalName});');
 									else if (enumName != null)
-										add('\treturn ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX}, _unref(_this)->${internalName});');
+										add('\treturn ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX}, _this->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
-										add('\treturn alloc_ref(new $fname(_unref(_this)->${internalName}),$tname);');
+										add('\treturn alloc_ref(new $fname(_this->${internalName}),$tname);');
 									} else if (isRef)
-										add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${internalName},$tname);');
+										add('\treturn alloc_ref${isConst ? '_const' : ''}(_this->${internalName},$tname);');
 									else if (isPointer) {
-										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
+										add('\treturn (vbyte *)(&_this->${internalName}[0]);');
 									} else if (isArray) {
-										add('\treturn ${getCast}_unref(_this)->${internalName}[index];');
-										//										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
+										add('\treturn ${getCast}_this->${internalName}[index];');
+										//										add('\treturn _idc_alloc_array(&_this->${internalName}[0], _this->${al}); // This is wrong, needs to copy');
 									} else {
-										add('\treturn ${getCast}_unref(_this)->${internalName};');
+										add('\treturn ${getCast}_this->${internalName};');
 									}
 									add('}');
 
 									if (isVector) {
 										// Add vector getter
 										add('JNIEXPORT void JNICALL ${name}_get${f.name}v( ${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
-										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_this->${internalName})[0];');
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
 										add('}');
@@ -1375,37 +1421,39 @@ class  IteratorWrapper {
 								if (needsSetter) {
 									// Set
 									if (isArray) {
-										add('JNIEXPORT ${makeElementType(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
+										add('JNIEXPORT ${makeElementType(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, int index, ${makeElementType(t)} value ) {');
 									} else
-										add('JNIEXPORT ${makeTypeDecl(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
+										add('JNIEXPORT ${makeTypeDecl(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, ${makeTypeDecl(t)} value ) {');
+									add('cache__h_c_${name}(__env);');
+									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
 
 									if (isVector) {
-										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
+										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_this->${internalName})[0];');
 										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) value;');
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
-										//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');
+										//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_this->${internalName}),value, ${vdim} );');
 									} else if (isArray) {
 										var enumName = getEnumName(getElementType(t).t);
 
 										if (enumName != null)
-											add('\t_unref(_this)->${internalName}[index] = (${enumName})(${enumName}__values[value]);');
+											add('\t_this->${internalName}[index] = (${enumName})(${enumName}__values[value]);');
 										else
-											add('\t_unref(_this)->${internalName}[index] = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
+											add('\t_this->${internalName}[index] = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 										//										add('\t// this is probably unwise. Need to know how to properly deallocate this memory');
-										//										add('\tif (_unref(_this)->${internalName} != nullptr) delete _unref(_this)->${internalName};');
-										//										add('\t_unref(_this)->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
-										//										add('\t_idc_copy_array(_unref(_this)->${internalName}, value);');
-										//										add('\t_unref(_this)->${al} = (value->size);');
+										//										add('\tif (_this->${internalName} != nullptr) delete _this->${internalName};');
+										//										add('\t_this->${internalName} = new ${makeTypeDecl({t : at, attr: []})}[ value->size ];');
+										//										add('\t_idc_copy_array(_this->${internalName}, value);');
+										//										add('\t_this->${al} = (value->size);');
 									} else if (isPointer) {
-										add('\t_unref(_this)->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*(value);');
+										add('\t_this->${internalName} = (${makeTypeDecl({t : pt, attr: []})}*(value);');
 									} else if (setter != null)
-										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
+										add('\t_this->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
-										add('\t_unref(_this)->${internalName} = (${enumName})JNICALL ${JNI_PARAMETER_PREFIX},${enumName}_indexToValue1(value);');
+										add('\t_this->${internalName} = (${enumName})JNICALL ${JNI_PARAMETER_PREFIX},${enumName}_indexToValue1(value);');
 									else if (isRef)
-										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
+										add('\t_this->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
-										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
+										add('\t_this->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value);');
 									add('\treturn value;');
 									add('}');
 
@@ -1414,7 +1462,7 @@ class  IteratorWrapper {
 
 										var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
 										add('JNIEXPORT void JNICALL ${name}_set${f.name}${vdim}(${JNI_PARAMETER_PREFIX}, ${typeNames.get(name).full} _this, ${vparams} ) {');
-										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
+										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_this->${internalName});');
 
 										var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
 										add('\t${vcopy}');
