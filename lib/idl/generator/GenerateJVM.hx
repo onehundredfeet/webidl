@@ -122,7 +122,6 @@ class  IteratorWrapper {
 			printf(\"ERROR: Java env changed!\\n\");
 		}
 	}
-	
 
 	";
 
@@ -388,7 +387,7 @@ class  IteratorWrapper {
 	}
 
 	static function makeJNIFunctionName(packageName:String, className:String, functionName) {
-		return '${packageName}_jni_${className}_${functionName}';
+		return 'Java_${packageName}_${className}_${functionName}';
 	}
 
 	static function initOpts(opts:Options) {
@@ -449,6 +448,14 @@ class  IteratorWrapper {
 		add('extern "C" {');
 		add("");
 
+		if (opts.version == null) {
+			opts.version = "undefined";
+		}
+
+		//Java_ClassName_MethodName
+		add('JNIEXPORT jstring JNICALL Java_${packageName}_Init_getdllversion(JNIEnv *env) {
+			return env->NewStringUTF(\"${opts.version}\");
+		}');
 		var typeNames = new Map();
 		var enumNames = new Map();
 
@@ -519,8 +526,8 @@ class  IteratorWrapper {
 						if (destructExpr != null) {
 							freeRefText = '${destructExpr}(_this->value )';
 						}
-						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_finalize")} ( ${JNI_PARAMETER_PREFIX} ) { $freeRefText; }');
-						add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "idl_dispose")}( ${JNI_PARAMETER_PREFIX} ) {\n\t$freeRefText;\n}');
+						//add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "finalize")} ( ${JNI_PARAMETER_PREFIX} ) { $freeRefText; }');
+						//add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "dispose")}( ${JNI_PARAMETER_PREFIX} ) {\n\t$freeRefText;\n}');
 					}
 
 				//					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
@@ -788,7 +795,10 @@ class  IteratorWrapper {
 								}
 
 								var isConstr = f.name == name;
-								var args = (isConstr || ret.attr.indexOf(AStatic) >= 0) ? margs : [
+								if (isConstr) {
+									f.name = "nativeNew";
+								}
+								var args = (ret.attr.indexOf(AStatic) >= 0) ? margs : [
 									{
 										name: "_obj",
 										t: {t: TCustom(name), attr: []},
@@ -823,7 +833,7 @@ class  IteratorWrapper {
 									}
 								}
 
-								var tret = isConstr ? {t: TCustom(name), attr: []} : ret;
+								var tret = isConstr ? {t: TVoid, attr: []} : ret; // {t: TCustom(name), attr: []}
 								var isIndexed = tret.attr.contains(AIndexed);
 								var isReturnArray = false;
 								var rapIdx:String = null;
@@ -850,8 +860,7 @@ class  IteratorWrapper {
 
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
 
-								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argCount);
-								var funName = makeJNIFunctionName(packageName, name, (isConstr ? "new" + args.length : f.name + argCount));
+								var funName = makeJNIFunctionName(packageName, name, isConstr ? "nativeNew" : name + "_" + f.name);
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
 								output.add('JNIEXPORT ${makeTypeDecl(returnField == null ? tret : returnType, true)} JNICALL $funName(${JNI_PARAMETER_PREFIX}');
 								var first = false;
@@ -985,6 +994,7 @@ class  IteratorWrapper {
 
 									var initConstructor = false;
 									if (isConstr) {
+										/*
 										refRet = name;
 										var substitudeConstructor = null;
 										for (a in ret.attr) {
@@ -1005,6 +1015,9 @@ class  IteratorWrapper {
 										} else {
 											output.add('return alloc_ref(${retCast}(${constructorExpr}(');
 										}
+										*/
+										//Hack
+										output.add("((0");
 									} else {
 										if (tret.t != TVoid) {
 											if (preamble) {

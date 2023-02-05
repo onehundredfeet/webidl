@@ -12,6 +12,8 @@ if (TARGET_ARCH STREQUAL "arm")
     set(TARGET_ARCH "arm64")
 endif()
 
+message("Target Arch: ${TARGET_ARCH}")
+
 if (TARGET_ARCH STREQUAL "x86_64")
     set(BREW_ROOT "/usr/local")
 endif()
@@ -79,8 +81,8 @@ if (NOT TARGET_LIB_DIR)
 endif()
 
 
-set(PROJECT_LIB_SUFFIX ".jnilib")
-set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.jnilib")
+set(PROJECT_LIB_SUFFIX ".dylib")
+set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.dylib")
 set(TARGET_LIBS )
 endif() #hl
 

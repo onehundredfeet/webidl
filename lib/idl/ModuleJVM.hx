@@ -172,8 +172,8 @@ class ModuleJVM {
 		}
 	}
 
-	function makeNative( name : String ) : MetadataEntry {
-		return { name : ":hlNative", params : [{ expr : EConst(CString(opts.nativeLib)), pos : p },{ expr : EConst(CString(name)), pos : p }], pos : p };
+	function makeNative() : MetadataEntry {
+		return { name : ":java.native", params : [], pos : p };
 	}
 
 	function makeEither( arr : Array<ComplexType> ) {
@@ -197,18 +197,24 @@ class ModuleJVM {
 		var isConstr = name == iname;
 		if( isConstr ) {
 			name = "new";
-			ret = { t : TCustom(iname), attr : [] };
+			//ret = { t : TCustom(iname), attr : [] };
+			ret = { t : TVoid, attr : [] };
 		}
 
-		var expr = if( ret.t == TVoid )
+		var expr = if (isConstr) 
+			macro nativeNew();
+		else 
+			null;
+		/*
+			if( ret.t == TVoid )
 			{ expr : EBlock([]), pos : p };
 		else
 			{ expr : EReturn(defVal(ret)), pos : p };
-
+		*/
 		var access : Array<Access> = [];
 //		if( !hl ) access.push(AInline);
-		if( pub ) access.push(APublic);
-		if( isConstr ) access.push(AStatic);
+		if( pub || isConstr) access.push(APublic);
+//		if( isConstr ) access.push(AStatic);
 		if (ret.attr.contains(AStatic)) {
 			access.push(AStatic);
 		}
@@ -216,8 +222,8 @@ class ModuleJVM {
 		var x =
 		 {
 			pos : pos,
-			name : pub ? name : name + args.length,
-			meta : [makeNative(iname+"_" + name + (name == "delete" ? "" : ""+args.length))],
+			name : pub ? name : name /*+ args.length*/,
+			meta : isConstr ? [] : [makeNative()],
 			access : access,
 			kind : FFun({
 				ret : makeType(ret, true),
@@ -278,7 +284,14 @@ class ModuleJVM {
 
 //			[{ name : "index", opt : false, t : { t : TInt, attr : [] } }]
 
-			dfields.push( makeNativeFieldRaw(iname, "nativeNew", p, [ { name : "_this", opt: false, t : { t : TCustom(iname), attr : [] }}],{t: TVoid, attr: []}, true) );
+			dfields.push({
+				pos : p,
+				name : "_this",
+				access : [],
+				kind : FVar(
+					makeType({t : TInt64, attr : []}, false), null
+				)
+			});
 
 			var variants = new Map();
 			function getVariants( name : String ) {
@@ -305,6 +318,10 @@ class ModuleJVM {
 
 					var isConstr = f.name == iname;
 
+					if (isConstr) {
+						//  { name : "_this", opt: false, t : { t : TCustom(iname), attr : [] }}
+						dfields.push( makeNativeFieldRaw(iname, "nativeNew", p, [],{t: TVoid, attr: []}, true) );
+					}
 					if( vars.length == 1 && !isConstr ) {
 
 						var f = makeNativeField(iname, f, vars[0].args, vars[0].ret, true);
@@ -371,12 +388,12 @@ class ModuleJVM {
 
 						// dispatch only on args count
 						function makeCall( v : { args : Array<FArg>, ret : TypeAttr } ) : Expr {
-							var ident = { expr : EConst(CIdent( (f.name == iname ? "new" : f.name) + v.args.length )), pos : p};
+							var ident = { expr : EConst(CIdent( (f.name == iname ? "new" : f.name) /* + v.args.length */ )), pos : p};
 							var e : Expr = { expr : ECall(ident, [for( i in 0...v.args.length ) { expr : ECast({ expr : EConst(CIdent(targs[i].name)), pos : p }, null), pos : p }]), pos : p };
 							if( v.ret.t != TVoid )
 								e = { expr : EReturn(e), pos : p };
 							else if( isConstr ) {
-								e = macro nativeNew(this);
+								e = macro nativeNew();
 							}
 							return e;
 						}
@@ -389,16 +406,19 @@ class ModuleJVM {
 							expr = macro if( $i{aname} == null ) $call else $expr;
 						}
 
+						if (!isConstr) {
 						dfields.push({
 							name : isConstr ? "new" : f.name,
 							pos : makePosition(f.pos),
 							access : [APublic],
+							meta : [makeNative()],
 							kind : FFun({
 								expr : expr,
 								args : targs,
-								ret : makeEither([for( t in retTypes ) makeType(t.t, false)]),
+								ret : isConstr ? null : makeEither([for( t in retTypes ) makeType(t.t, false)]),
 							}),
 						});
+					}
 
 
 					}
@@ -414,7 +434,7 @@ class ModuleJVM {
 							dfields.push({
 								pos : p,
 								name : "get" + f.name,
-								meta : [makeNative(iname+"_get_" + f.name)],
+								meta : [makeNative()],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -425,7 +445,7 @@ class ModuleJVM {
 							dfields.push({
 								pos : p,
 								name : "set" + f.name,
-								meta : [makeNative(iname+"_set_" + f.name)],
+								meta : [makeNative()],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -447,7 +467,7 @@ class ModuleJVM {
 							dfields.push({
 								pos : p,
 								name : "get_" + f.name,
-								meta : [makeNative(iname+"_get_" + f.name)],
+								meta : [makeNative()],
 								kind : FFun({
 									ret : makeType(t, true),
 									expr : macro return ${defVal(t)},
@@ -457,7 +477,7 @@ class ModuleJVM {
 							dfields.push({
 								pos : p,
 								name : "set_" + f.name,
-								meta : [makeNative(iname+"_set_" + f.name)],
+								meta : [makeNative()],
 								kind : FFun({
 									ret : tt,
 									expr : macro return ${defVal(t)},
@@ -478,7 +498,7 @@ class ModuleJVM {
 								dfields.push({
 									pos : p,
 									name : "set" + f.name + vdim,
-									meta : [makeNative(iname+"_set" + f.name + vdim)],
+									meta : [makeNative()],
 									access : [APublic],
 									kind : FFun({
 										ret : macro : Void,
@@ -515,9 +535,11 @@ class ModuleJVM {
 			};
 
 			if( attrs.indexOf(ANoDelete) < 0 ) {
-				dfields.push(makeNativeField(iname, { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
+//				dfields.push(makeNativeField(iname, { name : "dispose", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
+//				dfields.push(makeNativeField(iname, { name : "finalize", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
 			}
 
+			/*
 				for( f in dfields )
 					if( f.meta != null )
 						for( m in f.meta )
@@ -539,7 +561,7 @@ class ModuleJVM {
 								f.meta.push({ name : ":java.native", pos : p, params : null });
 								break;
 							}
-			
+			*/
 
 			types.push(td);
 		case DImplements(name,intf):
@@ -697,6 +719,9 @@ class ModuleJVM {
 			return macro : Void;
 		}
 		
+		if (opts.version == null) {
+			opts.version = "undefined";
+		}
 		// Add an init function for initializing the JS module
 		if (Context.defined("js")) {
 			types.push(macro class Init {
@@ -709,16 +734,22 @@ class ModuleJVM {
 		} else if (Context.defined("java") || Context.defined("jvm")) {
 			var lib = {expr: EConst(CString(opts.nativeLib)), pos: Context.currentPos()};
 			var t = macro class Init {
-				public static var dllversion : String = init();
+				//public static var dllversion : String = init();
 				public static function init() : String{
 					trace("Loading library...");
 	//				java.lang.System.loadLibrary($v{opts.nativeLib});
-					java.lang.System.load(sys.FileSystem.absolutePath($v{opts.nativeLib} + ".jnilib"));
+					var p = sys.FileSystem.absolutePath($v{opts.nativeLib} + ".dylib");
+					trace('Loading library ${p}');
+					java.lang.System.load(p);
 					trace("done");				
-					return getdllversion("version");
+					var x = getdllversion();
+					if (x != $v{opts.version}) {
+						throw "Version mismatch: " + x + " != " + $v{opts.version};
+					}
+					return x;
 				};
 				
-				@:java.native static function getdllversion(s : String);
+				@:java.native static function getdllversion();
 			};
 
 			types.push(t);

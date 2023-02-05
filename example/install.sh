@@ -23,5 +23,6 @@ pushd build/${TARGET}/${ARCH}/${CONFIG}
 ${BUILDER} install
 popd
 mkdir -p bin
-cp build/${TARGET}/${ARCH}/${CONFIG}/${PROJECT}.* .
+rm -f ${PROJECT}.dylib
+cp -f build/${TARGET}/${ARCH}/${CONFIG}/${PROJECT}.* .
 

@@ -1,25 +1,25 @@
-interface SampleA {
-	attribute float a;
-	void SampleA();
-};
+// interface SampleA {
+// 	attribute float a;
+// 	void SampleA();
+// };
 
 [Internal="SampleBStruct"]
 interface SampleB {
-	attribute double b;
+// 	attribute double b;
 
-	[CObject,Internal="SampleBStruct_print"] void print();
+[CObject,Internal="SampleBStruct_print"] void print();
 };
 
 interface Sample {
-	attribute long x;
-	attribute long y;
+// 	attribute long x;
+// 	attribute long y;
 	void Sample();
-	void Sample( long x, long y );
-	int func_i(int x);
-	SampleA makeA();
-	SampleB makeB();
+//	void Sample( long x, long y );
+ 	int func_i(int x);
+// 	SampleA makeA();
+// 	SampleB makeB();
 
-	[Operator="*",Ref] Sample op_add( [Const,Ref] Sample p );
-	double length();
+// 	[Operator="*",Ref] Sample op_add( [Const,Ref] Sample p );
+ 	double length();
 };
 
