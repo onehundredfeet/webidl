@@ -1,7 +1,11 @@
 package idl;
 
 #if hl
-typedef Module=idl.ModuleHL;
+class  Module extends idl.ModuleHL {}
 #elseif (java || jvm)
-typedef Module=idl.ModuleJVM;
+class  Module extends idl.ModuleJVM {}
+#elseif eval
+
+#else
+#error "Unsupported target host"
 #end
