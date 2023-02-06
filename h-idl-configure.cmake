@@ -41,7 +41,9 @@ target_link_libraries(${PROJECT_LIB_NAME} ${ALL_LIBS})
 
 set_property(TARGET ${PROJECT_LIB_NAME} PROPERTY CXX_STANDARD 17)
 
+string(TOUPPER "IDL_${TARGET_HOST}" IDL_DEFINE)
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${IDL_DEFINE} ")
 if (UNIX)
     # Some special flags are needed for GNU GCC compiler
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC  -O3  -fpermissive")
