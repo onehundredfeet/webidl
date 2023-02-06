@@ -1,7 +1,15 @@
+enum SampleEnum {
+	"SE_0",
+	"SE_1",
+	"SE_2"
+};
+
 interface SampleA {
   attribute float a;
+  attribute SampleEnum et;
   void SampleA();
   void print();
+  SampleEnum getEnum(SampleEnum p);
 };
 
 [Internal="SampleBStruct"]

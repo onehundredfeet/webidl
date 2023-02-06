@@ -19,8 +19,7 @@ if (TARGET_ARCH STREQUAL "x86_64")
 endif()
 
 if (TARGET_ARCH STREQUAL "arm64")
-    set(LOCAL_LIB "/opt/homebrew/lib")
-    set(LOCAL_INC "/opt/homebrew/include")
+    set(BREW_ROOT "/opt/homebrew")
 endif()
 
 set(CELLAR_ROOT "${BREW_ROOT}/Cellar")

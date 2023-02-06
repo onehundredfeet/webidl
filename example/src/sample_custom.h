@@ -3,9 +3,17 @@
 #pragma once
 #include <stdio.h>
 
+enum SampleEnum {
+	SE_0,
+	SE_1,
+	SE_2
+};
+
+
 class SampleA {
    public:
     float a;
+    SampleEnum et;
     SampleA() {
         a = 3.14;
     }
@@ -13,6 +21,11 @@ class SampleA {
     void print() {
         printf("This is class A!\n");
     }
+    
+    SampleEnum getEnum(SampleEnum p) {
+        return static_cast<SampleEnum>((p + 1) % 3);
+    }
+
 };
 
 struct SampleBStruct {

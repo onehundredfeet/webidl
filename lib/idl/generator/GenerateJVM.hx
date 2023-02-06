@@ -553,15 +553,15 @@ class  IteratorWrapper {
 						}
 					}
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
-					add('JNIEXPORT int JNICALL ${name}_toValue0(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('JNIEXPORT int JNICALL ${name}_toValue(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
 					//					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_indexToValue1(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('JNIEXPORT int JNICALL ${name}_indexToValue(${JNI_PARAMETER_PREFIX}, int idx ) {\n\treturn ${name}__values[idx];\n}');
 					//					add('DEFINE_PRIM(_I32, ${name}_indexToValue1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_valueToIndex1(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('JNIEXPORT int JNICALL ${name}_valueToIndex(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					//					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_fromValue1(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
+					add('JNIEXPORT int JNICALL ${name}_fromValue(${JNI_PARAMETER_PREFIX}, int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					//					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
-					add('JNIEXPORT int JNICALL ${name}_fromIndex1(${JNI_PARAMETER_PREFIX}, int index ) {return index;}');
+					add('JNIEXPORT int JNICALL ${name}_fromIndex(${JNI_PARAMETER_PREFIX}, int index ) {return index;}');
 				//					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
 				case DTypeDef(name, attrs, type):
 				case DImplements(_):
@@ -761,7 +761,7 @@ class  IteratorWrapper {
 				for (a in td.attr) {
 					switch (a) {
 						case AConst:
-							prefix += "HL_CONST ";
+							prefix += "/*CONST*/ ";
 						default:
 					}
 				}
@@ -920,8 +920,10 @@ class  IteratorWrapper {
 								
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
 									var isCustomType = ret.t.match(TCustom(_));
+									var enumName = getEnumName(tret.t);
+
 									// preamble
-									var preamble = returnField != null || isReturnArray || isCustomType;
+									var preamble = returnField != null || isReturnArray || (isCustomType && enumName == null);
 
 									if (returnField != null) {
 										output.add(makeLocalType(returnType) + " __tmpret;\n");
@@ -990,7 +992,6 @@ class  IteratorWrapper {
 									}
 
 									var refRet = null;
-									var enumName = getEnumName(tret.t);
 
 									var isRef = ret.attr.contains(ARef);
 									var isValue = ret.attr.contains(AValue);
@@ -1036,7 +1037,7 @@ class  IteratorWrapper {
 										}
 
 										if (enumName != null) {
-											output.add('JNICALL ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX} ');
+											output.add('${enumName}_valueToIndex(nullptr, ');
 										} else if (isCustomType) {
 											if (returnField == null) {
 												if ((isRef || addressOfReturn) && isConst) {
@@ -1182,7 +1183,7 @@ class  IteratorWrapper {
 														if (argAddressOf.length > 0)
 															output.add('_unref(${a.name})');
 														else
-															output.add('_unref_ptr_safe(${a.name})');
+															output.add('_unref(${a.name})');
 													//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
 													//															output.add("->GetPtr()");
 													//														}
@@ -1213,16 +1214,17 @@ class  IteratorWrapper {
 									}
 
 									if (enumName != null)
-										output.add(')');
+										output.add('))');
 									else if (refRet != null && returnField == null)
 										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + ')');
 									else if (returnField == null)
 										output.add(')');
+
 									add(";");
 
 									// post amble
 									if (preamble) {
-										if (!isConstr && isCustomType) {
+										if (!isConstr && isCustomType && enumName == null) {
 											var retTypeName = switch (ret.t) {
 												case TCustom(id): id;
 												case defualt: "Error";
@@ -1232,7 +1234,7 @@ class  IteratorWrapper {
 											output.add('cache__h_c_${retTypeName}(__env);\n');
 											output.add('\tauto _new_obj = __env->NewObject( __h_c_${retTypeName}, __h_m_${retTypeName}_ctor);\n');
 											output.add('\t__env->SetLongField(_new_obj, __h_f_${retTypeName}_this, (long long)___retvalue);\n');
-										}
+										} 
 										if (initConstructor)
 											output.add('\t*(___retvalue->value) = {};\n');
 
@@ -1279,7 +1281,7 @@ class  IteratorWrapper {
 												} else
 													add('\treturn ${return_converter}(__tmpret);');
 											} else {
-												if (isCustomType) {
+												if (isCustomType && enumName == null) {
 													add('\treturn _new_obj;');
 												} else {
 													add('\treturn ${return_converter}(___retvalue);');
@@ -1417,7 +1419,7 @@ class  IteratorWrapper {
 									} else if (getter != null)
 										add('\treturn ${getter}(_this->${internalName});');
 									else if (enumName != null)
-										add('\treturn ${enumName}_valueToIndex1(${JNI_PARAMETER_PREFIX}, _this->${internalName});');
+										add('\treturn ${enumName}_valueToIndex(nullptr, _this->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
 										add('\treturn alloc_ref(new $fname(_this->${internalName}),$tname);');
@@ -1483,7 +1485,7 @@ class  IteratorWrapper {
 									} else if (setter != null)
 										add('\t_this->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
-										add('\t_this->${internalName} = (${enumName})JNICALL ${JNI_PARAMETER_PREFIX},${enumName}_indexToValue1(value);');
+										add('\t_this->${internalName} = (${enumName})${enumName}_indexToValue(nullptr, value);');
 									else if (isRef)
 										add('\t_this->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
