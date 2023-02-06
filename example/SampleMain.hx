@@ -8,8 +8,12 @@ class SampleMain {
         trace("Forcing bootstrap");
         trace('DLL Version ${sample.Native.Init.init()}');
         var x = new sample.Native.Sample();
-
-//        var a = x.makeA();
+        x.print();
+        var y = x.funci(20);
+        trace('y is ${y}');
+        var a = x.makeA();
+        trace('Class A value ${a.a}');
+        a.print();
   //      var b = x.makeB();
     //    b.print();
         trace("Done Sample Main");

@@ -78,7 +78,7 @@ class ModuleJVM {
 		//case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
 		case TInt64 : macro : haxe.Int64; 
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
-		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
+		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Single);
 		case TDouble: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
 		case TBool: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Bool>) : (macro : Bool))) : (macro : Bool);
 		case TDynamic: macro :Dynamic;
@@ -437,7 +437,7 @@ class ModuleJVM {
 								meta : [makeNative()],
 								kind : FFun({
 									ret : cetr,
-									expr : macro return ${defVal(et)},
+									expr : null, //macro return ${defVal(et)},
 									args : [{ name : "index", type : macro : Int }],
 								}),
 								access: [APublic]
@@ -448,7 +448,7 @@ class ModuleJVM {
 								meta : [makeNative()],
 								kind : FFun({
 									ret : cetr,
-									expr : macro return ${defVal(et)},
+									expr : null, // macro return ${defVal(et)},
 									args : [
 										{ name : "index", type : macro : Int }, 
 										{ name : "_v", type : cet }],
@@ -470,7 +470,7 @@ class ModuleJVM {
 								meta : [makeNative()],
 								kind : FFun({
 									ret : makeType(t, true),
-									expr : macro return ${defVal(t)},
+									expr : null, // macro return ${defVal(t)},
 									args : [],
 								}),
 							});
@@ -480,7 +480,7 @@ class ModuleJVM {
 								meta : [makeNative()],
 								kind : FFun({
 									ret : tt,
-									expr : macro return ${defVal(t)},
+									expr : null, // macro return ${defVal(t)},
 									args : [{ name : "_v", type : tt }],
 								}),
 							});

@@ -6,8 +6,13 @@
 class SampleA {
    public:
     float a;
-    SampleA() {}
+    SampleA() {
+        a = 3.14;
+    }
     ~SampleA() {}
+    void print() {
+        printf("This is class A!\n");
+    }
 };
 
 struct SampleBStruct {
@@ -21,18 +26,23 @@ inline void SampleBStruct_print(SampleBStruct *obj) {
 class Sample {
    public:
     Sample() {
+        x = 5;
+        y = 10;
     }
     ~Sample() {
     }
-    Sample(long long a, long long b) {
+    Sample(int a, int b) {
         this->x = a;
         this->y = b;
     }
-    long long x;
-    long long y;
+    int x;
+    int y;
 
-    int func_i(int x) {
-        return x;
+    int funci(int a) {
+        return x + a;
+    }
+    void print() {
+        printf("My pointer is %p, my values are %d and %d\n", this, x, y);
     }
     SampleA *makeA() {
         return new SampleA();

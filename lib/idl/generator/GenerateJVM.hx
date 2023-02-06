@@ -3,6 +3,7 @@ package idl.generator;
 import haxe.macro.Expr.Function;
 import idl.Data;
 import idl.Options;
+using StringTools;
 
 class GenerateJVM {
 	static final HELPER_TEXT = "
@@ -484,11 +485,13 @@ class  IteratorWrapper {
 			
 					add('static jclass __h_c_${name};');
 					add('static jfieldID __h_f_${name}_this;');
+					add('static jmethodID __h_m_${name}_ctor;');
 					
 					add('static inline void cache__h_c_${name}( JNIEnv *env){
 						if (__h_c_${name} == nullptr){
 							__h_c_${name} = env->FindClass(\"${packageName}/${name}\");
 							__h_f_${name}_this = env->GetFieldID(__h_c_${name} , \"_this\", \"J\");
+							__h_m_${name}_ctor = env->GetMethodID(__h_c_${name} ,\"<init>\", \"()V\");
 						}
 					}\n');
 					// Create the object of the class UserData
@@ -860,7 +863,8 @@ class  IteratorWrapper {
 
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
 
-								var funName = makeJNIFunctionName(packageName, name, isConstr ? "nativeNew" : name + "_" + f.name);
+								f.name.replace("_", "_1");
+								var funName = makeJNIFunctionName(packageName, name, isConstr ? "nativeNew" : f.name);
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
 								output.add('JNIEXPORT ${makeTypeDecl(returnField == null ? tret : returnType, true)} JNICALL $funName(${JNI_PARAMETER_PREFIX}');
 								var first = false;
@@ -909,14 +913,15 @@ class  IteratorWrapper {
 								add(') {');
 
 								// preamble
-								add('cache__h_c_${name}(__env);');
+								add('\tcache__h_c_${name}(__env);');
 								if (!isConstr) {
-									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
+									add('\t${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
 								}
 								
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
+									var isCustomType = ret.t.match(TCustom(_));
 									// preamble
-									var preamble = returnField != null || isReturnArray;
+									var preamble = returnField != null || isReturnArray || isCustomType;
 
 									if (returnField != null) {
 										output.add(makeLocalType(returnType) + " __tmpret;\n");
@@ -990,11 +995,10 @@ class  IteratorWrapper {
 									var isRef = ret.attr.contains(ARef);
 									var isValue = ret.attr.contains(AValue);
 									var isConst = ret.attr.contains(AConst);
-									var isCustomType = ret.t.match(TCustom(_));
 
 									var initConstructor = false;
 									if (isConstr) {
-										/*
+										
 										refRet = name;
 										var substitudeConstructor = null;
 										for (a in ret.attr) {
@@ -1011,18 +1015,16 @@ class  IteratorWrapper {
 										var constructorExpr = substitudeConstructor == null ? 'new ${typeNames.get(refRet).constructor}' : substitudeConstructor;
 
 										if (preamble) {
-											output.add('auto ___retvalue = alloc_ref(${retCast}(${constructorExpr}(');
+											output.add('auto ___retvalue = ${retCast}(${constructorExpr}(');
 										} else {
-											output.add('return alloc_ref(${retCast}(${constructorExpr}(');
+											output.add('auto *_this = ${retCast}(${constructorExpr}(');
 										}
-										*/
-										//Hack
-										output.add("((0");
 									} else {
 										if (tret.t != TVoid) {
 											if (preamble) {
-												if (returnField == null)
-													output.add("auto ___retvalue = ");
+												if (returnField == null) {
+													output.add('auto ___retvalue = ${retCast}');
+												}
 											} else
 												output.add('return ${return_converter}');
 										}
@@ -1038,13 +1040,13 @@ class  IteratorWrapper {
 										} else if (isCustomType) {
 											if (returnField == null) {
 												if ((isRef || addressOfReturn) && isConst) {
-													output.add('alloc_ref_const(${retCast}${getter}&('); // we shouldn't call delete() on this one !
+													output.add('${retCast}${getter}&('); // we shouldn't call delete() on this one !
 												} else if (isValue) {
-													output.add('alloc_ref(${retCast}new ${typeNames.get(refRet).constructor}(${getter}(');
+													output.add('${retCast}new ${typeNames.get(refRet).constructor}(${getter}(');
 												} else if (isConst) {
-													output.add('alloc_ref_const(${retCast}${getter}(');
+													output.add('${retCast}${getter}(');
 												} else {
-													output.add('alloc_ref(');
+													output.add('');
 													if (derefReturn)
 														output.add('*');
 													if (addressOfReturn)
@@ -1054,7 +1056,7 @@ class  IteratorWrapper {
 											}
 										} else {
 											if (returnField == null) {
-												output.add('${retCast}${getter}(');
+												output.add('${retCast}${getter}');
 											}
 										}
 
@@ -1213,13 +1215,24 @@ class  IteratorWrapper {
 									if (enumName != null)
 										output.add(')');
 									else if (refRet != null && returnField == null)
-										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + '),$refRet');
+										output.add((isIndexed ? "]" : ")") + (isValue ? ')' : '') + ')');
 									else if (returnField == null)
 										output.add(')');
-									add(");");
+									add(";");
 
 									// post amble
 									if (preamble) {
+										if (!isConstr && isCustomType) {
+											var retTypeName = switch (ret.t) {
+												case TCustom(id): id;
+												case defualt: "Error";
+											};
+
+											
+											output.add('cache__h_c_${retTypeName}(__env);\n');
+											output.add('\tauto _new_obj = __env->NewObject( __h_c_${retTypeName}, __h_m_${retTypeName}_ctor);\n');
+											output.add('\t__env->SetLongField(_new_obj, __h_f_${retTypeName}_this, (long long)___retvalue);\n');
+										}
 										if (initConstructor)
 											output.add('\t*(___retvalue->value) = {};\n');
 
@@ -1246,7 +1259,7 @@ class  IteratorWrapper {
 											}
 										}
 
-										if (tret.t != TVoid) {
+										if (tret.t != TVoid) {											
 											if (isReturnArray) {
 												if (tret.t.match(TPointer(_)) || tret.t.match(TVoidPtr)) {
 													add('\t__tmpret = __tmparray;');
@@ -1266,7 +1279,11 @@ class  IteratorWrapper {
 												} else
 													add('\treturn ${return_converter}(__tmpret);');
 											} else {
-												add('\treturn ${return_converter}(___retvalue);');
+												if (isCustomType) {
+													add('\treturn _new_obj;');
+												} else {
+													add('\treturn ${return_converter}(___retvalue);');
+												}
 											}
 										}
 									}
@@ -1291,6 +1308,10 @@ class  IteratorWrapper {
 								} else {
 									output.add("\t");
 									addCall(margs);
+								}
+								if (isConstr) {
+									add('\t__env->SetLongField(_obj, __h_f_${name}_this, (long long)_this);');
+
 								}
 								add('}');
 								/*
@@ -1382,9 +1403,9 @@ class  IteratorWrapper {
 								// Get
 								if (needsGetter) {
 									if (isArray) {
-										add('JNIEXPORT ${makeElementType(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj, int index ) {');
+										add('JNIEXPORT ${makeElementType(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'get_1${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj, int index ) {');
 									} else
-										add('JNIEXPORT ${makeTypeDecl(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'_get_${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj ) {');
+										add('JNIEXPORT ${makeTypeDecl(t, true)} JNICALL ${makeJNIFunctionName(packageName, name,'get_1${f.name}' )}( ${JNI_PARAMETER_PREFIX}, jobject _obj ) {');
 
 									add('cache__h_c_${name}(__env);');
 									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
@@ -1434,9 +1455,9 @@ class  IteratorWrapper {
 								if (needsSetter) {
 									// Set
 									if (isArray) {
-										add('JNIEXPORT ${makeElementType(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, int index, ${makeElementType(t)} value ) {');
+										add('JNIEXPORT ${makeElementType(t)} JNICALL ${makeJNIFunctionName(packageName, name,'set_1${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, int index, ${makeElementType(t)} value ) {');
 									} else
-										add('JNIEXPORT ${makeTypeDecl(t)} JNICALL ${makeJNIFunctionName(packageName, name,'_set_${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, ${makeTypeDecl(t)} value ) {');
+										add('JNIEXPORT ${makeTypeDecl(t)} JNICALL ${makeJNIFunctionName(packageName, name,'set_1${f.name}' )}(${JNI_PARAMETER_PREFIX}, jobject _obj, ${makeTypeDecl(t)} value ) {');
 									add('cache__h_c_${name}(__env);');
 									add('${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
 

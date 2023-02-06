@@ -17,3 +17,4 @@ example/installed
 example/sample.hdll
 example/sample.dylib
 example/sample.jnilib
+*.log
