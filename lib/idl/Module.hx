@@ -1,11 +1,12 @@
 package idl;
-
-#if hl
-class  Module extends idl.ModuleHL {}
-#elseif (java || jvm)
-class  Module extends idl.ModuleJVM {}
-#elseif eval
-
-#else
-#error "Unsupported target host"
+#if macro
+class  Module{
+    public static function build( opts : Options ) {
+        return switch(opts.target) {
+            case TargetHL: ModuleHL.build(opts);
+            case TargetJVM: ModuleJVM.build(opts);
+            default: throw 'Unrecognized target ${opts.target}';
+        }
+    }
+}
 #end
