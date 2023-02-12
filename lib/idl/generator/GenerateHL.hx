@@ -1340,7 +1340,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 									if (isVector) {
 										// Add vector getter
-										add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).full} _this, ${makeTypeDecl(t)} value ) {');
+										add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
@@ -1397,7 +1397,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										// Add componentwise setter
 
 										var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
-										add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).full} _this, ${vparams} ) {');
+										add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).decl} _this, ${vparams} ) {');
 										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
 
 										var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');

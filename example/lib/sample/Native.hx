@@ -1,10 +1,13 @@
 package sample;
 
-#if hl
-typedef Native = haxe.macro.MacroType<[idl.ModuleHL.build({ idlFile : "sample.idl", target: "hl",packageName: "sample", autoGC : true, nativeLib : "sample" })]>;
-#elseif (java || jvm)
-typedef Native = haxe.macro.MacroType<[idl.ModuleJVM.build({ idlFile : "sample.idl", target: "jvm", packageName: "sample", autoGC : true, nativeLib : "sample" })]>;
-#else
-#error "Unsupported target host"
-#end
+
+typedef Native = haxe.macro.MacroType<[
+	idl.Module.build({
+		idlFile: "sample.idl",
+		target: #if hl "hl" #elseif (java || jvm) "jvm" #else "Unsupported target host" #end,
+		packageName: "sample",
+		autoGC: true,
+		nativeLib: "sample"
+	})
+]>;
 
