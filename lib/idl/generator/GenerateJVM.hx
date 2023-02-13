@@ -3,13 +3,15 @@ package idl.generator;
 import haxe.macro.Expr.Function;
 import idl.Data;
 import idl.Options;
+
 using StringTools;
 
 class GenerateJVM {
 	static final HELPER_TEXT = "
-	#ifndef __HL_IDL_HELPERS_H_
-#define __HL_IDL_HELPERS_H_
+	#ifndef __JVM_IDL_HELPERS_H_
+#define __JVM_IDL_HELPERS_H_
 
+/*
 #include <hl.h>
 #include <string>
 
@@ -19,63 +21,6 @@ vstring * hl_utf8_to_hlstr( const std::string &str);
 
 #pragma once
 
-
-// Float vector
-struct _hl_float2 {
-	float x;
-	float y;
-};
-
-struct _hl_float3 {
-	float x;
-	float y;
-	float z;
-};
-
-struct _hl_float4 {
-	float x;
-	float y;
-	float z;
-	float w;
-};
-
-// int vector
-struct _hl_int2 {
-	int x;
-	int y;
-};
-
-struct _hl_int3 {
-	int x;
-	int y;
-	int z;
-};
-
-struct _hl_int4 {
-	int x;
-	int y;
-	int z;
-	int w;
-};
-
-// double vector
-struct _hl_double2 {
-	double x;
-	double y;
-};
-
-struct _hl_double3 {
-	double x;
-	double y;
-	double z;
-};
-
-struct _hl_double4 {
-	double x;
-	double y;
-	double z;
-	double w;
-};
 
 
 template<class T, class C>
@@ -107,7 +52,7 @@ class  IteratorWrapper {
 			return &(*_it);
 		}
 };
-
+*/
 #endif
 	";
 
@@ -124,6 +69,88 @@ class  IteratorWrapper {
 		}
 	}
 
+	
+// Float vector
+struct _h_float2 {
+	float x;
+	float y;
+};
+
+struct _h_float3 {
+	float x;
+	float y;
+	float z;
+};
+
+struct _h_float4 {
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
+// int vector
+struct _h_int2 {
+	int x;
+	int y;
+};
+
+struct _h_int3 {
+	int x;
+	int y;
+	int z;
+};
+
+struct _h_int4 {
+	int x;
+	int y;
+	int z;
+	int w;
+};
+
+// double vector
+struct _h_double2 {
+	double x;
+	double y;
+};
+
+struct _h_double3 {
+	double x;
+	double y;
+	double z;
+};
+
+struct _h_double4 {
+	double x;
+	double y;
+	double z;
+	double w;
+};
+
+
+inline jobject _returnPointer( void *p ) {
+	return 0;
+}
+
+template<class T>
+inline T *h_aptr( jobject p ) {
+	return nullptr;
+}
+
+class HNativeBuffer {
+    unsigned char *_ptr;
+    int _size;
+
+   public:
+   inline unsigned char * ptr() { return _ptr; }
+   inline int size() { return _size; }
+   HNativeBuffer(unsigned char *ptr, int size) : _ptr(ptr), _size(size) {}
+   HNativeBuffer(int size) : _ptr(new unsigned char[size]), _size(size) {}
+    ~HNativeBuffer() {
+        if (_ptr != nullptr)
+            delete []_ptr;
+    }
+};
 	";
 
 	/*
@@ -412,26 +439,25 @@ class  IteratorWrapper {
 			throw msg + "(" + file + " line " + parse.line + ")";
 		}
 		var output = new StringBuf();
-		var outputJava = new Map<String,StringBuf>();
+		var outputJava = new Map<String, StringBuf>();
 		function add(str:String) {
 			output.add(str.split("\r\n").join("\n") + "\n");
 		}
 		var packageName = opts.packageName;
 
-		function addJava(className: String, str:String) {
+		function addJava(className:String, str:String) {
 			var strbuf = outputJava.get(className);
 			if (strbuf == null) {
 				strbuf = new StringBuf();
 				outputJava.set(className, strbuf);
 				strbuf.add('package ${packageName};\n');
 				strbuf.add("\n");
-				strbuf.add( 'public class ${className} {\n');
-				strbuf.add( '\t private long _this;\n');
+				strbuf.add('public class ${className} {\n');
+				strbuf.add('\t private long _this;\n');
 			}
 			strbuf.add(str.split("\r\n").join("\n") + "\n");
 		}
 
-		
 		add("");
 		//		add('#define JNICALL x) ${opts.nativeLib}_##x');
 		add(StringTools.trim(HEADER_JVM));
@@ -453,7 +479,7 @@ class  IteratorWrapper {
 			opts.version = "undefined";
 		}
 
-		//Java_ClassName_MethodName
+		// Java_ClassName_MethodName
 		add('JNIEXPORT jstring JNICALL Java_${packageName}_Init_getdllversion(JNIEnv *env) {
 			return env->NewStringUTF(\"${opts.version}\");
 		}');
@@ -482,11 +508,11 @@ class  IteratorWrapper {
 					var newName = null;
 					var deleteName = null;
 					var destructExpr = null;
-			
+
 					add('static jclass __h_c_${name};');
 					add('static jfieldID __h_f_${name}_this;');
 					add('static jmethodID __h_m_${name}_ctor;');
-					
+
 					add('static inline void cache__h_c_${name}( JNIEnv *env){
 						if (__h_c_${name} == nullptr){
 							__h_c_${name} = env->FindClass(\"${packageName}/${name}\");
@@ -495,13 +521,11 @@ class  IteratorWrapper {
 						}
 					}\n');
 					// Create the object of the class UserData
-//    jclass userDataClass = env->FindClass("com/baeldung/jni/UserData");
-	
-    // Get the UserData fields to be set
-  //  jfieldID nameField = env->GetFieldID(userDataClass , "name", "Ljava/lang/String;");
-    //jfieldID balanceField = env->GetFieldID(userDataClass , "balance", "D");
+					//    jclass userDataClass = env->FindClass("com/baeldung/jni/UserData");
 
-
+					// Get the UserData fields to be set
+					//  jfieldID nameField = env->GetFieldID(userDataClass , "name", "Ljava/lang/String;");
+					// jfieldID balanceField = env->GetFieldID(userDataClass , "balance", "D");
 
 					for (a in attrs)
 						switch (a) {
@@ -529,8 +553,8 @@ class  IteratorWrapper {
 						if (destructExpr != null) {
 							freeRefText = '${destructExpr}(_this->value )';
 						}
-						//add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "finalize")} ( ${JNI_PARAMETER_PREFIX} ) { $freeRefText; }');
-						//add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "dispose")}( ${JNI_PARAMETER_PREFIX} ) {\n\t$freeRefText;\n}');
+						// add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "finalize")} ( ${JNI_PARAMETER_PREFIX} ) { $freeRefText; }');
+						// add('JNIEXPORT void JNICALL ${makeJNIFunctionName(packageName, name, "dispose")}( ${JNI_PARAMETER_PREFIX} ) {\n\t$freeRefText;\n}');
 					}
 
 				//					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
@@ -586,13 +610,21 @@ class  IteratorWrapper {
 				case TInt: "jint";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TArray(t, size):
+					switch (t) {
+						case TFloat: "jfloatArray";
+						case TInt: "jintArray";
+						case TShort: "jshortArray";
+						case TChar: "jcharArray";
+						case TDouble: "jdoubleArray";
+						default: "jarray";
+					}
 				case TDynamic: "vdynamic*";
 				case TType: "hl_type*";
-				case TPointer(t): "vbyte*";
+				case TPointer(t): "jobject";
 				case TBool: "jboolean";
 				case TEnum(_): "jint";
-				case TBytes: "unsigned char*";
+				case TBytes: "jobject";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -601,13 +633,15 @@ class  IteratorWrapper {
 							typeNames.get(id).decl;
 						}
 					}
-				case TVector(vt, vdim):
-					switch (vt) {
-						case TFloat: "_hl_float" + vdim + "*";
-						case TDouble: "_hl_double" + vdim + "*";
-						case TInt: "_hl_int" + vdim + "*";
-						default: throw "Unsupported vector type";
-					}
+				case TVector(vt, vdim): "jobject";
+				/*
+					case TVector(vt, vdim):
+						switch (vt) {
+							case TFloat: "_h_float" + vdim + "*";
+							case TDouble: "_h_double" + vdim + "*";
+							case TInt: "_h_int" + vdim + "*";
+							default: throw "Unsupported vector type";
+				}*/
 				default:
 					throw "Unknown type " + t;
 			}
@@ -632,14 +666,23 @@ class  IteratorWrapper {
 				case TInt: "jint";
 				case TVoid: "void";
 				case TAny, TVoidPtr: "void*";
-				case TArray(_, _): "varray*"; // makeType(t) + "vdynamic *"; // This is an array of OBJECTS, likely a bug here
+				case TArray(t, size):
+					switch (t) {
+						case TFloat: "jfloatArray";
+						case TInt: "jintArray";
+						case TShort: "jshortArray";
+						case TChar:
+							"jcharArray";
+						case TDouble: "jdoubleArray";
+						default: "jarray";
+					}
 				case TDynamic: "vdynamic*";
 				case TType: "hl_type*";
-				case TPointer(t): "vbyte*";
+				case TPointer(t): "jobject";
 				case TBool: "jboolean";
 				case TEnum(_): "jint";
 				case THString: "jstring";
-				case TBytes: "vbyte*";
+				case TBytes: "jobject";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -648,13 +691,15 @@ class  IteratorWrapper {
 							typeNames.get(id).decl;
 						}
 					}
-				case TVector(vt, vdim):
-					switch (vt) {
-						case TFloat: "_hl_float" + vdim + "*";
-						case TDouble: "_hl_double" + vdim + "*";
-						case TInt: "_hl_int" + vdim + "*";
-						default: throw "Unsupported vector type";
-					}
+				case TVector(vt, vdim): "jobject";
+				/*
+					case TVector(vt, vdim):
+						switch (vt) {
+							case TFloat: "_h_float" + vdim + "*";
+							case TDouble: "_h_double" + vdim + "*";
+							case TInt: "_h_int" + vdim + "*";
+							default: throw "Unsupported vector type";
+				}*/
 				case TFunction(ret, ta): "vclosure*";
 				default:
 					throw "Unknown type " + t;
@@ -883,6 +928,7 @@ class  IteratorWrapper {
 											first = false
 										else
 											output.add(", ");
+										
 										switch (a.t.t) {
 											case TArray(t, sizeField):
 												output.add(makeType(a.t));
@@ -908,6 +954,14 @@ class  IteratorWrapper {
 												}
 										}
 										output.add(" " + a.name);
+										switch(a.t.t) {
+											case TCustom(id):
+												output.add('/* ${id} */');
+											case TArray(t, _):
+												output.add('/* ${t} */');
+											default:
+										}
+										
 									}
 								}
 								add(') {');
@@ -917,7 +971,7 @@ class  IteratorWrapper {
 								if (!isConstr) {
 									add('\t${intName} *_this = (${intName}*)__env->GetLongField(_obj, __h_f_${name}_this);');
 								}
-								
+
 								function addCall(margs:Array<{name:String, opt:Bool, t:TypeAttr}>) {
 									var isCustomType = ret.t.match(TCustom(_));
 									var enumName = getEnumName(tret.t);
@@ -937,6 +991,7 @@ class  IteratorWrapper {
 												output.add(makeType({t: at, attr: []}) + " *__tmparray = nullptr;\n");
 												output.add("\t" + "int __tmpLength = -1;\n");
 												output.add("\t" + makeType(tret) + " __tmpret;\n");
+												
 											default:
 												throw "Needs to be array";
 										}
@@ -955,6 +1010,16 @@ class  IteratorWrapper {
 												case TFunction(ret, ta):
 													preamble = true;
 													output.add('\tif (${a.name}->hasValue) hl_error(\"Only static callbacks supported\");\n');
+												case TCustom(id):
+													preamble = true;
+													var t = typeNames.get(id);
+													if (t == null) {
+														throw "Unsupported type " + id;
+													} else {
+														typeNames.get(id).decl;
+													}
+													output.add('cache__h_c_${id}(__env);\n');
+													add('\t${id} *_${a.name} = (${id}*)__env->GetLongField(${a.name}, __h_f_${id}_this);');
 												case THString:
 													preamble = true;
 													if (!a.t.attr.contains(AHString)) {
@@ -999,7 +1064,6 @@ class  IteratorWrapper {
 
 									var initConstructor = false;
 									if (isConstr) {
-										
 										refRet = name;
 										var substitudeConstructor = null;
 										for (a in ret.attr) {
@@ -1169,21 +1233,21 @@ class  IteratorWrapper {
 														switch (t) {
 															case TVector(vt, vdim):
 																switch (vt) {
-																	case TFloat: output.add('hl_aptr(${a.name},${"_hl_float" + vdim})');
-																	case TDouble: output.add('hl_aptr(${a.name},${"_hl_double" + vdim})');
-																	case TInt: output.add('hl_aptr(${a.name},${"_hl_int" + vdim})');
+																	case TFloat: output.add('h_aptr<${"_h_float" + vdim}>(${a.name})');
+																	case TDouble: output.add('h_aptr<${"_h_double" + vdim}>(${a.name})');
+																	case TInt: output.add('h_aptr<${"_h_int" + vdim}>(${a.name})');
 																	default: throw "Unsupported vector type";
 																}
-															default: output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
+															default: output.add('h_aptr<${makeTypeDecl({t: t, attr : a.t.attr})}>(${a.name})');
 														}
 													case TPointer(t):
 														// (${makeTypeDecl({t: t, attr : a.t.attr})} *)
 														output.add('${a.name}');
 													case TCustom(st):
 														if (argAddressOf.length > 0)
-															output.add('_unref(${a.name})');
+															output.add('_${a.name}');
 														else
-															output.add('_unref(${a.name})');
+															output.add('_${a.name}');
 													//														if (st == 'FloatArray' || st == "IntArray" || st == "CharArray" || st == "ShortArray") {
 													//															output.add("->GetPtr()");
 													//														}
@@ -1230,11 +1294,10 @@ class  IteratorWrapper {
 												case defualt: "Error";
 											};
 
-											
 											output.add('cache__h_c_${retTypeName}(__env);\n');
 											output.add('\tauto _new_obj = __env->NewObject( __h_c_${retTypeName}, __h_m_${retTypeName}_ctor);\n');
 											output.add('\t__env->SetLongField(_new_obj, __h_f_${retTypeName}_this, (long long)___retvalue);\n');
-										} 
+										}
 										if (initConstructor)
 											output.add('\t*(___retvalue->value) = {};\n');
 
@@ -1261,7 +1324,7 @@ class  IteratorWrapper {
 											}
 										}
 
-										if (tret.t != TVoid) {											
+										if (tret.t != TVoid) {
 											if (isReturnArray) {
 												if (tret.t.match(TPointer(_)) || tret.t.match(TVoidPtr)) {
 													add('\t__tmpret = __tmparray;');
@@ -1313,7 +1376,6 @@ class  IteratorWrapper {
 								}
 								if (isConstr) {
 									add('\t__env->SetLongField(_obj, __h_f_${name}_this, (long long)_this);');
-
 								}
 								add('}');
 								/*
@@ -1426,7 +1488,7 @@ class  IteratorWrapper {
 									} else if (isRef)
 										add('\treturn alloc_ref${isConst ? '_const' : ''}(_this->${internalName},$tname);');
 									else if (isPointer) {
-										add('\treturn (vbyte *)(&_this->${internalName}[0]);');
+										add('\treturn _returnPointer(&_this->${internalName}[0]);');
 									} else if (isArray) {
 										add('\treturn ${getCast}_this->${internalName}[index];');
 										//										add('\treturn _idc_alloc_array(&_this->${internalName}[0], _this->${al}); // This is wrong, needs to copy');
@@ -1524,9 +1586,11 @@ class  IteratorWrapper {
 		}
 		add("}"); // extern C
 		sys.io.File.saveContent(opts.outputDir + "idl_jvm.cpp", output.toString());
-		for (kv in outputJava.keyValueIterator()) {
-			kv.value.add("}");
-			sys.io.File.saveContent(opts.outputDir + "/" + opts.packageName + '/${kv.key}.java', kv.value.toString());
-		}
+		/*
+			for (kv in outputJava.keyValueIterator()) {
+				kv.value.add("}");
+				sys.io.File.saveContent(opts.outputDir + "/" + opts.packageName + '/${kv.key}.java', kv.value.toString());
+			}
+		 */
 	}
 }

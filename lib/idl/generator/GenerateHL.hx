@@ -21,18 +21,18 @@ vstring * hl_utf8_to_hlstr( const std::string &str);
 
 
 // Float vector
-struct _hl_float2 {
+struct _h_float2 {
 	float x;
 	float y;
 };
 
-struct _hl_float3 {
+struct _h_float3 {
 	float x;
 	float y;
 	float z;
 };
 
-struct _hl_float4 {
+struct _h_float4 {
 	float x;
 	float y;
 	float z;
@@ -40,18 +40,18 @@ struct _hl_float4 {
 };
 
 // int vector
-struct _hl_int2 {
+struct _h_int2 {
 	int x;
 	int y;
 };
 
-struct _hl_int3 {
+struct _h_int3 {
 	int x;
 	int y;
 	int z;
 };
 
-struct _hl_int4 {
+struct _h_int4 {
 	int x;
 	int y;
 	int z;
@@ -59,18 +59,18 @@ struct _hl_int4 {
 };
 
 // double vector
-struct _hl_double2 {
+struct _h_double2 {
 	double x;
 	double y;
 };
 
-struct _hl_double3 {
+struct _h_double3 {
 	double x;
 	double y;
 	double z;
 };
 
-struct _hl_double4 {
+struct _h_double4 {
 	double x;
 	double y;
 	double z;
@@ -163,6 +163,21 @@ HL_PRIM vstring * HL_NAME(getdllversion)(vstring * haxeversion) {
 }
 DEFINE_PRIM(_STRING, getdllversion, _STRING);
 
+class HNativeBuffer {
+    unsigned char *_ptr;
+    int _size;
+
+   public:
+   inline unsigned char * ptr() { return _ptr; }
+   inline int size() { return _size; }
+   HNativeBuffer(unsigned char *ptr, int size) : _ptr(ptr), _size(size) {}
+   HNativeBuffer(int size) : _ptr(new unsigned char[size]), _size(size) {}
+    ~HNativeBuffer() {
+        if (_ptr != nullptr)
+            delete [] _ptr;
+    }
+};
+
 ";
 
 	static var HEADER_NO_GC = "
@@ -204,7 +219,7 @@ template<typename T> void free_ref( pref<T> *r, void (*deleteFunc)(T*) ) {
 	r->finalize = NULL;
 }
 
-inline void testvector(_hl_float3 *v) {
+inline void testvector(_h_float3 *v) {
   printf(\"v: %f %f %f\\n\", v->x, v->y, v->z);
 }
 template<typename T> pref<T> *_alloc_ref( T *value, void (*finalize)( pref<T> * ) ) {
@@ -544,9 +559,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					}
 				case TVector(vt, vdim):
 					switch (vt) {
-						case TFloat: "_hl_float" + vdim + "*";
-						case TDouble: "_hl_double" + vdim + "*";
-						case TInt: "_hl_int" + vdim + "*";
+						case TFloat: "_h_float" + vdim + "*";
+						case TDouble: "_h_double" + vdim + "*";
+						case TInt: "_h_int" + vdim + "*";
 						default: throw "Unsupported vector type";
 					}
 				default:
@@ -591,9 +606,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					}
 				case TVector(vt, vdim):
 					switch (vt) {
-						case TFloat: "_hl_float" + vdim + "*";
-						case TDouble: "_hl_double" + vdim + "*";
-						case TInt: "_hl_int" + vdim + "*";
+						case TFloat: "_h_float" + vdim + "*";
+						case TDouble: "_h_double" + vdim + "*";
+						case TInt: "_h_int" + vdim + "*";
 						default: throw "Unsupported vector type";
 					}
 				case TFunction(ret, ta): "vclosure*";
@@ -1095,9 +1110,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														switch(t) {
 															case TVector(vt, vdim): 
 																switch (vt) {
-																	case TFloat:output.add('hl_aptr(${a.name},${"_hl_float" + vdim})');
-																	case TDouble: output.add('hl_aptr(${a.name},${"_hl_double" + vdim})');
-																	case TInt: output.add('hl_aptr(${a.name},${"_hl_int" + vdim})');
+																	case TFloat:output.add('hl_aptr(${a.name},${"_h_float" + vdim})');
+																	case TDouble: output.add('hl_aptr(${a.name},${"_h_double" + vdim})');
+																	case TInt: output.add('hl_aptr(${a.name},${"_h_int" + vdim})');
 																	default: throw "Unsupported vector type";
 																}
 															default: output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
