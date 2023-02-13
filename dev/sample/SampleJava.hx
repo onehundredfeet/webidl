@@ -35,6 +35,7 @@ class SampleNative {
     static function bootstrap () : Bool {
         trace("Loading library...");
         java.lang.System.loadLibrary("sample");
+        
         trace("done");
         return true;
     }
@@ -57,6 +58,9 @@ class SampleNative {
     @:java.native public function fsingle() : Single;
     @:java.native public function fnas() : NativeArray<Single>;
     @:java.native public function fnaobj() : NativeArray<String>;
+    @:java.native public function fn_nativeArrayF(array : NativeArray<Single> ) : Void;
+    @:java.native public function fn_ArrayF(array : Array<Single> ): Void;
+    @:java.native public function fn_buffer(buf : java.nio.ByteBuffer ): Void;
 }
 
 class SampleJava {

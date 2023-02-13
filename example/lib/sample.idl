@@ -26,6 +26,9 @@ attribute long y;
  	int funci(int x);
 	void print();
   SampleA makeA();
+	void gatherPtr(float *array, int num);
+	void gatherArray(float []array, int num);
+	
 //  SampleB makeB();
 
 // 	[Operator="*",Ref] Sample op_add( [Const,Ref] Sample p );
