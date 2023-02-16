@@ -25,12 +25,16 @@ struct _h_float2 {
 	float x;
 	float y;
 };
+typedef _h_float2 *h_float2;
+typedef _h_float2 *h_float2_array;
 
 struct _h_float3 {
 	float x;
 	float y;
 	float z;
 };
+typedef _h_float3 *h_float3;
+typedef _h_float3 *h_float3_array;
 
 struct _h_float4 {
 	float x;
@@ -43,7 +47,10 @@ struct _h_float4 {
 struct _h_int2 {
 	int x;
 	int y;
+
 };
+typedef _h_int2 *h_int2;
+typedef _h_int2 *h_int2_array;
 
 struct _h_int3 {
 	int x;
@@ -509,9 +516,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						}
 					}
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
-					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn (int)${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
-					add('HL_PRIM int HL_NAME(${name}_indexToValue1)( int idx ) {\n\treturn ${name}__values[idx];\n}');
+					add('HL_PRIM int HL_NAME(${name}_indexToValue1)( int idx ) {\n\treturn (int)${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_indexToValue1, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_valueToIndex1)( int value ) {\n\tfor( int i = 0; i < ${values.length}; i++ ) if ( value == (int)${name}__values[i]) return i; return -1;\n}');
 					add('DEFINE_PRIM(_I32, ${name}_valueToIndex1, _I32);');
@@ -559,14 +566,21 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					}
 				case TVector(vt, vdim):
 					switch (vt) {
-						case TFloat: "_h_float" + vdim + "*";
-						case TDouble: "_h_double" + vdim + "*";
-						case TInt: "_h_int" + vdim + "*";
+						case TFloat: "h_float" + vdim;
+						case TDouble: "h_double" + vdim;
+						case TInt: "h_int" + vdim;
 						default: throw "Unsupported vector type";
 					}
 				default:
 					throw "Unknown type " + t;
 			}
+		}
+		function makeNativeTypeRawPtr(t:idl.Data.Type) {
+			var x = makeNativeTypeRaw(t);
+			return switch (t) {
+				case TVector(_): return x +"_array";
+				default : return x + "*";
+			};
 		}
 
 		function makeNativeType(t:idl.Data.TypeAttr, isReturn:Bool = false) {
@@ -606,9 +620,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					}
 				case TVector(vt, vdim):
 					switch (vt) {
-						case TFloat: "_h_float" + vdim + "*";
-						case TDouble: "_h_double" + vdim + "*";
-						case TInt: "_h_int" + vdim + "*";
+						case TFloat: "h_float" + vdim;
+						case TDouble: "h_double" + vdim;
+						case TInt: "h_int" + vdim;
 						default: throw "Unsupported vector type";
 					}
 				case TFunction(ret, ta): "vclosure*";
@@ -1083,7 +1097,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												if (isReturnArray && isVirtual && a.name == rapIdx) {
 													// ??
 												} else if (argCast == "") {
-													argCast = "(" + makeNativeTypeRaw(t) + "*)";
+													argCast = "(" + makeNativeTypeRawPtr(t) + ")";
 												}
 											default:
 										}
@@ -1110,9 +1124,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 														switch(t) {
 															case TVector(vt, vdim): 
 																switch (vt) {
-																	case TFloat:output.add('hl_aptr(${a.name},${"_h_float" + vdim})');
-																	case TDouble: output.add('hl_aptr(${a.name},${"_h_double" + vdim})');
-																	case TInt: output.add('hl_aptr(${a.name},${"_h_int" + vdim})');
+																	case TFloat:output.add('hl_aptr(${a.name},${"h_float" + vdim + "_array"})');
+																	case TDouble: output.add('hl_aptr(${a.name},${"h_double" + vdim + "_array"})');
+																	case TInt: output.add('hl_aptr(${a.name},${"h_int" + vdim + "_array"})');
 																	default: throw "Unsupported vector type";
 																}
 															default: output.add('hl_aptr(${a.name},${makeTypeDecl({t: t, attr : a.t.attr})})');
@@ -1198,7 +1212,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 												} else if (tret.t.match(TArray(_, _))) {
 													add('\t__tmpret = _idc_alloc_array(__tmparray, __tmpLength);');
 												} else {
-													throw "Unsupported array type";
+													throw "Unsupported array type ${tret.t}";
 												}
 											}
 

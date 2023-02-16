@@ -60,10 +60,18 @@ class  IteratorWrapper {
 	#include <jni.h>
 
 	static JNIEnv *__s_haxe_env = nullptr;
+	static jclass __s_h_float = 0;
+	static jmethodID __s_h_float_floatValue = 0;
+	static jclass __s_h_int = 0;
+	static jmethodID __s_h_int_intValue = 0;
 
 	static inline void cacheJavaEnv(JNIEnv *p ) {
 		if (__s_haxe_env == nullptr) {
 			__s_haxe_env = p;
+			__s_h_float = p->FindClass(\"java/lang/Float\");
+			__s_h_float_floatValue = p->GetMethodID(__s_h_float, \"floatValue\", \"()F\");
+			__s_h_int = p->FindClass(\"java/lang/Integer\");
+			__s_h_int_intValue = p->GetMethodID(__s_h_int, \"intValue\", \"()I\");			
 		} else if (__s_haxe_env != p) {
 			printf(\"ERROR: Java env changed!\\n\");
 		}
@@ -1018,8 +1026,12 @@ class HNativeBuffer {
 													} else {
 														typeNames.get(id).decl;
 													}
-													output.add('cache__h_c_${id}(__env);\n');
-													add('\t${id} *_${a.name} = (${id}*)__env->GetLongField(${a.name}, __h_f_${id}_this);');
+													if (!enumNames.exists(id)) {
+														output.add('cache__h_c_${id}(__env);\n');
+														add('\t${id} *_${a.name} = (${id}*)__env->GetLongField(${a.name}, __h_f_${id}_this);');
+													} else {
+														add('\tauto _${a.name} = ${a.name};');
+													}
 												case THString:
 													preamble = true;
 													if (!a.t.attr.contains(AHString)) {

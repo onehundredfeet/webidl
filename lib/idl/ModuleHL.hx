@@ -97,8 +97,15 @@ class ModuleHL {
 				case TDouble: macro :  hl.BytesAccess<Float>;
 				case TBool: macro : hl.BytesAccess<Bool>;
 				case TShort:  macro : hl.BytesAccess<hl.UI16>;
+				case TVector(vt, dim): 
+					switch(vt) {
+						case TFloat:macro : hl.BytesAccess<Single>;
+						case TDouble: macro : hl.BytesAccess<Float>;
+						case TInt: macro : hl.BytesAccess<Int>;
+							default: throw "Unsupported array vector type " + vt;
+					}
 				default:
-					throw "Unsupported array type. Sorry";
+					throw 'Unsupported array type. Sorry ${pt}';
 			}
 		case TArray(at, _):
 			switch(at) {
@@ -164,7 +171,7 @@ class ModuleHL {
 
 			if (typeNames.exists(id))  
 				{ expr : ECast(ex, tp), pos : p };
-			else
+			else 
 				{ expr : EConst(CIdent("null")), pos : p };
 		default: 
 			{ expr : EConst(CIdent("null")), pos : p };
