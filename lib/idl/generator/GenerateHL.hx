@@ -70,12 +70,17 @@ struct _h_double2 {
 	double x;
 	double y;
 };
+typedef _h_double2 *h_double2;
+typedef _h_double2 *h_double2_array;
 
 struct _h_double3 {
 	double x;
 	double y;
 	double z;
 };
+
+typedef _h_double3 *h_double3;
+typedef _h_double3 *h_double3_array;
 
 struct _h_double4 {
 	double x;
@@ -498,7 +503,6 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					add('HL_PRIM void HL_NAME(${name}_delete)( $refFullName _this ) {\n\t$freeRefText;\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
 				case DEnum(name, attrs, values):
-					enumNames.set(name, true);
 					typeNames.set(name, {
 						full: "int",
 						constructor: null,
@@ -515,6 +519,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 							default:
 						}
 					}
+					enumNames.set(name, etname);
+
 					add('static $etname ${name}__values[] = { ${values.join(",")} };');
 					add('HL_PRIM int HL_NAME(${name}_toValue0)( int idx ) {\n\treturn (int)${name}__values[idx];\n}');
 					add('DEFINE_PRIM(_I32, ${name}_toValue0, _I32);');
@@ -531,12 +537,20 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 
-		function getEnumName(t:idl.Data.Type) {
+		function getEnumShortName(t:idl.Data.Type) {
 			return switch (t) {
 				case TCustom(id): enumNames.exists(id) ? id : null;
 				default: null;
 			}
 		}
+
+		function getEnumTypeName(t:idl.Data.Type) {
+			return switch (t) {
+				case TCustom(id): enumNames.exists(id) ? enumNames.get(id) : null;
+				default: null;
+			}
+		}
+
 
 		function makeNativeTypeRaw(t:idl.Data.Type, isReturn:Bool = false) {
 			return switch (t) {
@@ -947,7 +961,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									}
 
 									var refRet = null;
-									var enumName = getEnumName(tret.t);
+									var enumName = getEnumShortName(tret.t);
 
 									var isRef = ret.attr.contains(ARef);
 									var isValue = ret.attr.contains(AValue);
@@ -1115,7 +1129,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										} else if (a.name == returnField) {
 											output.add('&__tmpret');
 										} else {
-											var e = getEnumName(a.t.t);
+											var e = getEnumShortName(a.t.t);
 											if (e != null)
 												output.add('${e}__values[${a.name}]');
 											else
@@ -1315,7 +1329,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								}
 
 								var isRef = tname != null;
-								var enumName = getEnumName(t.t);
+								var enumName = getEnumShortName(t.t);
+								var enumTypeName = getEnumTypeName(t.t);
 								var isConst = t.attr.indexOf(AConst) >= 0;
 
 								// Translate name
@@ -1398,7 +1413,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
 										//									add('\t_idc_copy_array( ${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),value, ${vdim} );');
 									} else if (isArray) {
-										var enumName = getEnumName(getElementType(t).t);
+										var enumName = getEnumShortName(getElementType(t).t);
 
 										if (enumName != null) 
 											add('\t_unref(_this)->${internalName}[index] = (${enumName})(${enumName}__values[value]);');
@@ -1414,7 +1429,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									} else if (setter != null)
 										add('\t_unref(_this)->${internalName} = ${setter}(${isVal ? "*" : ""}${isRef ? "_unref" : ""}(value));');
 									else if (enumName != null)
-										add('\t_unref(_this)->${internalName} = (${enumName})HL_NAME(${enumName}_indexToValue1)(value);');
+										add('\t_unref(_this)->${internalName} = (${enumTypeName})HL_NAME(${enumName}_indexToValue1)(value);');
 									else if (isRef )
 										add('\t_unref(_this)->${internalName} = ${setCast != null ? "(" + setCast + ")" : ""}${isVal ? "*" : ""}${isRef ? "_unref_ptr_safe" : ""}(value);');
 									else
