@@ -103,4 +103,6 @@ enum Attrib {
 	ADestruct( expression : String);
 	ANew( name : String );	
 	AInitialize;
+	AUpperCaseFirst;
+	AForceCamelCase;
 }

@@ -146,6 +146,8 @@ class Parser {
 				case "AddressOf": AAddressOf;
 				case "Clone" : AClone;
 				case "NoDelete": ANoDelete;
+				case "UpperCaseFirst", "UpperCase", "UpperCaseCall": AUpperCaseFirst;
+				case "ForceCamelCase", "CamelCase": AForceCamelCase;
 				case "Initialize": AInitialize;
 				case "Static": AStatic;
 				case "Virtual": AVirtual;

@@ -75,7 +75,7 @@ class ModuleHL {
 		case TChar: macro : hl.UI8;
 		case TInt, TUInt: (t.attr != null && t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
 		//case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
-		case TInt64 : macro : haxe.Int64; 
+		case TInt64 : hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<haxe.Int64>) : (macro : haxe.Int64))) : (macro : haxe.Int64);
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
 		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
 		case TDouble: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
@@ -200,7 +200,7 @@ class ModuleHL {
 
 	function makeNativeFieldRaw( iname : String, fname : String, pos : Position, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
 		var name = fname;
-		var isConstr = name == iname;
+		var isConstr = name == iname || fname == "new";
 		if( isConstr ) {
 			name = "new";
 			ret = { t : TCustom(iname), attr : [] };
@@ -249,8 +249,8 @@ class ModuleHL {
 		return x;
 	}
 
-	function makeNativeField( iname : String, f : idl.Data.Field, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
-		return makeNativeFieldRaw(iname, f.name, makePosition(f.pos), args, ret, pub);
+	function makeNativeField( iname : String, hname : String, f : idl.Data.Field, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
+		return makeNativeFieldRaw(iname, hname, makePosition(f.pos), args, ret, pub);
 	}
 
 	function getElementType(t:TypeAttr) {
@@ -281,6 +281,7 @@ class ModuleHL {
 		switch( d.kind ) {
 		case DInterface(iname, attrs, fields):
 			var dfields : Array<Field> = [];
+			var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
 
 			var variants = new Map();
 			function getVariants( name : String ) {
@@ -298,18 +299,23 @@ class ModuleHL {
 				return fl;
 			}
 
+			
 
 			for( f in fields ) {
+				var haxeName = forceCamel ? f.name.substr(0, 1).toLowerCase() + f.name.substr(1) :  f.name;
+				
 				switch( f.kind ) {
 				case FMethod(_):
 					var vars = getVariants(f.name);
 					if( vars == null ) continue;
 
-					var isConstr = f.name == iname;
-
+					var isConstr = f.name == iname || f.name == "new";
+					if (isConstr) {
+						haxeName = "new";
+					}
 					if( vars.length == 1 && !isConstr ) {
 
-						var f = makeNativeField(iname, f, vars[0].args, vars[0].ret, true);
+						var f = makeNativeField(iname, haxeName, f, vars[0].args, vars[0].ret, true);
 						dfields.push(f);
 					} else { 
 						// create dispatching code
@@ -355,7 +361,7 @@ class ModuleHL {
 						// native impls
 						var retTypes : Array<{t:TypeAttr,sign:String}> = [];
 						for( v in vars ) {
-							var f = makeNativeField(iname, f, v.args, v.ret, false );
+							var f = makeNativeField(iname, haxeName, f, v.args, v.ret, false );
 
 							var sign = haxe.Serializer.run(v.ret);
 							var found = false;
@@ -373,7 +379,7 @@ class ModuleHL {
 
 						// dispatch only on args count
 						function makeCall( v : { args : Array<FArg>, ret : TypeAttr } ) : Expr {
-							var ident = { expr : EConst(CIdent( (f.name == iname ? "new" : f.name) + v.args.length )), pos : p};
+							var ident = { expr : EConst(CIdent( (haxeName) + v.args.length )), pos : p};
 							var e : Expr = { expr : ECall(ident, [for( i in 0...v.args.length ) { expr : ECast({ expr : EConst(CIdent(targs[i].name)), pos : p }, null), pos : p }]), pos : p };
 							if( v.ret.t != TVoid )
 								e = { expr : EReturn(e), pos : p };
@@ -391,7 +397,7 @@ class ModuleHL {
 						}
 
 						dfields.push({
-							name : isConstr ? "new" : f.name,
+							name : haxeName,
 							pos : makePosition(f.pos),
 							access : [APublic, AInline],
 							kind : FFun({
@@ -414,8 +420,8 @@ class ModuleHL {
 
 							dfields.push({
 								pos : p,
-								name : "get" + f.name,
-								meta : [makeNative(iname+"_get_" + f.name)],
+								name : "get" + haxeName,
+								meta : [makeNative(iname+"_get_" + haxeName)],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -425,8 +431,8 @@ class ModuleHL {
 							});
 							dfields.push({
 								pos : p,
-								name : "set" + f.name,
-								meta : [makeNative(iname+"_set_" + f.name)],
+								name : "set" + haxeName,
+								meta : [makeNative(iname+"_set_" + haxeName)],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -441,14 +447,14 @@ class ModuleHL {
 							var tt = makeType(t, false);
 							dfields.push({
 								pos : p,
-								name : f.name,
+								name : haxeName,
 								kind : FProp("get", "set", tt),
 								access : [APublic],
 							});
 							dfields.push({
 								pos : p,
-								name : "get_" + f.name,
-								meta : [makeNative(iname+"_get_" + f.name)],
+								name : "get_" + haxeName,
+								meta : [makeNative(iname+"_get_" + haxeName)],
 								kind : FFun({
 									ret : makeType(t, true),
 									expr : macro return ${defVal(t)},
@@ -457,8 +463,8 @@ class ModuleHL {
 							});
 							dfields.push({
 								pos : p,
-								name : "set_" + f.name,
-								meta : [makeNative(iname+"_set_" + f.name)],
+								name : "set_" + haxeName,
+								meta : [makeNative(iname+"_set_" + haxeName)],
 								kind : FFun({
 									ret : tt,
 									expr : macro return ${defVal(t)},
@@ -478,8 +484,8 @@ class ModuleHL {
 							if (isVector && false) {
 								dfields.push({
 									pos : p,
-									name : "set" + f.name + vdim,
-									meta : [makeNative(iname+"_set" + f.name + vdim)],
+									name : "set" + haxeName + vdim,
+									meta : [makeNative(iname+"_set" + haxeName + vdim)],
 									access : [APublic, AInline],
 									kind : FFun({
 										ret : macro : Void,
@@ -515,7 +521,7 @@ class ModuleHL {
 			};
 
 			if( attrs.indexOf(ANoDelete) < 0 ) {
-				dfields.push(makeNativeField(iname, { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
+				dfields.push(makeNativeField(iname, "delete", { name : "delete", pos : null, kind : null }, [], { t : TVoid, attr : [] }, true));
 			}
 
 			if( !hl ) {
@@ -691,6 +697,10 @@ class ModuleHL {
 		var module = Context.getLocalModule();
 		var types = buildTypes(opts, Context.defined("hl"));
 		
+		// var printer = new haxe.macro.Printer();
+		// for (t in types) {
+		// 	trace(printer.printTypeDefinition(t));
+		// }
 		if (types == null) {
 			throw "Could not find types for IDL " + opts.idlFile;
 			return macro : Void;
@@ -723,6 +733,7 @@ class ModuleHL {
 		} else {
 			Context.fatalError( "Unrecognized target", Context.currentPos() ) ;
 		}
+
 
 		
 		Context.defineModule(module, types);

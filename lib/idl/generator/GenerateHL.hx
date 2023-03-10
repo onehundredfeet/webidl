@@ -766,7 +766,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		for (d in decls) {
 			switch (d.kind) {
 				case DInterface(name, attrs, fields):
+					var forceCamel = attrs.contains(AForceCamelCase);
 					for (f in fields) {
+						var haxeName = forceCamel ? f.name.substr(0, 1).toLowerCase() + f.name.substr(1) :  f.name;
 						switch (f.kind) {
 							case FMethod(margs, ret):
 								function findArg(name:String) {
@@ -778,7 +780,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 									return null;
 								}
 
-								var isConstr = f.name == name;
+								var isConstr = f.name == name || f.name == "new";
 								var args = (isConstr || ret.attr.indexOf(AStatic) >= 0) ? margs : [
 									{
 										name: "_this",
@@ -841,7 +843,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 								// Static functions needs the exact number of arguments as function suffix. Otherwise C++ compilation will fail.
 
-								var funName = name + "_" + (isConstr ? "new" + args.length : f.name + argCount);
+								var funName = name + "_" + (isConstr ? "new" + args.length : haxeName + argCount);
 
 								// var staticPrefix = (attrs.indexOf(AStatic) >= 0) ? "static" : ""; ${staticPrefix}
 								output.add('HL_PRIM ${makeTypeDecl(returnField == null ? tret : returnType, true)} HL_NAME($funName)(');
@@ -1048,6 +1050,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 													switch (a) {
 														case AInternal(name):
 															callName = name;
+														case AUpperCaseFirst:
+															callName = callName.substr(0, 1).toUpperCase() + callName.substr(1);
 														default:
 													}
 												}
@@ -1355,9 +1359,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								// Get
 								if (needsGetter) {
 									if (isArray)  {
-										add('HL_PRIM ${makeElementType(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this, int index ) {');
+										add('HL_PRIM ${makeElementType(t, true)} HL_NAME(${name}_get_${haxeName})( ${typeNames.get(name).decl} _this, int index ) {');
 									}else
-										add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${f.name})( ${typeNames.get(name).decl} _this ) {');
+										add('HL_PRIM ${makeTypeDecl(t, true)} HL_NAME(${name}_get_${haxeName})( ${typeNames.get(name).decl} _this ) {');
 
 									if (isVector) {
 										add('\treturn (${makeTypeDecl(t)} )${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
@@ -1384,28 +1388,28 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 									if (isVector) {
 										// Add vector getter
-										add('HL_PRIM void HL_NAME(${name}_get${f.name}v)( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
+										add('HL_PRIM void HL_NAME(${name}_get${haxeName}v)( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 										add('\t ${makeTypeDecl(vta)} *src = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) value;');
 										add('\t${[for (c in 0...vdim) 'dst[$c] = src[${c}];'].join(' ')}');
 										add('}');
 
-										add('DEFINE_PRIM(_VOID,${name}_get${f.name}v,_IDL _STRUCT  );');
+										add('DEFINE_PRIM(_VOID,${name}_get${haxeName}v,_IDL _STRUCT  );');
 									}
 
 									if (isArray)
-										add('DEFINE_PRIM(${defElementType(t, true)},${name}_get_${f.name},_IDL _I32);');
+										add('DEFINE_PRIM(${defElementType(t, true)},${name}_get_${haxeName},_IDL _I32);');
 									else
-										add('DEFINE_PRIM(${defType(t, true)},${name}_get_${f.name},_IDL);');
+										add('DEFINE_PRIM(${defType(t, true)},${name}_get_${haxeName},_IDL);');
 								}
 
 								if (needsSetter) {
 									// Set
 									if (isArray)  {
-										add('HL_PRIM ${makeElementType(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
+										add('HL_PRIM ${makeElementType(t)} HL_NAME(${name}_set_${haxeName})( ${typeNames.get(name).decl} _this, int index, ${makeElementType(t)} value ) {');
 									}
 									else 
-										add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${f.name})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
+										add('HL_PRIM ${makeTypeDecl(t)} HL_NAME(${name}_set_${haxeName})( ${typeNames.get(name).decl} _this, ${makeTypeDecl(t)} value ) {');
 
 									if (isVector) {
 										add('\t ${makeTypeDecl(vta)} *dst = (${makeTypeDecl(vta)}*) & ${(getter == null) ? "" : getter}(_unref(_this)->${internalName})[0];');
@@ -1441,20 +1445,20 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										// Add componentwise setter
 
 										var vparams = [for (c in 0...vdim) ' ${makeTypeDecl(vta)} value${c}'].join(',');
-										add('HL_PRIM void HL_NAME(${name}_set${f.name}${vdim})( ${typeNames.get(name).decl} _this, ${vparams} ) {');
+										add('HL_PRIM void HL_NAME(${name}_set${haxeName}${vdim})( ${typeNames.get(name).decl} _this, ${vparams} ) {');
 										add('\t ${makeTypeDecl(vta)} *p = ${(getter == null) ? "" : getter}(_unref(_this)->${internalName});');
 
 										var vcopy = [for (c in 0...vdim) 'p[$c] = value${c};'].join(' ');
 										add('\t${vcopy}');
 										add('}');
 										var vprim = [for (c in 0...vdim) '${defType(vta)}'].join(' ');
-										add('DEFINE_PRIM(_VOID,${name}_set${f.name}${vdim},_IDL ${vprim} );');
+										add('DEFINE_PRIM(_VOID,${name}_set${haxeName}${vdim},_IDL ${vprim} );');
 									}
 
 									if (isArray) {
-										add('DEFINE_PRIM(${defElementType(t)},${name}_set_${f.name},_IDL _I32 ${defElementType(t)}); // Array setter');
+										add('DEFINE_PRIM(${defElementType(t)},${name}_set_${haxeName},_IDL _I32 ${defElementType(t)}); // Array setter');
 									} else 
-										add('DEFINE_PRIM(${defType(t)},${name}_set_${f.name},_IDL ${defType(t)});');
+										add('DEFINE_PRIM(${defType(t)},${name}_set_${haxeName},_IDL ${defType(t)});');
 									add('');
 								}
 
