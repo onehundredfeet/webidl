@@ -22,21 +22,49 @@ if (TARGET_ARCH STREQUAL "arm64")
     set(BREW_ROOT "/opt/homebrew")
 endif()
 
+if (NOT DEPENDENCY_ROOT) 
+set(DEPENDENCY_ROOT ${BREW_ROOT})
+endif()
+
 set(CELLAR_ROOT "${BREW_ROOT}/Cellar")
-set(LOCAL_LIB "${BREW_ROOT}/lib")
-set(LOCAL_INC "${BREW_ROOT}/include")
 
 set(CMAKE_OSX_ARCHITECTURES ${TARGET_ARCH})
+set(HL_LIB_SHORT_NAME "hl")
+
+############## WINDOWS CONFIGURATION
+elseif( WIN32 )
+if (NOT DEPENDENCY_ROOT)
+set (DEPENDENCY_ROOT "ext")
+endif()
+
+set(HL_LIB_SHORT_NAME "hl")
 
 endif()
 
+############## COMMON DOWNSTREAM CONFIGURATION
+if (NOT LOCAL_INC)
+set(LOCAL_INC "${DEPENDENCY_ROOT}/include")
+endif()
 
+if (NOT LOCAL_LIB)
+set(LOCAL_LIB "${DEPENDENCY_ROOT}/lib")
+endif()
+
+if (NOT HL_LIB_DIR)
+set( HL_LIB_DIR ${LOCAL_LIB})
+endif()
+
+if (NOT HL_INC_DIR)
+set( HL_INC_DIR ${LOCAL_INC})
+endif()
+
+############## TARGET HOST DETERMINATION
 if (NOT TARGET_HOST)
     set(TARGET_HOST "hl")
 endif()
 
 
-############## TARGET CONFIGURATION
+############## TARGET HOST CONFIGURATION
 
 ## Where to find the target support libraries
 if (TARGET_HOST STREQUAL "hl")
@@ -51,7 +79,8 @@ endif()
 # Target specific output
 set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.hdll")
 set(PROJECT_LIB_SUFFIX ".hdll")
-find_library(LIBHL NAMES hl  HINTS ${TARGET_LIB_DIR} )
+message( "Looking for ${HL_LIB_SHORT_NAME} lib in  ${TARGET_LIB_DIR} with suffix ${CMAKE_FIND_LIBRARY_SUFFIXES} ")
+find_library(LIBHL NAMES hl libhl libhl.lib PATHS ${TARGET_LIB_DIR} TARGET_LIB_DIR)
 set(TARGET_LIBS ${LIBHL})
 
 elseif(TARGET_HOST STREQUAL "jvm")
