@@ -1,3 +1,11 @@
+cmake_policy(SET CMP0015 NEW)
+cmake_policy(SET CMP0091 NEW) #needs to be in the actual CMakeFiles.txt, why, no idea.
+
+##### Common
+#if (NOT CMAKE_BUILD_TYPE)
+#set(CMAKE_BUILD_TYPE DEBUG)
+#endif()
+
 
 
 
@@ -11,6 +19,8 @@ endif()
 if (TARGET_ARCH STREQUAL "arm")
     set(TARGET_ARCH "arm64")
 endif()
+
+
 
 message("Target Arch: ${TARGET_ARCH}")
 
@@ -33,6 +43,13 @@ set(HL_LIB_SHORT_NAME "hl")
 
 ############## WINDOWS CONFIGURATION
 elseif( WIN32 )
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+    message("BUILDING DEBUG...")
+    set( CONFIG_POSTFIX "_d")
+else()
+    set (CONFIG_POSTFIX "")
+endif()
+
 if (NOT DEPENDENCY_ROOT)
 set (DEPENDENCY_ROOT "ext")
 endif()
@@ -69,18 +86,20 @@ endif()
 ## Where to find the target support libraries
 if (TARGET_HOST STREQUAL "hl")
 if (NOT TARGET_INCLUDE_DIR) 
-    set(TARGET_INCLUDE_DIR ${LOCAL_INC})
+    set(TARGET_INCLUDE_DIR ${HL_INC_DIR})
 endif()
 
 if (NOT TARGET_LIB_DIR) 
-    set(TARGET_LIB_DIR ${LOCAL_LIB})
+    set(TARGET_LIB_DIR ${HL_LIB_DIR})
 endif()
 
 # Target specific output
-set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.hdll")
 set(PROJECT_LIB_SUFFIX ".hdll")
+
+
 message( "Looking for ${HL_LIB_SHORT_NAME} lib in  ${TARGET_LIB_DIR} with suffix ${CMAKE_FIND_LIBRARY_SUFFIXES} ")
-find_library(LIBHL NAMES hl libhl libhl.lib PATHS ${TARGET_LIB_DIR} TARGET_LIB_DIR)
+
+find_library(LIBHL NAMES libhl${CONFIG_POSTFIX}  PATHS ${TARGET_LIB_DIR} )
 set(TARGET_LIBS ${LIBHL})
 
 elseif(TARGET_HOST STREQUAL "jvm")
@@ -110,9 +129,10 @@ endif()
 
 
 set(PROJECT_LIB_SUFFIX ".dylib")
-set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.dylib")
+#set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}.dylib")
 set(TARGET_LIBS )
 endif() #hl
 
 
-
+set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}${CONFIG_POSTFIX}")
+message( "Proejct lib name ${PROJECT_LIB_NAME}")

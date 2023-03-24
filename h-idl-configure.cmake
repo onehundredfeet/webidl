@@ -1,9 +1,12 @@
 
+
+
 if(APPLE)
     enable_language(OBJC)
     enable_language(OBJCXX)
 endif()
 
+message( "Project lib name '${PROJECT_LIB_NAME}'")
 add_library(${PROJECT_LIB_NAME} SHARED
 #Input C++ files go here
 ${PROJECT_ADDITIONAL_SOURCES}
@@ -13,19 +16,26 @@ src/idl_${TARGET_HOST}.cpp
 set_target_properties(${PROJECT_LIB_NAME}
 PROPERTIES
 PREFIX ""
-OUTPUT_NAME ${CMAKE_PROJECT_NAME}
+OUTPUT_NAME ${PROJECT_LIB_NAME}
 SUFFIX ${PROJECT_LIB_SUFFIX}
 )
 
+if(WIN32)
+#    set(CMAKE_MSVC_RUNTIME_LIBRARY  "MultiThreadedDLL")
+#    set_target_properties(${PROJECT_LIB_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+ #   get_property( LIB_MSVC_RT TARGET ${PROJECT_LIB_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+ #   message("Library ${PROJECT_LIB_NAME} us using ${LIB_MSVC_RT} runtime")
+endif()
+
 cmake_policy(SET CMP0015 NEW)
 
+message( "Adding ${TARGET_INCLUDE_DIR} to include ")
 target_include_directories(${PROJECT_LIB_NAME}
 PRIVATE
 ${TARGET_INCLUDE_DIR}
 ${LOCAL_INC}
 ${PROJECT_ADDITIONAL_INCLUDES}
 )
-#target_include_directories(yojimbo.hdll BEFORE PRIVATE )
 
 link_directories(${PROJECT_LIB_NAME}
 ${TARGET_LIB_DIR}
