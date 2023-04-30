@@ -99,7 +99,19 @@ set(PROJECT_LIB_SUFFIX ".hdll")
 
 message( "Looking for ${HL_LIB_SHORT_NAME} lib in  ${TARGET_LIB_DIR} with suffix ${CMAKE_FIND_LIBRARY_SUFFIXES} ")
 
-find_library(LIBHL NAMES libhl${CONFIG_POSTFIX}  PATHS ${TARGET_LIB_DIR} )
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+set(HL_LIB_PREFIX "")
+else()
+set(HL_LIB_PREFIX "lib")
+endif()
+
+message(${TARGET_LIB_DIR})
+
+set (HL_LIB_NAME ${HL_LIB_PREFIX}hl${CONFIG_POSTFIX})
+
+message( ${HL_LIB_NAME})
+
+find_library(LIBHL NAMES ${HL_LIB_NAME}  PATHS ${TARGET_LIB_DIR} )
 set(TARGET_LIBS ${LIBHL})
 
 elseif(TARGET_HOST STREQUAL "jvm")

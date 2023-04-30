@@ -1,6 +1,6 @@
 package idl;
 
-@:enum abstract Target(String) from String to String{
+enum abstract Target(String) from String to String{
 	var TargetHL = "hl";
 	var TargetCPP = "cpp";
 	var TargetJS = "js";

@@ -67,6 +67,13 @@ class Sample {
     Sample *operator+(const Sample &p) {
         return new Sample(this->x + p.x, this->y + p.y);
     }
+    void gatherPtr(float *array, int num) {
+
+    }
+	void gatherArray(float *array, int num) {
+        
+    }
+
     double length() {
         return x * y;
     }

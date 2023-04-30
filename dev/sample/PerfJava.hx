@@ -74,7 +74,7 @@ class SampleNative {
     @:java.native public function fn_buffer(buf : java.nio.ByteBuffer ): Void;
 }
 
-class SampleJava {
+class PerfJava {
 
     public static function main() {
         trace("Hello World!");
