@@ -6,8 +6,5 @@
 	"description" : "C/C++ Interface Definition Language support for Haxe HL/Java/JVM.",
 	"version" : "2.0.0",
 	"classPath": "lib/",
-	"releasenote" : "",
-	"dependencies": {
-		
-	}
+	"releasenote" : ""
 }
