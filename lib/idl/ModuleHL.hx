@@ -7,7 +7,8 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import hvector.Int2Array;
 using StringTools;
-using tink.MacroApi;
+using idl.macros.MacroTools;
+
 class ModuleHL {
 	var p : Position;
 	var hl : Bool;
@@ -516,7 +517,7 @@ class ModuleHL {
 				pack : pack,
 				name : makeName(iname),
 				meta : [],
-				kind : TDAbstract(macro : idl.Types.Ref, [], [macro : idl.Types.Ref]),
+				kind : TDAbstract(macro : idl.Types.Ref, [], [macro : idl.Types.Ref], [macro : idl.Types.Ref]),
 				fields : dfields,
 			};
 
@@ -636,8 +637,8 @@ class ModuleHL {
 				pos : p,
 				pack : pack,
 				name : makeName(name),
-				meta : [{ name : ":enum", pos : p }],
-				kind : TDAbstract(macro : Int),
+				meta : [],
+				kind : TDAbstract(macro : Int, [AbEnum]),
 				fields : cfields,
 			};
 			

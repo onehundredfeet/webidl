@@ -7,7 +7,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import hvector.Int2Array;
 using StringTools;
-using tink.MacroApi;
+using idl.macros.MacroTools;
 
 class ModuleJVM {
 	var p : Position;

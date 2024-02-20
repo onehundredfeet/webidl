@@ -68,11 +68,21 @@ set(LOCAL_LIB "${DEPENDENCY_ROOT}/lib")
 endif()
 
 if (NOT HL_LIB_DIR)
-set( HL_LIB_DIR ${LOCAL_LIB})
+if (DEFINED ENV{HL_LIB_DIR})
+    message("HL_LIB_DIR is $ENV{HL_LIB_DIR}")
+    set( HL_LIB_DIR $ENV{HL_LIB_DIR})
+else()
+    set( HL_LIB_DIR ${LOCAL_LIB})
+endif()
 endif()
 
 if (NOT HL_INC_DIR)
-set( HL_INC_DIR ${LOCAL_INC})
+if (DEFINED ENV{HL_INC_DIR})
+    message("HL_INC_DIR is $ENV{HL_INC_DIR}")
+    set( HL_INC_DIR $ENV{HL_INC_DIR})
+else()
+    set( HL_INC_DIR ${LOCAL_INC})
+endif()
 endif()
 
 ############## TARGET HOST DETERMINATION
