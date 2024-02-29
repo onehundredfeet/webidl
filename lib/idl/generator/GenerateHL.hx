@@ -790,7 +790,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								].concat(margs);
 
 								var returnField:String = null;
-								var returnType:TypeAttr;
+								var returnType:TypeAttr = null;
 								var ignore:Array<String> = [];
 								var argCount = ret.attr.contains(AStatic) ? 0 : -1;
 
