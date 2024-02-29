@@ -111,8 +111,10 @@ message( "Looking for ${HL_LIB_SHORT_NAME} lib in  ${TARGET_LIB_DIR} with suffix
 
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 set(HL_LIB_PREFIX "")
-else()
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
 set(HL_LIB_PREFIX "lib")
+else()
+set(HL_LIB_PREFIX "")
 endif()
 
 message(${TARGET_LIB_DIR})

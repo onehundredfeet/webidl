@@ -21,10 +21,10 @@ SUFFIX ${PROJECT_LIB_SUFFIX}
 )
 
 if(WIN32)
-#    set(CMAKE_MSVC_RUNTIME_LIBRARY  "MultiThreadedDLL")
-#    set_target_properties(${PROJECT_LIB_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
- #   get_property( LIB_MSVC_RT TARGET ${PROJECT_LIB_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
- #   message("Library ${PROJECT_LIB_NAME} us using ${LIB_MSVC_RT} runtime")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY  "MultiThreadedDLL")
+    set_target_properties(${PROJECT_LIB_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    get_property( LIB_MSVC_RT TARGET ${PROJECT_LIB_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+    message("Library ${PROJECT_LIB_NAME} us using ${LIB_MSVC_RT} runtime")
 endif()
 
 cmake_policy(SET CMP0015 NEW)
