@@ -8,6 +8,8 @@ class BuildBase {
 
 	public function new(options : Options) {
 		_options = options;
+		arch = options.architecture != null ? options.architecture : "x86_64";
+		config = options.defaultConfig != null ? options.defaultConfig : "Debug";
 	}
 
 	function getHLInclude() {
@@ -29,26 +31,36 @@ class BuildBase {
 			default: "";
 		};
 
+		
+
 		trace('Generating target ${target}');
 		idl.generator.Generate.generateCpp(_options);
 	}
 
 	var target = "hl";
 	var builder = "Ninja";
-	var arch = "x86_64";
     var idlPath = "ext/hl-idl";
-    var config = "Debug";
-
+    var config = null;
+	var arch = null;
 	var installDir = null;
 
-	function build() {
+	function configure() {
 		sys.FileSystem.createDirectory('build/${target}/${arch}/${config}');
 		sys.FileSystem.createDirectory(installDir);
-        var cmd = 'cmake -G"${builder}" -DTARGET_ARCH=${arch} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${installDir} -B build/${target}/${arch}/${config}';
+		var architectureSwitch = switch(_options.architecture) {
+			case ArchX86_64: "-DTARGET_ARCH=\"x86_64\"";
+			case ArchArm64: "-DTARGET_ARCH=\"arm64\"";
+			case ArchAll: "-DCMAKE_OSX_ARCHITECTURES=\"x86_64;arm64\""; 
+			default: "";
+		};
+
+        var cmd = 'cmake -G"${builder}" ${architectureSwitch} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${installDir} -B build/${target}/${arch}/${config}';
         trace('$cmd');
         Sys.command(cmd);
+	}
 
-        cmd = 'cmake --build build/${target}/${arch}/${config}';
+	function build() {
+        var cmd = 'cmake --build build/${target}/${arch}/${config}';
         trace('$cmd');
         Sys.command(cmd);
 	}
@@ -90,7 +102,10 @@ class BuildBase {
 			switch (cmd) {
 				case "generate":
 					generate();
+				case "configure":
+					configure();
 				case "build":
+					configure();
 					build();
 				case "install":
 					install();
@@ -103,7 +118,7 @@ class BuildBase {
 			trace("  install: Install the target code");
 			trace("  --target: The target platform (hl, jvm)");
 			trace("  --builder: The build system (Ninja, Make)");
-			trace("  --arch: The target architecture (x86_64, arm64)");
+			trace("  --arch: The target architecture (x86_64, arm64, all)");
 			trace("  --idl: The path to the idl directory");
 			trace("  --config: The build configuration (Debug, Release)");
         }

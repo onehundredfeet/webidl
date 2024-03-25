@@ -6,24 +6,32 @@ cmake_policy(SET CMP0091 NEW) #needs to be in the actual CMakeFiles.txt, why, no
 #set(CMAKE_BUILD_TYPE DEBUG)
 #endif()
 
+## Bring in Environment variables
+if (DEFINED ENV{HL_LIB_DIR})
+    message("Enviornment variable : HL_LIB_DIR is $ENV{HL_LIB_DIR}")
+    set( HL_LIB_DIR $ENV{HL_LIB_DIR})
+endif()
+
+if (DEFINED ENV{HL_INC_DIR})
+    message("Enviornment variable : HL_INC_DIR is $ENV{HL_INC_DIR}")
+    set( HL_INC_DIR $ENV{HL_INC_DIR})
+endif()
 
 
 
 ##### Apple Configuration
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+if (NOT CMAKE_OSX_ARCHITECTURES)
 #OSX Configuration details
 if (TARGET_ARCH STREQUAL "x86" OR TARGET_ARCH STREQUAL "x64" OR NOT TARGET_ARCH)
     set(TARGET_ARCH "x86_64")
-endif()
-
-if (TARGET_ARCH STREQUAL "arm")
+elseif(TARGET_ARCH STREQUAL "arm")
     set(TARGET_ARCH "arm64")
+elseif(TARGET_ARCH STREQUAL "all")
+    set(TARGET_ARCH "x86_64;arm64")
 endif()
-
-
 
 message("Target Arch: ${TARGET_ARCH}")
-
 if (TARGET_ARCH STREQUAL "x86_64")
     set(BREW_ROOT "/usr/local")
 endif()
@@ -39,6 +47,13 @@ endif()
 set(CELLAR_ROOT "${BREW_ROOT}/Cellar")
 
 set(CMAKE_OSX_ARCHITECTURES ${TARGET_ARCH})
+
+
+else()
+set( HL_LIB_DIR "/usr/local/lib")
+set( HL_INC_DIR "/usr/local/include")
+endif() # NOT CMAKE_OSX_ARCHITECTURES
+
 set(HL_LIB_SHORT_NAME "hl")
 
 ############## WINDOWS CONFIGURATION
@@ -68,21 +83,11 @@ set(LOCAL_LIB "${DEPENDENCY_ROOT}/lib")
 endif()
 
 if (NOT HL_LIB_DIR)
-if (DEFINED ENV{HL_LIB_DIR})
-    message("HL_LIB_DIR is $ENV{HL_LIB_DIR}")
-    set( HL_LIB_DIR $ENV{HL_LIB_DIR})
-else()
     set( HL_LIB_DIR ${LOCAL_LIB})
-endif()
 endif()
 
 if (NOT HL_INC_DIR)
-if (DEFINED ENV{HL_INC_DIR})
-    message("HL_INC_DIR is $ENV{HL_INC_DIR}")
-    set( HL_INC_DIR $ENV{HL_INC_DIR})
-else()
     set( HL_INC_DIR ${LOCAL_INC})
-endif()
 endif()
 
 ############## TARGET HOST DETERMINATION
@@ -124,7 +129,7 @@ set (HL_LIB_NAME ${HL_LIB_PREFIX}hl${CONFIG_POSTFIX})
 message( ${HL_LIB_NAME})
 
 set(CMAKE_IGNORE_PATH)
-find_library(LIBHL NAMES ${HL_LIB_NAME}  PATHS ${TARGET_LIB_DIR} NO_DEFAULT_PATH)
+find_library(LIBHL NAMES ${HL_LIB_NAME} PATHS ${TARGET_LIB_DIR} NO_DEFAULT_PATH)
 set(TARGET_LIBS ${LIBHL})
 
 message("Target Libs: ${TARGET_LIBS} $PATHS ${TARGET_LIB_DIR} ${HL_LIB_NAME}")

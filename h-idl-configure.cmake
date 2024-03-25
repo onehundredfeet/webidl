@@ -8,16 +8,28 @@ endif()
 
 message( "Project lib name '${PROJECT_LIB_NAME}'")
 add_library(${PROJECT_LIB_NAME} SHARED
-#Input C++ files go here
 ${PROJECT_ADDITIONAL_SOURCES}
 src/idl_${TARGET_HOST}.cpp
 )
+
+set(PROJECT_STATIC_LIB_NAME ${PROJECT_LIB_NAME}_s)
+ADD_LIBRARY( ${PROJECT_STATIC_LIB_NAME} STATIC
+${PROJECT_ADDITIONAL_SOURCES}
+src/idl_${TARGET_HOST}.cpp
+)
+
+set_target_properties(${PROJECT_STATIC_LIB_NAME}
+PROPERTIES
+OUTPUT_NAME ${PROJECT_LIB_NAME}
+)
+
 
 set_target_properties(${PROJECT_LIB_NAME}
 PROPERTIES
 PREFIX ""
 OUTPUT_NAME ${PROJECT_LIB_NAME}
 SUFFIX ${PROJECT_LIB_SUFFIX}
+INTERPROCEDURAL_OPTIMIZATION TRUE
 )
 
 if(WIN32)
@@ -27,7 +39,7 @@ if(WIN32)
     message("Library ${PROJECT_LIB_NAME} us using ${LIB_MSVC_RT} runtime")
 endif()
 
-cmake_policy(SET CMP0015 NEW)
+
 
 message( "Adding ${TARGET_INCLUDE_DIR} to include ")
 target_include_directories(${PROJECT_LIB_NAME}
@@ -37,10 +49,19 @@ ${LOCAL_INC}
 ${PROJECT_ADDITIONAL_INCLUDES}
 )
 
-link_directories(${PROJECT_LIB_NAME}
-${TARGET_LIB_DIR}
+target_include_directories(${PROJECT_STATIC_LIB_NAME}
+PRIVATE
+${TARGET_INCLUDE_DIR}
+${LOCAL_INC}
+${PROJECT_ADDITIONAL_INCLUDES}
+)
+
+
+link_directories(${PROJECT_LIB_NAME} BEFORE
+${PROJECT_ADDITIONAL_LIB_DIRS}
 ${LOCAL_LIB}
 )
+message( "Adding ${PROJECT_ADDITIONAL_LIB_DIRS} to link directories ")
 
 set(ALL_LIBS 
 ${TARGET_LIBS}
@@ -61,4 +82,4 @@ if (UNIX)
     SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -shared  ")
 endif (UNIX)
 
-install(TARGETS ${PROJECT_LIB_NAME})
+install(TARGETS ${PROJECT_LIB_NAME} ${PROJECT_STATIC_LIB_NAME})
