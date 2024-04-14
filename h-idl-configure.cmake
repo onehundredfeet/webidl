@@ -20,7 +20,7 @@ src/idl_${TARGET_HOST}.cpp
 
 set_target_properties(${PROJECT_STATIC_LIB_NAME}
 PROPERTIES
-OUTPUT_NAME ${PROJECT_LIB_NAME}
+OUTPUT_NAME "${PROJECT_LIB_NAME}_hdll"
 )
 
 
@@ -70,14 +70,14 @@ ${PROJECT_ADDITIONAL_LIBS}
 
 target_link_libraries(${PROJECT_LIB_NAME} ${ALL_LIBS})
 
-set_property(TARGET ${PROJECT_LIB_NAME} PROPERTY CXX_STANDARD 17)
+set_property(TARGET ${PROJECT_LIB_NAME} PROPERTY CXX_STANDARD 20)
 
 string(TOUPPER "IDL_${TARGET_HOST}" IDL_DEFINE)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${IDL_DEFINE} ")
 if (UNIX)
     # Some special flags are needed for GNU GCC compiler
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC  -O3  -fpermissive")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -fPIC  -O3  -fpermissive")
     #not sure why the ${HL_LIB_DIR} is necessary given the above.
     SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -shared  ")
 endif (UNIX)
