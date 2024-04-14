@@ -42,18 +42,18 @@ endif()
 
 
 message( "Adding ${TARGET_INCLUDE_DIR} to include ")
-target_include_directories(${PROJECT_LIB_NAME}
+target_include_directories(${PROJECT_LIB_NAME} 
 PRIVATE
+${PROJECT_ADDITIONAL_INCLUDES}
 ${TARGET_INCLUDE_DIR}
 ${LOCAL_INC}
-${PROJECT_ADDITIONAL_INCLUDES}
 )
 
 target_include_directories(${PROJECT_STATIC_LIB_NAME}
 PRIVATE
+${PROJECT_ADDITIONAL_INCLUDES}
 ${TARGET_INCLUDE_DIR}
 ${LOCAL_INC}
-${PROJECT_ADDITIONAL_INCLUDES}
 )
 
 
