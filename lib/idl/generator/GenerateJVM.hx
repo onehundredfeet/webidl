@@ -595,7 +595,7 @@ class HNativeBuffer {
 					//					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
 					add('JNIEXPORT int JNICALL ${name}_fromIndex(${JNI_PARAMETER_PREFIX}, int index ) {return index;}');
 				//					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
-				case DTypeDef(name, attrs, type):
+				case DTypeDef(name, attrs, type, dtype):
 				case DImplements(_):
 			}
 		}
@@ -1592,7 +1592,7 @@ class HNativeBuffer {
 							case DConst(_, _, _):
 						}
 					}
-				case DTypeDef(name, attrs, type):
+				case DTypeDef(name, attrs, type, dtype):
 				case DEnum(_), DImplements(_):
 			}
 		}

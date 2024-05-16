@@ -114,7 +114,7 @@ class Parser {
 					}
 				}
 				typeDefs[name] = typeStr;
-				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr)};
+				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr, strToType(typeStr))};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;
@@ -292,21 +292,8 @@ class Parser {
 		return attrs;
 	}
 
-	function type(attrs : Array<Attrib> = null):Type {
-		// Type defs
-		var original_id = ident();
-		var id = original_id;
-		var remapped = false;
-		while (typeDefs.exists(id)) {
-			id = typeDefs[id];
-			remapped = true;
-		}
-		if (remapped && attrs != null) {
-			attrs.push(ARemap(original_id, id));
-		}
-
-		
-		var t = switch (id) {
+	function strToType(id:String)  {
+		return switch (id) {
 			case "void": TVoid;
 			case "byte", "uchar", "char": TChar;
 			case "float": TFloat;
@@ -335,6 +322,23 @@ class Parser {
 			default: 
 				TCustom(id);
 		};
+	}
+
+	function type(attrs : Array<Attrib> = null):Type {
+		// Type defs
+		var original_id = ident();
+		var id = original_id;
+		var remapped = false;
+		while (typeDefs.exists(id)) {
+			id = typeDefs[id];
+			remapped = true;
+		}
+		if (remapped && attrs != null) {
+			attrs.push(ARemap(original_id, id));
+		}
+
+		
+		var t = strToType(id);
 		if (maybe(TBkOpen)) {
 			if (maybe(TBkClose)) {
 				t = TArray(t, null);

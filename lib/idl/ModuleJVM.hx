@@ -666,7 +666,7 @@ class ModuleJVM {
 
 			typeNames[name] = enumTP;
 			types.push(enumT);
-		case DTypeDef(name, attrs, type):
+		case DTypeDef(name, attrs, type, dtype):
 
 		}
 	}

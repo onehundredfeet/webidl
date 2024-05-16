@@ -71,16 +71,18 @@ class ModuleHL {
 		};
 	}
 	function makeType( t : TypeAttr,isReturn:Bool ) : ComplexType {
+		var isOut = t.attr != null && t.attr.contains(AOut);
+
 		return switch( t.t ) {
 		case TVoid: macro : Void;
 		case TChar: macro : hl.UI8;
-		case TInt, TUInt: (t.attr != null && t.attr.contains(AOut)) ? macro : hl.Ref<Int> : macro : Int;
+		case TInt, TUInt: (isOut) ? macro : hl.Ref<Int> : macro : Int;
 		//case TInt64 : hl ? macro : hl.I64 : macro : haxe.Int64; 
-		case TInt64 : hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<haxe.Int64>) : (macro : haxe.Int64))) : (macro : haxe.Int64);
+		case TInt64 : hl ? ((isOut  ? (macro : hl.Ref<haxe.Int64>) : (macro : haxe.Int64))) : (macro : haxe.Int64);
 		case TShort: hl ? macro : hl.UI16 : macro : Int;
-		case TFloat: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
-		case TDouble: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
-		case TBool: hl ? ((t.attr.contains(AOut)  ? (macro : hl.Ref<Bool>) : (macro : Bool))) : (macro : Bool);
+		case TFloat: hl ? ((isOut  ? (macro : hl.Ref<Single>) : (macro : Single))) : (macro : Float);
+		case TDouble: hl ? ((isOut  ? (macro : hl.Ref<Float>) : (macro : Float))) : (macro : Float);
+		case TBool: hl ? ((isOut  ? (macro : hl.Ref<Bool>) : (macro : Bool))) : (macro : Bool);
 		case TDynamic: macro :Dynamic;
 		case TType: macro  : hl.Type;
 		case THString : isReturn && false? macro : hl.Bytes : macro : String;
@@ -445,11 +447,14 @@ class ModuleHL {
 							});
 
 						default:
+							var hasSet = t.attr == null || t.attr.indexOf(AReadOnly) < 0;
 							var tt = makeType(t, false);
+
+							var fkind = hasSet ? FProp("get", "set", tt) : FProp("get", "never", tt);
 							dfields.push({
 								pos : p,
 								name : haxeName,
-								kind : FProp("get", "set", tt),
+								kind : fkind,
 								access : [APublic],
 							});
 							dfields.push({
@@ -462,17 +467,18 @@ class ModuleHL {
 									args : [],
 								}),
 							});
-							dfields.push({
-								pos : p,
-								name : "set_" + haxeName,
-								meta : [makeNative(iname+"_set_" + haxeName)],
-								kind : FFun({
-									ret : tt,
-									expr : macro return ${defVal(t)},
-									args : [{ name : "_v", type : tt }],
-								}),
-							});
-							
+							if (hasSet) {
+								dfields.push({
+									pos : p,
+									name : "set_" + haxeName,
+									meta : [makeNative(iname+"_set_" + haxeName)],
+									kind : FFun({
+										ret : tt,
+										expr : macro return ${defVal(t)},
+										args : [{ name : "_v", type : tt }],
+									}),
+								});
+							}
 							var vt : Type = null;
 							var vta : TypeAttr = null;
 							var vdim = 0;
@@ -650,7 +656,7 @@ class ModuleHL {
 
 			typeNames[name] = enumTP;
 			types.push(enumT);
-		case DTypeDef(name, attrs, type):
+		case DTypeDef(name, attrs, type, dtype):
 
 		}
 	}

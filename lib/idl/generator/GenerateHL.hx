@@ -190,6 +190,19 @@ class HNativeBuffer {
     }
 };
 
+inline static varray* _idc_alloc_array(float *src, int count) {
+	if (src == nullptr) return nullptr;
+
+	varray *a = NULL;
+	float *p;
+	a = hl_alloc_array(&hlt_f32, count);
+	p = hl_aptr(a, float);
+
+	for (int i = 0; i < count; i++) {
+		p[i] = src[i];
+	}
+	return a;
+}
 ";
 
 	static var HEADER_NO_GC = "
@@ -250,19 +263,7 @@ template<typename T> pref<T> *_alloc_const( const T *value ) {
 	return r;
 }
 
-inline static varray* _idc_alloc_array(float *src, int count) {
-	if (src == nullptr) return nullptr;
 
-	varray *a = NULL;
-	float *p;
-	a = hl_alloc_array(&hlt_f32, count);
-	p = hl_aptr(a, float);
-
-	for (int i = 0; i < count; i++) {
-		p[i] = src[i];
-	}
-	return a;
-}
 inline static varray* _idc_alloc_array(unsigned char *src, int count) {
 	if (src == nullptr) return nullptr;
 
@@ -490,7 +491,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						constructor: prefix + intName,
 						isInterface: true,
 						isEnum: false,
-						decl: refFullName
+						decl: refFullName,
+						dtype : null
 					});
 					if (attrs.indexOf(ANoDelete) >= 0)
 						continue;
@@ -508,7 +510,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						constructor: null,
 						isInterface: true,
 						isEnum: true,
-						decl: "int"
+						decl: "int",
+						dtype : null
 					});
 
 					var etname = name;
@@ -532,7 +535,17 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					add('DEFINE_PRIM(_I32, ${name}_fromValue1, _I32);');
 					add('HL_PRIM int HL_NAME(${name}_fromIndex1)( int index ) {return index;}');
 					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
-				case DTypeDef(name, attrs, type):
+				case DTypeDef(name, attrs, type, dtype):
+					trace('typedef ' + name + ' ' + type + ' dtype ' + dtype);
+					typeNames.set(name, {
+						full: type,
+						constructor: null,
+						isInterface: false,
+						isEnum: false,
+						decl: type,
+						dtype: {t:dtype, attr:attrs}
+					});
+
 				case DImplements(_):
 			}
 		}
@@ -692,7 +705,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 
-
+// { var t : Type; var attr : Array<Attrib>; }
 		function defType(t:TypeAttr, isReturn:Bool = false) {
 			var x = switch (t.t) {
 				case TChar: "_I8";
@@ -714,7 +727,14 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TFunction(ret, ta):
 					var args = (ta == null || ta.length == 0) ? "_NO_ARG" : ta.map((x) -> defType(x)).join(" ");
 					"_FUN(" + defType(ret) + ',${args})';
-				case TCustom(name): enumNames.exists(name) ? "_I32" : t.attr.contains(ACStruct) ? "_STRUCT" : "_IDL";
+				case TCustom(name): 
+					enumNames.exists(name) 		? "_I32" : 
+					typeNames.exists(name) 		? {
+						var td = typeNames.get(name);
+						td.isInterface ? "_IDL" : defType(td.dtype, isReturn);
+						} :
+					t.attr.contains(ACStruct) 	? "_STRUCT" 
+					: "_IDL";
 				case TDynamic: "_DYN";
 				case TType: "_TYPE";
 			}
@@ -1295,6 +1315,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 								var isReadOnly = t.attr.contains(AReadOnly);
 								var needsGetter = true;
 								var needsSetter = !isReadOnly;
+								var addressOf = "";
 
 								var tname = switch (t.t) {
 									case TCustom(id): id;
@@ -1351,6 +1372,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 										case ASet(name): setter = name;
 										case ASetCast(type): setCast = type;
 										case AGetCast(type): getCast = "(" + type + ")";
+										case AAddressOf: addressOf = "&";
 										default:
 									}
 								}
@@ -1368,21 +1390,21 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 										//									add('\treturn _idc_alloc_array(${(getter == null) ? "" : getter}(_unref(_this)->${internalName}),${vdim});');
 									} else if (getter != null)
-										add('\treturn ${getter}(_unref(_this)->${internalName});');
+										add('\treturn ${getter}(${addressOf}_unref(_this)->${internalName});');
 									else if (enumName != null)
 										add('\treturn HL_NAME(${enumName}_valueToIndex1)(_unref(_this)->${internalName});');
 									else if (isVal) {
 										var fname = typeNames.get(tname).constructor;
 										add('\treturn alloc_ref(new $fname(_unref(_this)->${internalName}),$tname);');
 									} else if (isRef)
-										add('\treturn alloc_ref${isConst ? '_const' : ''}(_unref(_this)->${internalName},$tname);');
+										add('\treturn alloc_ref${isConst ? '_const' : ''}(${getCast}${addressOf}_unref(_this)->${internalName},$tname);');
 									else if (isPointer) {
 										add('\treturn (vbyte *)(&_unref(_this)->${internalName}[0]);');
 									} else if (isArray) {
 										add('\treturn ${getCast}_unref(_this)->${internalName}[index];');
 //										add('\treturn _idc_alloc_array(&_unref(_this)->${internalName}[0], _unref(_this)->${al}); // This is wrong, needs to copy');
 									} else {
-										add('\treturn ${getCast}_unref(_this)->${internalName};');
+										add('\treturn ${getCast}${addressOf}_unref(_this)->${internalName};');
 									}
 									add('}');
 
@@ -1465,7 +1487,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 							case DConst(_, _, _):
 						}
 					}
-				case DTypeDef(name, attrs, type):
+				case DTypeDef(name, attrs, type,dtype):
 				case DEnum(_), DImplements(_):
 			}
 		}
