@@ -9,32 +9,16 @@ import hvector.Int2Array;
 using StringTools;
 using idl.macros.MacroTools;
 
-class ModuleHL {
+class ModuleHL extends ModuleBase {
 	var p : Position;
 	var hl : Bool;
-	var pack : Array<String>;
-	var opts : Options;
 	var types : Array<TypeDefinition> = [];
 	var typeNames = new Map();
 
 	function new(p, pack, hl, opts) {
+		super(pack, opts);
 		this.p = p;
-		this.pack = pack;
 		this.hl = hl;
-		this.opts = opts;
-	}
-
-	function makeName( name : String ) {
-		// name - list of comma separated prefixes
-		if( opts.chopPrefix != null ) {
-			var prefixes = opts.chopPrefix.split(',');
-			for (prefix in prefixes) {
-				if (StringTools.startsWith(name, prefix)) {
-					name = name.substr(prefix.length);
-				}
-			}
-		}
-		return capitalize(name);
 	}
 
 	function buildModule( decls : Array<Definition> ) {
@@ -699,7 +683,7 @@ class ModuleHL {
 		return { name : ":hlNative", params : [{ expr : EConst(CString(nativeLib)), pos : p },{ expr : EConst(CString(name)), pos : p }], pos : p };
 	}
 
-	public static function build( opts : Options ) {
+	public function build( opts : Options ) {
 		var file = opts.idlFile;
 		var module = Context.getLocalModule();
 		var types = buildTypes(opts, Context.defined("hl"));
@@ -749,13 +733,11 @@ class ModuleHL {
 		return macro : Void;
 	}
 
-    /**
-	 * Capitalize the first letter of a string
-	 * @param text The string to capitalize
-	 */
-	private static function capitalize(text:String) {
-		return text.charAt(0).toUpperCase() + text.substring(1);
-	}
+
+
+    public function generate( opts : Options ) {
+        
+    }
 }
 
 #end

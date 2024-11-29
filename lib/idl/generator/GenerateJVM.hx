@@ -6,7 +6,18 @@ import idl.Options;
 
 using StringTools;
 
-class GenerateJVM {
+class GenerateJVM extends GenerateBase {
+	public function new(opts:Options) {
+		super(opts);
+	}
+
+	public function generateGlue() : Void {
+
+	}
+    public function generateHX() : Void {
+
+	}
+	
 	static final HELPER_TEXT = "
 	#ifndef __JVM_IDL_HELPERS_H_
 #define __JVM_IDL_HELPERS_H_

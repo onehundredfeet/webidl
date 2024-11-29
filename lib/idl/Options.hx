@@ -2,9 +2,22 @@ package idl;
 
 enum abstract Target(String) from String to String{
 	var TargetHL = "hl";
-	var TargetCPP = "cpp";
+	var TargetHXCPP = "hxcpp";
 	var TargetJS = "js";
 	var TargetJVM = "jvm";
+	var TargetEmscripten = "emscripten";
+}
+
+enum abstract CPPFlavour(String) from String to String{
+	var CPP_HXCPP = "hxcpp";
+	var CPP_EMSCRIPTEN = "emscripten";
+}
+
+enum abstract BuildSystem(String) from String to String{
+	var BuildNone = "none";
+	var BuildHaxe = "haxe";
+	var BuildCMake = "cmake";
+	var BuildMake = "makefile";
 }
 
 enum abstract Architecture(String) from String to String{
@@ -18,6 +31,10 @@ typedef Options = {
 	var nativeLib : String;
 	var packageName : String; // usually the same as nativeLib
 	var target : Target;
+	@:optional var buildSystem : BuildSystem;
+	@:optional var buildDir : String;
+	@:optional var generateSource : Bool;
+	@:optional var sourceDIr : String;
 	@:optional var defaultConfig : String;
 	@:optional var brew : Bool;
 	@:optional var helperHeaderFile : String;
@@ -27,4 +44,5 @@ typedef Options = {
 	@:optional var autoGC : Bool;
 	@:optional var version : String;
 	@:optional var architecture : Architecture;
+	@:optional var cppFlavour : CPPFlavour;
 }

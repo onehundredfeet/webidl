@@ -7,16 +7,31 @@ class Generate {
 			opts.outputDir = "";
 		else if (!StringTools.endsWith(opts.outputDir, "/"))
 			opts.outputDir += "/";
-	}
 
-    public static function generateCpp(opts:Options) {
-        initOpts(opts);
         switch (opts.target) {
-            case TargetHL:GenerateHL.generateCpp(opts);
-            case TargetJVM:GenerateJVM.generateCpp(opts);
-//            case TargetJS:GenerateJS.generateJS(opts, []);
+            case TargetHL:
+            case TargetJVM:
+            case TargetHXCPP:opts.cppFlavour = CPP_HXCPP;
+            case TargetEmscripten:opts.cppFlavour = CPP_EMSCRIPTEN;
             default:
                 throw "Unsupported target: " + opts.target;
+        }
+
+        return switch(opts.target) {
+            case TargetHL:new GenerateHL(opts);
+            case TargetJVM:new GenerateHL(opts);
+            case TargetHXCPP:new GenerateHL(opts);
+            case TargetEmscripten:new GenerateHL(opts);
+            default:
+                throw "Unsupported target: " + opts.target;
+        }
+	}
+
+    public static function generate(opts:Options) {
+        var generator = initOpts(opts);
+        generator.generateGlue();
+        if (opts.generateSource) {
+             generator.generateHX();
         }
     }
 }

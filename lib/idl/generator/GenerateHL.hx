@@ -4,7 +4,15 @@ import haxe.macro.Expr.Function;
 import idl.Data;
 import idl.Options;
 
-class GenerateHL {
+class GenerateHL extends GenerateBase {
+
+	public function new(opts : Options) {
+		super(opts);
+	}
+
+    public function generateHX() : Void {
+
+	}
 
 	static final HELPER_TEXT = "
 	#ifndef __HL_IDL_HELPERS_H_
@@ -407,21 +415,12 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 
 
-	public static function generateCpp(opts:Options) {
+	public function generateGlue() {
+		var output = new StringBuf();
 
 		sys.io.File.saveContent(opts.outputDir + "hl-idl-helpers.hpp",HELPER_TEXT);
-
-		var file = opts.idlFile;
-		var content = sys.io.File.getBytes(file);
-		var parse = new idl.generator.Parser();
-		var decls = null;
 		var gc = opts.autoGC;
-		try {
-			decls = parse.parseFile(file, new haxe.io.BytesInput(content));
-		} catch (msg:String) {
-			throw msg + "(" + file + " line " + parse.line + ")";
-		}
-		var output = new StringBuf();
+		var decls = loadIDL(opts);
 		function add(str:String) {
 			output.add(str.split("\r\n").join("\n") + "\n");
 		}

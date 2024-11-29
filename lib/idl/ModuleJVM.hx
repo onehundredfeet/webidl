@@ -9,7 +9,7 @@ import hvector.Int2Array;
 using StringTools;
 using idl.macros.MacroTools;
 
-class ModuleJVM {
+class ModuleJVM extends ModuleBase {
 	var p : Position;
 	var hl : Bool;
 	var pack : Array<String>;
@@ -775,6 +775,14 @@ class ModuleJVM {
 	private static function capitalize(text:String) {
 		return text.charAt(0).toUpperCase() + text.substring(1);
 	}
+
+    public function build( opts : Options ) {
+
+	}
+    public function generate( opts : Options ) {
+		
+	}
+	
 }
 
 #end

@@ -1,14 +1,21 @@
 package idl.generator;
 
-class GenerateJS {
-    static function command(cmd, args:Array<String>) {
-		Sys.println("> " + cmd + " " + args.join(" "));
-		var ret = Sys.command(cmd, args);
-		if (ret != 0)
-			throw "Command '" + cmd + "' has exit with error code " + ret;
+class GenerateJS extends GenerateBase{
+
+	public function new(opts:Options) {
+		super (opts);
 	}
 
-    public static function generateJs(opts:Options, sources:Array<String>, ?params:Array<String>) {
+	public function generateGlue() : Void {
+
+	}
+    public function generateHX() : Void {
+
+	}
+
+
+
+    public function generateJs(opts:Options, sources:Array<String>, ?params:Array<String>) {
 		if (params == null)
 			params = [];
 

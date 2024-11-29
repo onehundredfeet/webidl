@@ -26,14 +26,32 @@ class Generator {
 		autoGC: true
 	};
 
-	public static function generateCpp(target = idl.Options.Target.TargetHL) {
+	static var HXCPP_INCLUDE = "
+#ifdef _WIN32
+#pragma warning(disable:4305)
+#pragma warning(disable:4244)
+#pragma warning(disable:4316)
+#endif
+
+#include \"sample_custom.h\"
+";
+	static var EMSCRIPTEN_INCLUDE = "
+	#include \"sample_custom.h\"
+";
+
+	public static function generate(target = idl.Options.Target.TargetHL, makeSrc = false) {
 		options.target = target;
+		options.generateSource = makeSrc;
 		options.includeCode = switch (target) {
 			case idl.Options.Target.TargetHL: HL_INCLUDE;
 			case idl.Options.Target.TargetJVM: JVM_INCLUDE;
-			default: "";
+			case idl.Options.Target.TargetCPP: HXCPP_INCLUDE;
+			case idl.Options.Target.TargetEmscripten: EMSCRIPTEN_INCLUDE;
+			case idl.Options.Target.TargetJS: EMSCRIPTEN_INCLUDE;
+			
+			default: throw 'Unrecognized target ${target}';
 		};
-		idl.generator.Generate.generateCpp(options);
+		idl.generator.Generate.generate(options);
 	}
 }
 #end

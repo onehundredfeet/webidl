@@ -1,0 +1,3 @@
+--class-path lib
+--class-path example/generator
+--neko bin/main.n
