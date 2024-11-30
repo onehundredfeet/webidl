@@ -20,15 +20,16 @@ attribute double b;
 };
 
 interface Sample {
-attribute long x;
-attribute long y;
+	attribute long x;
+	attribute long y;
 	void Sample();
  	int funci(int x);
 	void print();
-  SampleA makeA();
+  	SampleA makeA();
 	void gatherPtr(float *array, int num);
 	void gatherArray(float []array, int num);
-	
+	[Static, Internal="Sample::testStatic"] void testStatic();
+
 //  SampleB makeB();
 
 // 	[Operator="*",Ref] Sample op_add( [Const,Ref] Sample p );

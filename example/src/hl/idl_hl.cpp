@@ -335,7 +335,6 @@ HL_PRIM int HL_NAME(SampleA_set_et)( pref<SampleA>* _this, int value ) {
 DEFINE_PRIM(_I32,SampleA_set_et,_IDL _I32);
 
 HL_PRIM pref<SampleA>* HL_NAME(SampleA_new0)() {
-	printf("Allocating SampleA\n");
 	return alloc_ref((new SampleA()),SampleA);
 }
 DEFINE_PRIM(_IDL, SampleA_new0,);
@@ -386,8 +385,6 @@ HL_PRIM int HL_NAME(Sample_set_y)( pref<Sample>* _this, int value ) {
 DEFINE_PRIM(_I32,Sample_set_y,_IDL _I32);
 
 HL_PRIM pref<Sample>* HL_NAME(Sample_new0)() {
-	printf("WTF\n");
-	fflush(stdout);
 	return alloc_ref((new Sample()),Sample);
 }
 DEFINE_PRIM(_IDL, Sample_new0,);
@@ -403,7 +400,6 @@ HL_PRIM void HL_NAME(Sample_print0)(pref<Sample>* _this) {
 DEFINE_PRIM(_VOID, Sample_print0, _IDL);
 
 HL_PRIM pref<SampleA>* HL_NAME(Sample_makeA0)(pref<Sample>* _this) {
-	printf("makeA outside %p\n", _this);
 	return alloc_ref((_unref(_this)->makeA()),SampleA);
 }
 DEFINE_PRIM(_IDL, Sample_makeA0, _IDL);
@@ -417,6 +413,11 @@ HL_PRIM void HL_NAME(Sample_gatherArray2)(pref<Sample>* _this, varray* array, in
 	(_unref(_this)->gatherArray(hl_aptr(array,float), num));
 }
 DEFINE_PRIM(_VOID, Sample_gatherArray2, _IDL _ARR _I32);
+
+HL_PRIM void HL_NAME(Sample_testStatic0)() {
+	(Sample::testStatic());
+}
+DEFINE_PRIM(_VOID, Sample_testStatic0,);
 
 HL_PRIM double HL_NAME(Sample_length0)(pref<Sample>* _this) {
 	return (_unref(_this)->length());

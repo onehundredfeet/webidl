@@ -17,7 +17,7 @@ class GenerateHaxe {
 	var types:Array<TypeDefinition> = [];
 	var typeNames = new Map<String, haxe.macro.TypePath>();
     var _printer = new Printer();
-    var _inline = true;
+//    var _inline = true;
     var _targets:Array<HaxeGenerationTarget>;
     var _currentTarget:HaxeGenerationTarget;
 
@@ -116,7 +116,7 @@ class GenerateHaxe {
 			{ expr : EReturn(defVal(ret)), pos : p };
 
 		var access : Array<Access> = [];
-		if( _inline ) access.push(AInline);
+//		if( _inline ) access.push(AInline);
 		if( pub ) access.push(APublic);
 		if( isConstr ) access.push(AStatic);
 		if (ret.attr.contains(AStatic)) {

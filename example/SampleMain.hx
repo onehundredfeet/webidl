@@ -7,7 +7,11 @@ class SampleMain {
     static function main() {
         trace("Forcing bootstrap");
         //trace('DLL Version ${sample.Native.Init.init()}');
-        var x = new sample.Native.Sample();
+//        var x = new sample.Native.Sample();
+        //
+  //      sample.Sample.testStatic();
+
+        var x = new sample.Sample();
         trace('x is ${x}');
         x.print();
         var y = x.funci(20);

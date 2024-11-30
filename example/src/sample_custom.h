@@ -76,6 +76,10 @@ class Sample {
         
     }
 
+    static void testStatic() {
+        printf("This is a static method!\n");
+    }
+
     double length() {
         return x * y;
     }

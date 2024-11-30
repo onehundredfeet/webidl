@@ -720,12 +720,16 @@ class ModuleHL extends ModuleBase {
 				}
 			};
 
-			types.push(t);
+			//types.push(t);
 		} else {
 			Context.fatalError( "Unrecognized target", Context.currentPos() ) ;
 		}
 
 
+		var printer = new haxe.macro.Printer();
+		for (t in types) {
+			trace('Type: ' + printer.printTypeDefinition(t));
+		}
 		
 		Context.defineModule(module, types);
 		Context.registerModuleDependency(module, file);
