@@ -27,6 +27,7 @@ set( PROJECT_ADDITIONAL_SOURCES
 set (PROJECT_ADDITIONAL_INCLUDES
 "ext/Clipper2/CPP/Clipper2Lib/include"
 "ext/polypartition/src"
+"./src"
 )
 
 set (PROJECT_ADDITIONAL_LIB_DIRS

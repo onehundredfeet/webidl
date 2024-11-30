@@ -48,7 +48,7 @@ class Cmd {
 			default: "";
 		};
 
-        var cmd = 'cmake -G"${builder}" ${architectureSwitch} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${_options.installDir} -B ${_options.buildDir}';
+        var cmd = 'cmake -G"${builder}" ${architectureSwitch} -DH_GLUE_ROOT=${_options.glueDir} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${_options.installDir} -B ${_options.buildDir}';
         trace('$cmd');
         Sys.command(cmd);
 	}

@@ -17,6 +17,9 @@ if (DEFINED ENV{HL_INC_DIR})
     set( HL_INC_DIR $ENV{HL_INC_DIR})
 endif()
 
+if (NOT H_GLUE_ROOT)
+    set(H_GLUE_ROOT "src")
+endif()
 
 
 ##### Apple Configuration
@@ -167,4 +170,4 @@ endif() #hl
 
 
 set(PROJECT_LIB_NAME "${CMAKE_PROJECT_NAME}${CONFIG_POSTFIX}")
-message( "Proejct lib name ${PROJECT_LIB_NAME}")
+message( "Project lib name ${PROJECT_LIB_NAME}")

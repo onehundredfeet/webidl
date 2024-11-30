@@ -1,6 +1,9 @@
 package idl;
 
 #if macro
+
+import haxe.macro.Context;
+
 abstract class ModuleBase {
     var opts : Options;
     var pack : Array<String>;
@@ -24,7 +27,7 @@ abstract class ModuleBase {
 	}
 
     
-	static function loadIDL() {
+	function loadIDL() {
 		// load IDL
 		var file = opts.idlFile;
 		var content = try {
@@ -46,7 +49,5 @@ abstract class ModuleBase {
 		return text.charAt(0).toUpperCase() + text.substring(1);
 	}
 
-    abstract public function build( opts : Options );
-    abstract public function generate( opts : Options );
 }
 #end

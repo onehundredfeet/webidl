@@ -683,7 +683,7 @@ class ModuleHL extends ModuleBase {
 		return { name : ":hlNative", params : [{ expr : EConst(CString(nativeLib)), pos : p },{ expr : EConst(CString(name)), pos : p }], pos : p };
 	}
 
-	public function build( opts : Options ) {
+	public static function build( opts : Options ) {
 		var file = opts.idlFile;
 		var module = Context.getLocalModule();
 		var types = buildTypes(opts, Context.defined("hl"));

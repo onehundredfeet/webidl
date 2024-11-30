@@ -14,6 +14,7 @@ src/sample_custom.cpp
 
 set (PROJECT_ADDITIONAL_INCLUDES
 # otherlib/include
+src
 )
 
 set (PROJECT_ADDITIONAL_LIB_DIRS

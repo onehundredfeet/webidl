@@ -58,9 +58,11 @@ class Sample {
         printf("My pointer is %p, my values are %d and %d\n", this, x, y);
     }
     SampleA *makeA() {
+        printf("makeA\n");
         return new SampleA();
     }
     SampleBStruct *makeB() {
+        printf("makeA\n");
         return new SampleBStruct();
     }
 

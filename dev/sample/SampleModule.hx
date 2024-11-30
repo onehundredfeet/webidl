@@ -16,12 +16,12 @@ class SampleModule {
 	}
 
 	public static function buildLibCpp() {
-		idl.Generate.generateCpp(config);
+		idl.Generate.generate(config);
 	}
 	
 	public static function buildLibJS() {
 		var sourceFiles = ["point.cpp"];
-		idl.Generate.generateJs(config, sourceFiles);
+		idl.Generate.generate(config, sourceFiles);
 	}
 	
 }

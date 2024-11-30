@@ -47,7 +47,7 @@ class Generator {
             glueDir: null,
             autoGC: true,
             defaultConfig: "Release",
-            architecture: ArchAll,
+            architecture: ArchX86_64,
             customCode: sampleCode
         };
 
