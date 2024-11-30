@@ -1,4 +1,4 @@
-package idl.generator;
+package idl;
 
 import haxe.macro.Expr.Function;
 import idl.Data;
@@ -438,18 +438,18 @@ class HNativeBuffer {
 	}
 
 	static function initOpts(opts:Options) {
-		if (opts.outputDir == null)
-			opts.outputDir = "";
-		else if (!StringTools.endsWith(opts.outputDir, "/"))
-			opts.outputDir += "/";
+		if (opts.glueDir == null)
+			opts.glueDir = "";
+		else if (!StringTools.endsWith(opts.glueDir, "/"))
+			opts.glueDir += "/";
 	}
 
 	public static function generateCpp(opts:Options) {
-		sys.io.File.saveContent(opts.outputDir + "jvm-idl-helpers.hpp", HELPER_TEXT);
+		sys.io.File.saveContent(opts.glueDir + "jvm-idl-helpers.hpp", HELPER_TEXT);
 
 		var file = opts.idlFile;
 		var content = sys.io.File.getBytes(file);
-		var parse = new idl.generator.Parser();
+		var parse = new idl.Parser();
 		var decls = null;
 		var gc = opts.autoGC;
 		try {
@@ -482,9 +482,9 @@ class HNativeBuffer {
 		add(StringTools.trim(HEADER_JVM));
 		add(StringTools.trim(gc ? HEADER_GC : HEADER_NO_GC));
 		add("");
-		if (opts.includeCode != null) {
+		if (opts.customCode != null) {
 			add("");
-			add(StringTools.trim(opts.includeCode));
+			add(StringTools.trim(opts.customCode.getJVMInclude()));
 		}
 		add("");
 		add("");
@@ -1608,11 +1608,11 @@ class HNativeBuffer {
 			}
 		}
 		add("}"); // extern C
-		sys.io.File.saveContent(opts.outputDir + "idl_jvm.cpp", output.toString());
+		sys.io.File.saveContent(opts.glueDir + "idl_jvm.cpp", output.toString());
 		/*
 			for (kv in outputJava.keyValueIterator()) {
 				kv.value.add("}");
-				sys.io.File.saveContent(opts.outputDir + "/" + opts.packageName + '/${kv.key}.java', kv.value.toString());
+				sys.io.File.saveContent(opts.glueDir + "/" + opts.packageName + '/${kv.key}.java', kv.value.toString());
 			}
 		 */
 	}

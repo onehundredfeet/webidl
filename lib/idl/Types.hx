@@ -1,13 +1,13 @@
 package idl;
 
-abstract Ref(#if hl hl.Bytes #else Dynamic #end) {
-}
-
-abstract Any(#if hl hl.Bytes #else Dynamic #end) {
-}
-
-abstract VoidPtr(#if hl hl.Bytes #else Dynamic #end) #if hl from hl.Bytes #end{
-}
-
-abstract NativePtr<T>(#if hl hl.BytesAccess<T> #else Dynamic #end) {
-}
+#if hl
+abstract Ref(hl.Bytes) {}
+abstract Any(hl.Bytes) {}
+abstract VoidPtr(hl.Bytes) from hl.Bytes {}
+abstract NativePtr<T>(hl.BytesAccess<T>) {}
+#else
+abstract Ref(Dynamic) {}
+abstract Any(Dynamic) {}
+abstract VoidPtr(Dynamic) {}
+abstract NativePtr<T>(Dynamic) {}
+#end

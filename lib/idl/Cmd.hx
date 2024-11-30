@@ -1,52 +1,46 @@
 package idl;
 import idl.Options;
 
-class BuildBase {
+class Cmd {
 	// Put any necessary includes in this string and they will be added to the generated files
 
 	var _options : Options;
-
+    var target = "hl";
+	var builder = "Ninja";
+    var idlPath = "ext/hl-idl";
+    var config = null;
+	var arch = null;
 	public function new(options : Options) {
 		_options = options;
 		arch = options.architecture != null ? options.architecture : "x86_64";
 		config = options.defaultConfig != null ? options.defaultConfig : "Debug";
 	}
 
-	function getHLInclude() {
-		return "";
-	}
-	function getJVMInclude() {
-		return "";
-	}
 
-	function generate() {
+	function updateOptions() {
 		_options.target =  switch (target) {
-			case "hl": idl.Options.Target.TargetHL;
-			case "jvm": idl.Options.Target.TargetJVM;
+			case "hashlink", "hl": idl.Options.Target.TargetHL;
+			case "java", "jvm": idl.Options.Target.TargetJVM;
+			case "js": idl.Options.Target.TargetJS;
+			case "cpp", "hxcpp": idl.Options.Target.TargetHXCPP;
+			case "em", "emscripten": idl.Options.Target.TargetEmscripten;
 			default: idl.Options.Target.TargetHL;
 		};
-		_options.includeCode = switch (target) {
-			case idl.Options.Target.TargetHL: getHLInclude();
-			case idl.Options.Target.TargetJVM: getJVMInclude();
-			default: "";
-		};
+        
 
-		
 
-		trace('Generating target ${target}');
-		idl.generator.Generate.generateCpp(_options);
+		if (_options.installDir == null) _options.installDir = 'installed/${target}/${arch}/${config}';
+		if (_options.buildDir == null) _options.buildDir = 'build/${target}/${arch}/${config}';
+
+        if (_options.glueDir == null) _options.glueDir = 'src/${target}';
+        if (_options.hxDir == null) _options.hxDir = 'lib';
 	}
 
-	var target = "hl";
-	var builder = "Ninja";
-    var idlPath = "ext/hl-idl";
-    var config = null;
-	var arch = null;
-	var installDir = null;
 
+	
 	function configure() {
-		sys.FileSystem.createDirectory('build/${target}/${arch}/${config}');
-		sys.FileSystem.createDirectory(installDir);
+		sys.FileSystem.createDirectory(_options.buildDir);
+		sys.FileSystem.createDirectory(_options.installDir);
 		var architectureSwitch = switch(_options.architecture) {
 			case ArchX86_64: "-DTARGET_ARCH=\"x86_64\"";
 			case ArchArm64: "-DTARGET_ARCH=\"arm64\"";
@@ -54,25 +48,25 @@ class BuildBase {
 			default: "";
 		};
 
-        var cmd = 'cmake -G"${builder}" ${architectureSwitch} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${installDir} -B build/${target}/${arch}/${config}';
+        var cmd = 'cmake -G"${builder}" ${architectureSwitch} -DPATH_TO_IDL=${idlPath} -DTARGET_HOST=${target} -DCMAKE_BUILD_TYPE=${config} -DCMAKE_INSTALL_PREFIX=${_options.installDir} -B ${_options.buildDir}';
         trace('$cmd');
         Sys.command(cmd);
 	}
 
 	function build() {
-        var cmd = 'cmake --build build/${target}/${arch}/${config}';
+        var cmd = 'cmake --build ${_options.buildDir}';
         trace('$cmd');
         Sys.command(cmd);
 	}
 
 	function install() {
 
-		var cmd = 'cmake --install build/${target}/${arch}/${config}';
+		var cmd = 'cmake --install ${_options.buildDir}';
 		trace('$cmd');
 		Sys.command(cmd);
 	}
 
-	function parseArgs() {		
+	public function run() {		
 		var args = Sys.args();
 
 		if (args.length > 0) {
@@ -91,17 +85,28 @@ class BuildBase {
                         idlPath = args.shift();
                     case "--config":
                         config = args.shift();
-					case "--dir":
-						installDir = args.shift();
+                    case "--hx":
+                        _options.generateSource = true;
+					case "--installdir":
+						_options.installDir = args.shift();
+					case "--builddir":
+						_options.buildDir = args.shift();
+					case "--gluedir":
+						_options.glueDir = args.shift();
+					case "--hxdir":
+						_options.hxDir = args.shift();
                     default:
+						trace('Unknown argument ${arg}');
                 }
             }
-			if (installDir == null) {
-				installDir = 'installed/${target}/${arch}/${config}';
-			}
+
+
+			updateOptions();
+
 			switch (cmd) {
 				case "generate":
-					generate();
+					trace('Generating code');
+					idl.GenerateBase.generate(_options);
 				case "configure":
 					configure();
 				case "build":
@@ -109,7 +114,7 @@ class BuildBase {
 					build();
 				case "install":
 					install();
-				default:
+				default: trace('Unknown command ${cmd}');
 			}
 		} else {
             trace("Usage: haxe config.hxml [generate|build|install] [options]");

@@ -1,4 +1,4 @@
-package idl.generator;
+package idl;
 
 class GenerateJS extends GenerateBase{
 
@@ -37,14 +37,14 @@ class GenerateJS extends GenerateBase{
 		var outFiles = [];
 		sources.push(lib + ".cpp");
 		for (cfile in sources) {
-			var out = opts.outputDir + cfile.substr(0, -4) + ".bc";
+			var out = opts.glueDir + cfile.substr(0, -4) + ".bc";
 			var args = params.concat(["-c", cfile, "-o", out]);
 			command(emcc, args);
 			outFiles.push(out);
 		}
 
 		// link : because too many files, generate Makefile
-		var tmp = opts.outputDir + "Makefile.tmp";
+		var tmp = opts.glueDir + "Makefile.tmp";
 		var args = params.concat([
 			"-s",
 			'EXPORT_NAME="\'$lib\'"',

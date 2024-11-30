@@ -1,3 +1,2 @@
 #!/bin/bash
-haxe -cp generator  -lib hl-idl --macro "Generator.generateCpp(\"hl\")"
-haxe -cp generator  -lib hl-idl --macro "Generator.generateCpp(\"jvm\")"
+haxe generate.hxml generate --target hl --hx --builder Ninja --arch x86_64 --idl .. --config Release

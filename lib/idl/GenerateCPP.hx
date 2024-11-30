@@ -1,7 +1,7 @@
-package idl.generator;
+package idl;
 
 import idl.Options.CPPFlavour;
-import idl.generator.GenerateBase;
+import idl.GenerateBase;
 import haxe.macro.Expr.Function;
 import idl.Data;
 import idl.Options;

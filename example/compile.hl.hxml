@@ -1,6 +1,5 @@
 -cp .
 -cp lib
---library tink_macro
 --library hvector
 --library hl-idl
 --hl bin/sample.hl

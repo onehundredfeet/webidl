@@ -662,7 +662,7 @@ class ModuleHL extends ModuleBase {
 		}
 
 		// parse IDL
-		var parse = new idl.generator.Parser();
+		var parse = new idl.Parser();
 		var decls = null;
 		try {
 			decls = parse.parseFile(file,new haxe.io.BytesInput(content));

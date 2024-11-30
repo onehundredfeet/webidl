@@ -1,4 +1,4 @@
-package idl.generator;
+package idl;
 
 import idl.Data;
 import idl.Options;

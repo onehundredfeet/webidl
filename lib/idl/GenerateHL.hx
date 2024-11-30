@@ -1,4 +1,4 @@
-package idl.generator;
+package idl;
 
 import haxe.macro.Expr.Function;
 import idl.Data;
@@ -11,7 +11,8 @@ class GenerateHL extends GenerateBase {
 	}
 
     public function generateHX() : Void {
-
+		var haxehl = new GenerateHaxe(opts);
+		haxehl.generate();
 	}
 
 	static final HELPER_TEXT = "
@@ -418,7 +419,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 	public function generateGlue() {
 		var output = new StringBuf();
 
-		sys.io.File.saveContent(opts.outputDir + "hl-idl-helpers.hpp",HELPER_TEXT);
+		sys.io.File.saveContent(opts.glueDir + "hl-idl-helpers.hpp",HELPER_TEXT);
 		var gc = opts.autoGC;
 		var decls = loadIDL(opts);
 		function add(str:String) {
@@ -436,9 +437,9 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		add(StringTools.trim(gc ? HEADER_GC : HEADER_NO_GC));
 		add("");
 		add("#endif");
-		if (opts.includeCode != null) {
+		if (opts.customCode != null) {
 			add("");
-			add(StringTools.trim(opts.includeCode));
+			add(StringTools.trim(opts.customCode.getHLInclude()));
 		}
 		add("");
 		add("");
@@ -1491,7 +1492,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			}
 		}
 		add("}"); // extern C
-		sys.io.File.saveContent(opts.outputDir + "idl_hl.cpp", output.toString());
+		sys.io.File.saveContent(opts.glueDir + "idl_hl.cpp", output.toString());
 	}
 
 	
