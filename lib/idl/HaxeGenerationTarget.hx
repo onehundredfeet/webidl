@@ -12,11 +12,33 @@ abstract class HaxeGenerationTarget {
         this.opts = opts;
         this.typeNames = typeNames;
     }
-    public abstract function makeNative( name : String, p : Position ) : MetadataEntry;
+    public abstract function makeNative( iname : String, midfix : String, fname : String, argc : Null<Int>, p : Position ) : Array<MetadataEntry>;
     public abstract function makeType( t : TypeAttr, isReturn:Bool ) : ComplexType;
     public abstract function makeVectorType( t : TypeAttr, vt : Type, vdim : Int, isReturn:Bool ): ComplexType;
     public abstract function getTargetCondition() : String;
-    
+    public abstract function getInterfaceTypeDefinitions(iname : String, pack : Array<String>, dfields : Array<Field>, p : Position) : Array<TypeDefinition>;
+
+	public function externalFunction(args:Array<FunctionArg>, ret : ComplexType = null, expr :Expr = null) : FieldType {
+		return FFun({
+			ret: ret,
+			expr: needsStubs() ? expr : null,
+			args: args,
+		});
+	
+	}
+
+	public function embeddedFunction(args:Array<FunctionArg>, ret : ComplexType = null, expr :Expr = null) : FieldType {
+		return FFun({
+			ret: ret,
+			expr: expr,
+			args: args,
+		});
+	
+	}
+
+    public function needsStubs() : Bool {
+        return true;
+    }
     private static function capitalize(text:String) {
 		return text.charAt(0).toUpperCase() + text.substring(1);
 	}

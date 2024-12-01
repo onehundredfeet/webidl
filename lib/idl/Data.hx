@@ -80,6 +80,7 @@ enum Attrib {
 	// interfaces
 	ANoDelete;
 	AStatic;
+	AInclude( name : String );
 	AVirtual;
 	ASynthetic;
 	AReturn;

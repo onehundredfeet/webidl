@@ -7,24 +7,27 @@ import haxe.macro.Expr;
 using StringTools;
 using idl.macros.MacroTools;
 
-
+import idl.HaxeGenerationTargetHXCPP;
 
 class GenerateHaxe {
 	var pack:Array<String>;
 	var opts:Options;
-    final nullPosition : haxe.macro.Expr.Position = { min : 0, max : 0, file : 'null' };
+	final nullPosition:haxe.macro.Expr.Position = {min: 0, max: 0, file: 'null'};
 	var p:haxe.macro.Expr.Position = {min: 0, max: 0, file: 'null'};
 	var types:Array<TypeDefinition> = [];
 	var typeNames = new Map<String, haxe.macro.TypePath>();
-    var _printer = new Printer();
-//    var _inline = true;
-    var _targets:Array<HaxeGenerationTarget>;
-    var _currentTarget:HaxeGenerationTarget;
+	var _printer = new Printer();
+	//    var _inline = true;
+	var _targets:Array<HaxeGenerationTarget>;
+	var _currentTarget:HaxeGenerationTarget;
 
-    public function new(opts:Options, targets:Array<HaxeGenerationTarget> = null) {
+	public function new(opts:Options, targets:Array<HaxeGenerationTarget> = null) {
 		this.pack = opts.packageName.split(".");
 		this.opts = opts;
-        _targets = targets != null ? targets : [new HaxeGenerationTargetHL(opts,typeNames)];
+		_targets = targets != null ? targets : [
+			new HaxeGenerationTargetHL(opts, typeNames),
+			new HaxeGenerationTargetHXCPP(opts, typeNames)
+		];
 	}
 
 	dynamic function error(msg:String, p:haxe.macro.Expr.Position) {
@@ -38,43 +41,42 @@ class GenerateHaxe {
 		#end
 	}
 
-    dynamic function currentPosition() :haxe.macro.Expr.Position{
-        #if macro
-        return Context.currentPos();
-        #else
-        return nullPosition;
-        #end
-    }
-    
-    dynamic function warning(msg:String, p:haxe.macro.Expr.Position) {
-        #if macro
-        Context.warning(msg, p);
-        #else
-        if (p != null)
+	dynamic function currentPosition():haxe.macro.Expr.Position {
+		#if macro
+		return Context.currentPos();
+		#else
+		return nullPosition;
+		#end
+	}
+
+	dynamic function warning(msg:String, p:haxe.macro.Expr.Position) {
+		#if macro
+		Context.warning(msg, p);
+		#else
+		if (p != null)
 			trace('${p}:' + msg);
 		else
 			trace(msg);
-        #end
-    }
+		#end
+	}
 
-        
 	public function buildTypes(opts:Options):Array<TypeDefinition> {
 		var declarations = loadIDLDeclarations();
 
 		for (d in declarations) {
-            buildDecl(d);
+			buildDecl(d);
 		}
 
 		return types;
 	}
 
-    function makeMacroPosition( pos : idl.Data.Position ) : haxe.macro.Expr.Position{
-		if( pos == null )
+	function makeMacroPosition(pos:idl.Data.Position):haxe.macro.Expr.Position {
+		if (pos == null)
 			return nullPosition;
-		return makePosition({ min : pos.pos, max : pos.pos + 1, file : pos.file });
+		return makePosition({min: pos.pos, max: pos.pos + 1, file: pos.file});
 	}
 
-    function makePosition(p:{min:Int, max:Int, file:String}):haxe.macro.Expr.Position {
+	function makePosition(p:{min:Int, max:Int, file:String}):haxe.macro.Expr.Position {
 		#if macro
 		return Context.makePosition(p);
 		#else
@@ -82,129 +84,127 @@ class GenerateHaxe {
 		#end
 	}
 
-    function defVal( t : TypeAttr ) : Expr {
-		return switch( t.t ) {
-		case TVoid: throw "assert";
-		case TInt, TUInt, TShort, TInt64, TChar: { expr : EConst(CInt("0")), pos : p };
-		case TFloat, TDouble: { expr : EConst(CFloat("0.")), pos : p };
-		case TBool: { expr : EConst(CIdent("false")), pos : p };
-		case TEnum(name): ECall(EField(EConst(CIdent(name)).at(p),"fromIndex").at(p), [EConst(CInt("0")).at(p)] ).at(p); //{ expr : , pos : p };
-		case TCustom(id):
-			var ex = { expr : EConst(CInt("0")), pos : p };
-			var tp = TPath({ pack : [], name : id });
+	function defVal(t:TypeAttr):Expr {
+		return switch (t.t) {
+			case TVoid: throw "assert";
+			case TInt, TUInt, TShort, TInt64, TChar: {expr: EConst(CInt("0")), pos: p};
+			case TFloat, TDouble: {expr: EConst(CFloat("0.")), pos: p};
+			case TBool: {expr: EConst(CIdent("false")), pos: p};
+			case TEnum(name): ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
+			case TCustom(id):
+				var ex = {expr: EConst(CInt("0")), pos: p};
+				var tp = TPath({pack: [], name: id});
 
-			if (typeNames.exists(id))  
-				{ expr : ECast(ex, tp), pos : p };
-			else 
-				{ expr : EConst(CIdent("null")), pos : p };
-		default: 
-			{ expr : EConst(CIdent("null")), pos : p };
+				if (typeNames.exists(id)) {expr: ECast(ex, tp), pos: p}; else {expr: EConst(CIdent("null")), pos: p};
+			default:
+				{expr: EConst(CIdent("null")), pos: p};
 		}
 	}
 
-    function makeNativeFieldRaw( iname : String, fname : String, pos : Position, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
+	function makeNativeFieldRaw(iname:String, fname:String, pos:Position, args:Array<FArg>, ret:TypeAttr, pub:Bool, external = true):Field {
 		var name = fname;
 		var isConstr = name == iname || fname == "new";
-		if( isConstr ) {
+		if (isConstr) {
 			name = "new";
-			ret = { t : TCustom(iname), attr : [] };
+			ret = {t: TCustom(iname), attr: []};
 		}
 
-		var expr = if( ret.t == TVoid )
-			{ expr : EBlock([]), pos : p };
-		else
-			{ expr : EReturn(defVal(ret)), pos : p };
+		var expr = if (ret.t == TVoid) {expr: EBlock([]), pos: p}; else {expr: EReturn(defVal(ret)), pos: p};
 
-		var access : Array<Access> = [];
-//		if( _inline ) access.push(AInline);
-		if( pub ) access.push(APublic);
-		if( isConstr ) access.push(AStatic);
-		if (ret.attr.contains(AStatic)) {
+		var access:Array<Access> = [];
+		if (pub)
+			access.push(APublic);
+		if (isConstr)
 			access.push(AStatic);
-		}
+		if (ret.attr.contains(AStatic))
+			access.push(AStatic);
 
-		var x =
-		 {
-			pos : pos,
-			name : pub ? name : name + args.length,
-			meta : [_currentTarget.makeNative(iname+"_" + name + (name == "delete" ? "" : ""+args.length),p)],
-			access : access,
-			kind : FFun({
-				ret : _currentTarget.makeType(ret, true),
-				expr : expr,
-				args : [for( a in args ) {
-
-					//This pattern is brutallly bad There must be a cleaner way to do this
-					var sub = false;
-					for(aattr in a.t.attr) {
-						switch(aattr) {
-								case ASubstitute(_): 
-								sub = true;
-								break;
-							default: 
-						}
+		var fnargs = [
+			for (a in args) {
+				// This pattern is brutallly bad There must be a cleaner way to do this
+				var sub = false;
+				for (aattr in a.t.attr) {
+					switch (aattr) {
+						case ASubstitute(_):
+							sub = true;
+							break;
+						default:
 					}
-					if (a.t.attr.contains(AReturn) || sub) {continue;}
-					{ name : a.name, opt : a.opt, type : _currentTarget.makeType(a.t, false) }}],
-			}),
+				}
+				if (a.t.attr.contains(AReturn) || sub) {
+					continue;
+				}
+				{name: a.name, opt: a.opt, type: _currentTarget.makeType(a.t, false)}
+			}
+		];
+
+		var x = {
+			pos: pos,
+			name: pub ? name : name + args.length,
+			meta: _currentTarget.makeNative(iname, null, name, args.length, p),
+			access: access,
+			kind: external 
+			? _currentTarget.externalFunction(fnargs, _currentTarget.makeType(ret, true), expr) : 
+			_currentTarget.embeddedFunction(fnargs, _currentTarget.makeType(ret, true), expr),
 		};
 
-		
 		return x;
 	}
 
-	function makeNativeField( iname : String, hname : String, f : idl.Data.Field, args : Array<FArg>, ret : TypeAttr, pub : Bool ) : Field {
+	function makeNativeField(iname:String, hname:String, f:idl.Data.Field, args:Array<FArg>, ret:TypeAttr, pub:Bool):Field {
 		return makeNativeFieldRaw(iname, hname, makeMacroPosition(f.pos), args, ret, pub);
 	}
 
-	function filterArgs( args : Array<FArg>) {
-		var b : Array<FArg> = [];
+	function filterArgs(args:Array<FArg>) {
+		var b:Array<FArg> = [];
 
-		for(a in args) {
+		for (a in args) {
 			var skip = false;
 			for (at in a.t.attr) {
-				switch(at) {
-					case AVirtual: skip = true;
+				switch (at) {
+					case AVirtual:
+						skip = true;
 					default:
 				}
 			}
-			if (!skip) 
+			if (!skip)
 				b.push(a);
 		}
 		return b;
 	}
 
-    function makeEither( arr : Array<ComplexType> ) {
+	function makeEither(arr:Array<ComplexType>) {
 		var i = 0;
 		var t = arr[i++];
-		while( i < arr.length ) {
+		while (i < arr.length) {
 			var t2 = arr[i++];
-			t = TPath({ pack : ["haxe", "extern"], name : "EitherType", params : [TPType(t), TPType(t2)] });
+			t = TPath({pack: ["haxe", "extern"], name: "EitherType", params: [TPType(t), TPType(t2)]});
 		}
 		return t;
 	}
 
-    function getElementType(t:TypeAttr) {
-        return switch (t.t) {
-            case TPointer(at), TArray(at, _):{t: at, attr: t.attr};
-            default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
-        }
-    }
-    
-    function makeElementType(t:idl.Data.TypeAttr, isReturn = false) {
-        return switch (t.t) {
-            case TPointer(at), TArray(at, _): _currentTarget.makeType({t: at, attr: t.attr}, isReturn);
-            default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
-        }
-    }
+	function getElementType(t:TypeAttr) {
+		return switch (t.t) {
+			case TPointer(at), TArray(at, _): {t: at, attr: t.attr};
+			default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+		}
+	}
+
+	function makeElementType(t:idl.Data.TypeAttr, isReturn = false) {
+		return switch (t.t) {
+			case TPointer(at), TArray(at, _): _currentTarget.makeType({t: at, attr: t.attr}, isReturn);
+			default: throw "Not an array type: " + t.t.getName() + " : " + t.t.getParameters();
+		}
+	}
 
 	function buildDecl(d:Definition) {
 		var p = makeMacroPosition(d.pos);
+
 		switch (d.kind) {
 			case DInterface(iname, attrs, fields):
 				var dfields:Array<Field> = [];
 				var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
-
+				var interfaceCT = iname.asComplexType();
 				var variants = new Map();
 				function getVariants(name:String) {
 					if (variants.exists(name))
@@ -303,14 +303,21 @@ class GenerateHaxe {
 
 								// dispatch only on args count
 								function makeCall(v:{args:Array<FArg>, ret:TypeAttr}):Expr {
-									var ident = {expr: EConst(CIdent((haxeName) + v.args.length)), pos: p};
-									var e:Expr = {expr: ECall(ident, [
-										for (i in 0...v.args.length) {expr: ECast({expr: EConst(CIdent(targs[i].name)), pos: p}, null), pos: p}
-									]), pos: p};
+									var ident = isConstr
+									?  ((iname + "." + haxeName) + v.args.length).asFieldAccess(p)
+									: ((haxeName) + v.args.length).asFieldAccess(p);
+									var e:Expr = {
+										expr: ECall(ident, [
+											for (i in 0...v.args.length)
+												{expr: ECast({expr: EConst(CIdent(targs[i].name)), pos: p}, null), pos: p}
+										]),
+										pos: p
+									};
 									if (v.ret.t != TVoid)
 										e = {expr: EReturn(e), pos: p};
-									else if (isConstr)
+									else if (isConstr) {
 										e = macro this = $e;
+									}
 									return e;
 								}
 
@@ -326,11 +333,9 @@ class GenerateHaxe {
 									name: haxeName,
 									pos: makeMacroPosition(f.pos),
 									access: [APublic, AInline],
-									kind: FFun({
-										expr: expr,
-										args: targs,
-										ret: makeEither([for (t in retTypes) _currentTarget.makeType(t.t, false)]),
-									}),
+									kind: isConstr 
+									? _currentTarget.embeddedFunction(targs, interfaceCT, expr)
+									: _currentTarget.externalFunction(targs, makeEither([for (t in retTypes) _currentTarget.makeType(t.t, false)]), expr),
 								});
 							}
 
@@ -344,23 +349,26 @@ class GenerateHaxe {
 									dfields.push({
 										pos: p,
 										name: "get" + haxeName,
-										meta: [_currentTarget.makeNative(iname + "_get_" + haxeName, p)],
-										kind: FFun({
-											ret: cetr,
-											expr: macro return ${defVal(et)},
-											args: [{name: "index", type: macro :Int}],
-										}),
+										meta: _currentTarget.makeNative(iname, "_get_", haxeName, null, p),
+										kind: _currentTarget.externalFunction([
+											{
+												name: "index",
+												type: macro :Int
+											}
+										], cetr, macro return ${defVal(et)}),
 										access: [APublic]
 									});
 									dfields.push({
 										pos: p,
 										name: "set" + haxeName,
-										meta: [_currentTarget.makeNative(iname + "_set_" + haxeName, p)],
-										kind: FFun({
-											ret: cetr,
-											expr: macro return ${defVal(et)},
-											args: [{name: "index", type: macro :Int}, {name: "_v", type: cet}],
-										}),
+										meta: _currentTarget.makeNative(iname, "_set_", haxeName, null, p),
+										kind: _currentTarget.externalFunction([
+											{
+												name: "index",
+												type: macro :Int
+											},
+											{name: "_v", type: cet}
+										], cetr, macro return ${defVal(et)}),
 										access: [APublic]
 									});
 
@@ -378,23 +386,20 @@ class GenerateHaxe {
 									dfields.push({
 										pos: p,
 										name: "get_" + haxeName,
-										meta: [_currentTarget.makeNative(iname + "_get_" + haxeName, p)],
-										kind: FFun({
-											ret: _currentTarget.makeType(t, true),
-											expr: macro return ${defVal(t)},
-											args: [],
-										}),
+										meta: _currentTarget.makeNative(iname, "_get_", haxeName, null, p),
+										kind: _currentTarget.externalFunction([], _currentTarget.makeType(t, true), macro return ${defVal(t)}),
 									});
 									if (hasSet) {
 										dfields.push({
 											pos: p,
 											name: "set_" + haxeName,
-											meta: [_currentTarget.makeNative(iname + "_set_" + haxeName, p)],
-											kind: FFun({
-												ret: tt,
-												expr: macro return ${defVal(t)},
-												args: [{name: "_v", type: tt}],
-											}),
+											meta: _currentTarget.makeNative(iname, "_set_", haxeName, null, p),
+											kind: _currentTarget.externalFunction([
+												{
+													name: "_v",
+													type: tt
+												}
+											], tt, macro return ${defVal(t)})
 										});
 									}
 									var vt:Type = null;
@@ -414,7 +419,7 @@ class GenerateHaxe {
 										dfields.push({
 											pos: p,
 											name: "set" + haxeName + vdim,
-											meta: [_currentTarget.makeNative(iname + "_set" + haxeName + vdim, p)],
+											meta: _currentTarget.makeNative(iname, "_set", haxeName + vdim, null, p),
 											access: [APublic, AInline],
 											kind: FFun({
 												ret: macro :Void,
@@ -437,18 +442,13 @@ class GenerateHaxe {
 							});
 					}
 				}
-				var td:TypeDefinition = {
-					pos: p,
-					pack: pack,
-					name: makeName(iname),
-					meta: [],
-					kind: TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
-					fields: dfields,
-				};
 
 				if (attrs.indexOf(ANoDelete) < 0) {
 					dfields.push(makeNativeField(iname, "delete", {name: "delete", pos: null, kind: null}, [], {t: TVoid, attr: []}, true));
 				}
+
+				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, pack, dfields, p);
+
 
 				// if (!hl) {
 				// 	for (f in dfields)
@@ -477,7 +477,8 @@ class GenerateHaxe {
 				// 				}
 				// }
 
-				types.push(td);
+				for (t in tds)
+					types.push(t);
 			case DImplements(name, intf):
 				var name = makeName(name);
 				var intf = makeName(intf);
@@ -539,7 +540,8 @@ class GenerateHaxe {
 					return v.replace(":", "_");
 				}
 				var cfields = [
-					for (v in values) {pos: p, name: cleanEnum(v), kind: FVar(null, {expr: EConst(CInt("" + (index++))), pos: p})}
+					for (v in values)
+						{pos: p, name: cleanEnum(v), kind: FVar(null, {expr: EConst(CInt("" + (index++))), pos: p})}
 				];
 
 				// Add Int Conversion
@@ -583,47 +585,45 @@ class GenerateHaxe {
 		}
 	}
 
-
-
 	public function generate() {
+		var targetMap = new Map<HaxeGenerationTarget, Array<TypeDefinition>>();
+		var multiTypeMap = new Map<String, Map<HaxeGenerationTarget, TypeDefinition>>();
+		for (target in _targets) {
+			types = [];
+			typeNames = new Map<String, haxe.macro.TypePath>();
+			_currentTarget = target;
+			// implicitly adds them to types
+			buildTypes(opts);
+			targetMap.set(target, types);
 
-        var targetMap = new Map<HaxeGenerationTarget, Array<TypeDefinition>>();
-        var multiTypeMap = new Map<String, Map<HaxeGenerationTarget, TypeDefinition>>();
-        for (target in _targets) {
-            types = [];
-            typeNames = new Map<String, haxe.macro.TypePath>();
-            _currentTarget = target;
-            // implicitly adds them to types
-            buildTypes(opts);
-            targetMap.set(target, types);
+			for (t in types) {
+				var name = t.name;
+				if (!multiTypeMap.exists(name)) {
+					multiTypeMap.set(name, new Map<HaxeGenerationTarget, TypeDefinition>());
+				}
+				multiTypeMap.get(name).set(target, t);
+			}
+		}
 
-            for (t in types) {
-                var name = t.name;
-                if (!multiTypeMap.exists(name)) {
-                    multiTypeMap.set(name, new Map<HaxeGenerationTarget, TypeDefinition>());
-                }
-                multiTypeMap.get(name).set(target, t);
-            }
-        }
-
-
-        var root = opts.hxDir + opts.packageName.split(".").join("/");
-        trace('root ${root}');
-        for (mtk in multiTypeMap.keys()) {
-            var fname = root + "/" + mtk + ".hx";
-            trace('writing ${fname}');
-            var builder = new StringBuf();
-            builder.add('package ${opts.packageName};\n');
-            builder.add('import idl.Types;\n');
-            for (target in _targets) {
-                var t = multiTypeMap.get(mtk).get(target);
-                builder.add(target.getTargetCondition());
-                builder.add('\n\n');
-                builder.add(_printer.printTypeDefinition(t, false));
-                builder.add('\n#end\n');
-            }
-            sys.io.File.saveContent(fname, builder.toString());
-        }
+		var root = opts.hxDir + opts.packageName.split(".").join("/");
+		trace('root ${root}');
+		for (mtk in multiTypeMap.keys()) {
+			var fname = root + "/" + mtk + ".hx";
+			trace('writing ${fname}');
+			var builder = new StringBuf();
+			builder.add('package ${opts.packageName};\n');
+			builder.add('import idl.Types;\n');
+			for (target in _targets) {
+				var t = multiTypeMap.get(mtk).get(target);
+				if (t != null) {
+					builder.add(target.getTargetCondition());
+					builder.add('\n\n');
+					builder.add(_printer.printTypeDefinition(t, false));
+					builder.add('\n#end\n');	
+				}
+			}
+			sys.io.File.saveContent(fname, builder.toString());
+		}
 	}
 
 	function makeName(name:String) {

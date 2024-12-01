@@ -1,11 +1,16 @@
 // This file is written entirely in the Haxe language
 package ;
 
+import haxe.zip.Uncompress;
+import haxe.zip.Compress;
+
 
 
 class SampleMain {
     static function main() {
         trace("Forcing bootstrap");
+        var p = Compress.run(haxe.io.Bytes.ofString("Hello World"), 1);
+        trace(Uncompress.run(p));
         //trace('DLL Version ${sample.Native.Init.init()}');
 //        var x = new sample.Native.Sample();
         //

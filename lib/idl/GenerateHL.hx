@@ -441,6 +441,12 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 			add("");
 			add(StringTools.trim(opts.customCode.getHLInclude()));
 		}
+		if (opts.includes != null) {
+			for (i in opts.includes) {
+				add("");
+				add('#include "' + i + '"');
+			}
+		}
 		add("");
 		add("");
 		add(StringTools.trim(HEADER_NATIVE_TYPES));

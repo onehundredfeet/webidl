@@ -1,4 +1,4 @@
 --class-path lib
 --class-path example/generator
---run Build
-
+--run Generator
+--run idl.GenerateCMakeHXCPP

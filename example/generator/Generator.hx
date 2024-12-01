@@ -12,24 +12,23 @@ class SampleCustomCode extends idl.CustomCode {
 #pragma warning(disable:4316)
 #endif
 
-#include \"sample_custom.h\"
         ";
 	}
 
 	public override function getJVMInclude() {
-		return "#include \"sample_custom.h\"";
+		return "";
 	}
 
 	public override function getEmscriptenInclude() {
-		return "#include \"sample_custom.h\"";
+		return "";
 	}
 
 	public override function getJSInclude() {
-		return "#include \"sample_custom.h\"";
+		return "";
 	}
 
 	public override function getHXCPPInclude() {
-		return "#include \"sample_custom.h\"";
+		return "";
 	}
 
 }
@@ -48,7 +47,8 @@ class Generator {
             autoGC: true,
             defaultConfig: "Release",
             architecture: ArchX86_64,
-            customCode: sampleCode
+            customCode: sampleCode,
+			includes: ["sample_custom.h"]
         };
 
 		new idl.Cmd(options).run();
