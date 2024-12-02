@@ -4,6 +4,7 @@ package ;
 import haxe.zip.Uncompress;
 import haxe.zip.Compress;
 
+import sample.Sample;
 
 
 class SampleMain {
@@ -16,7 +17,7 @@ class SampleMain {
         //
   //      sample.Sample.testStatic();
 
-        var x = new sample.Sample();
+        var x = Sample.construct();
         trace('x is ${x}');
         x.print();
         var y = x.funci(20);

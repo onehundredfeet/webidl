@@ -48,6 +48,10 @@ class MacroTools {
     return {expr: EConst(CString(s)), pos: p}
   }
 
+  static public inline function asIdentExpr(s:String, ?p : Position) : Expr {
+    return {expr: EConst(CIdent(s)), pos: p}
+  }
+
   static public inline function asFieldAccess(s:String, ?p : Position) : Expr {
     var parts = s.split(".");
     if (parts.length == 0) {

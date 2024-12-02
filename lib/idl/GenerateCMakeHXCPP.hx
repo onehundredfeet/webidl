@@ -11,33 +11,42 @@ private var _hxCppDir:String;
 private var _relBuildDir:String;
 private var _absBuildDir:String;
 private var _launchDir:String;
+private var _tags = new Map<String, Bool>();
 
-
-private function resolveString( s : String ) : String {
+private function resolveString( s : String, ignoreMissing = false ) : String {
     while (s.contains("${") && s.contains("}")) {
         var start = s.indexOf("${");
         var end = s.indexOf("}", start);
         var key = s.substring(start + 2, end);
-        var replace = resolveDefine(key);
+        var replace = resolveDefine(key, ignoreMissing);
         if (replace == null) {
-            replace = resolveDefine(key.toLowerCase());
+            replace = resolveDefine(key.toLowerCase(), ignoreMissing);
+        }
+        if (replace == null) {
+            if (ignoreMissing) {
+                replace = "";
+            } else {
+                replace = "<" + key + ">";
+            }
         }
         s = s.substring(0, start) + replace + s.substring(end + 1);
     }
     return s;
 }
-private function resolveDefine( key : String ) : String {
+
+private function resolveDefine( key : String, ignoreMissing = false ) : String {
     var value = _defines.get(key);
     if (value == null) {
         return null;
     }
-    return resolveString(value);
+    return resolveString(value, ignoreMissing);
 }
 
 
 private function cleanPath( path : String ) : String {
     path = path.replace("\\", "/");
     path = path.replace("//", "/");
+	if (path.endsWith('/')) path = path.substring(0, path.length - 1);
     return path;
 }
 
@@ -86,7 +95,7 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 
 class NodeCriteria {
 	public function new(tags:Array<String>, condUnless:String, condIf:String) {
-		this.tags = [];
+		this.tags = tags;
 		this.condIf = condIf;
 		this.condUnless = condUnless;
 	}
@@ -112,17 +121,38 @@ class NodeCriteria {
 
 		if (tags != null && tags.length == 0)
 			tags = null;
-		return new NodeCriteria(tags == null ? null : tags.split(',').map((x) -> x.trim()), condUnless, condIf);
+		var tagsArray = null;
+		if (tags != null) {
+			tagsArray = tags.split(',').map((t) -> t.trim());
+		}
+		return new NodeCriteria(tagsArray, condUnless, condIf);
 	}
 
 	public function match():Bool {
 		if (condIf != null) {
-			if (resolveDefine(condIf) == null)
+			var conds = condIf.split('||');
+			var any = false;
+
+			for (c in conds) {
+				if (resolveDefine(condIf) != null)
+					any = true;	
+			}
+
+			if (!any)
 				return false;
 		}
 		if (condUnless != null) {
 			if (resolveDefine(condUnless) != null)
 				return false;
+		}
+		if (tags != null) {
+			trace('Checking tags: ${tags}');
+			for (t in tags) {
+				if (!_tags.exists(t)) {
+					trace('Missing tag: ${t}');
+					return false;
+				}
+			}
 		}
 		return true;
 	}
@@ -193,6 +223,9 @@ class CompileBlock {
 
 		for (f in files) {
 			var srcPath = resolveSourcePath(f, root);
+			if (srcPath == "${resourceFile}")
+				return continue;
+
 			if (srcPath == null) {
 				throw('Cannot resolve source path for ${f} on ${root}');
 			}
@@ -239,7 +272,8 @@ class GenerateCMakeHXCPP {
 		if (FileSystem.exists(path))
 			return path;
 		//        trace('Resolving path: ${path}');
-		path = path.replace("${HXCPP}", _hxCppDir);
+		path = resolveString(path);
+
 		if (FileSystem.exists(path))
 			return path;
 		if (path.startsWith('/'))
@@ -314,7 +348,24 @@ class GenerateCMakeHXCPP {
 			_relBuildDir = buildDir;
 			_absBuildDir = '${_launchDir}/${_relBuildDir}';
 		}
+		_absBuildDir = cleanPath(_absBuildDir);
+		_relBuildDir = cleanPath(_relBuildDir);
+
+		_defines.set('BUILD_DIR', _absBuildDir);
+		_defines.set('LAUNCH_DIR', _launchDir);
+		_defines.set('exe_link', '1');
+//		_defines.set('HXCPP_M64', '1');
+		_defines.set('HXCPP_ARCH', 'arm64');
+		_defines.set('HXCPP_ARM64', '1');
+		_defines.set('removeQuotes:hxcpp_api_level', '430');
+		_defines.set('CPPIA_NO_JIT', '1');
+		
+		_tags.set('haxe', true);
+		_tags.set('main', true);
+		_tags.set('static', true);
+		_tags.set('gc', true);
 		trace('Build dir: ${_absBuildDir} | ${_relBuildDir}');
+
 		var includeDirs = new Array<String>();
 		var libDirs = new Array<String>();
 
@@ -372,9 +423,10 @@ class GenerateCMakeHXCPP {
 		//        var xml = getFlatXML('${hxCppDir}/toolchain/setup.xml');  // not very meaningful
 		var includes = [];
 		var haxeTargetXML = getFlatXML('${_hxCppDir}/toolchain/haxe-target.xml', includes);
+		var commonDefines = getFlatXML('${_hxCppDir}/toolchain/common-defines.xml', includes);
 		var buildXML = getFlatXML('${_relBuildDir}/Build.xml', includes);
 
-		var allElements = haxeTargetXML.concat(buildXML);
+		var allElements = haxeTargetXML.concat(buildXML).concat(commonDefines);
 
         for (s in allElements.filter((e) -> e.nodeName == "set")) {
             if (NodeCriteria.matchNode(s)){
@@ -432,6 +484,50 @@ class GenerateCMakeHXCPP {
         var cppWarnings = [];
         var cppDefines = [];
 
+		// mac
+
+		cppWarnings.push('no-parentheses');
+		cppWarnings.push('null-dereference');
+		cppWarnings.push('unused-value');
+		cppWarnings.push('format-extra-args');
+		cppWarnings.push('overflow');
+		cppWarnings.push('no-invalid-offsetof');
+		cppWarnings.push('no-return-type-c-linkage');
+
+		cppDefines.push('HX_MACOS');
+		cppDefines.push('HXCPP_M64');
+
+		function addFlag(n:Xml) {
+			var value = resolveString(n.get("value"));
+			if (value.startsWith('-I')) {
+				value = value.substring(2);
+				if (!cppIncludeDirs.contains(value)) cppIncludeDirs.push(cleanPath(value));
+			} else if (value.startsWith('-L')) {
+				cppLibDirs.push(value.substring(2));
+			} else if (value.startsWith('-W')) {
+				cppWarnings.push(value.substring(2));
+			} else if (value.startsWith('-D')) {
+				value = value.substring(2);
+				if (!cppDefines.contains(value)) cppDefines.push(value);
+			} else {
+				miscCompilerFlags.push(value);
+			}
+		}
+
+		function addFlags(elements:Iterator<Xml>) {
+			for (cf in elements) {
+				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') continue;
+				if (!NodeCriteria.matchNode(cf)) {
+					trace('Skipping flag: ${cf.get('value')}');
+					continue;
+				}
+				trace('Adding flag: ${cf.get('value')}');
+				addFlag(cf);
+			}
+		}
+
+		addFlags(allElements.iterator());
+
         for (e in haxeTarget.root.elements()) {
             if (!NodeCriteria.matchNode(e)) {
                 continue;
@@ -443,35 +539,22 @@ class GenerateCMakeHXCPP {
                     trace('No block for ${e.get('id')}');
                     continue;
                 }
-                for (cf in block.root.elementsNamed('compilerflag')) {
-                    var value = resolveString(cf.get("value"));
-                    if (value.startsWith('-I')) {
-                        value = value.substring(2);
-                        if (!cppIncludeDirs.contains(value)) cppIncludeDirs.push(cleanPath(value));
-                    } else if (value.startsWith('-L')) {
-                        cppLibDirs.push(value.substring(2));
-                    } else if (value.startsWith('-W')) {
-                        cppWarnings.push(value.substring(2));
-                    } else if (value.startsWith('-D')) {
-                        value = value.substring(2);
-                        if (!cppDefines.contains(value)) cppDefines.push(value);
-                    } else {
-                        miscCompilerFlags.push(value);
-                    }
-//                      trace('Compiler flag: ${value}');
-                }
+				addFlags(block.root.elements());
+
                 if (block.files.length == 0) {
                     continue;
                 }
-                trace('Adding files from ${e.get('id')}');
-                for (f in block.files) {
-                    trace('\t${f.get('srcPath')}');
-                }
+                // trace('Adding files from ${e.get('id')}');
+                // for (f in block.files) {
+                //     trace('\t${f.get('srcPath')}');
+                // }
                 case 'options':
                 default:
                 trace('Unknown node: ${e.nodeName}');
             }
         }
+
+		miscCompilerFlags.push(resolveString("-arch ${HXCPP_ARCH}"));
 
         trace('Include dirs: ${cppIncludeDirs.join(',')}');
         trace('Lib dirs: ${cppLibDirs.join(',')}');
@@ -479,7 +562,66 @@ class GenerateCMakeHXCPP {
         trace('Compiler warnings: ${cppWarnings.join(',')}');
         trace('Compiler defines: ${cppDefines.join(',')}');
 
+        var outputName = resolveString(haxeTarget.root.get('output'), true);
+        addLine('cmake_minimum_required(VERSION 3.20)');
+        addLine('\n');
+        addLine('project(${outputName} C CXX)');
+        addLine('\n');
+		addLine('set(CMAKE_CXX_STANDARD 20)');
+        addLine('\n');
+        addLine('add_executable(${outputName}');
+		
+        for (f in haxeTarget.root.elementsNamed('files')) {
+			if (!NodeCriteria.matchNode(f)) {
+				trace('Skipping block: ${f.get('id')}');
+				continue;
+			}
 
+			trace('Looking for files in ${f.get('id')}');
+            var block = hxcppFileBlocks.get(f.get('id'));
+            if (block == null) {
+                continue;
+            }
+			
+            for (f in block.files) {
+				if (!NodeCriteria.matchNode(f)) {
+					trace('Skipping file: ${f.get('srcPath')}');
+					continue;
+				}
+				trace('Adding file: ${f.get('srcPath')}');
+                addLine('\t${f.get('srcPath')}');
+            }
+        }
+
+        addLine(')');
+
+        addLine('target_include_directories(${outputName} PRIVATE');
+
+		cppIncludeDirs.push(resolvePath("${BUILD_DIR}/include"));
+        for (d in cppIncludeDirs) {
+			var rd = resolvePath(d);
+			if (FileSystem.exists(rd)) {
+            	addLine('\t${rd}');
+			} else {
+				trace('Include dir not found: ${rd}');
+			}
+        }
+        addLine(')');
+
+		addLine('target_compile_options(${outputName} PRIVATE');
+		for (f in miscCompilerFlags) {
+			addLine('\t${f}');
+		}
+		for (f in cppWarnings) {
+			addLine('\t-W${f}');
+		}
+		addLine(')');
+
+		addLine('target_compile_definitions(${outputName} PRIVATE');
+		for (f in cppDefines) {
+			addLine('\t${f}');
+		}
+		addLine(')');
 
 		File.saveContent('${_relBuildDir}/CMakeLists.txt', _builder.toString());
 	}

@@ -606,24 +606,31 @@ class GenerateHaxe {
 		}
 
 		var root = opts.hxDir + opts.packageName.split(".").join("/");
+		var lastPartOfPackage = opts.packageName.split(".").pop();
+		// Uppercase the first letter, lowercase the rest
+		var moduleName = lastPartOfPackage.charAt(0).toUpperCase() + lastPartOfPackage.substr(1).toLowerCase();
+
 		trace('root ${root}');
-		for (mtk in multiTypeMap.keys()) {
-			var fname = root + "/" + mtk + ".hx";
-			trace('writing ${fname}');
-			var builder = new StringBuf();
-			builder.add('package ${opts.packageName};\n');
-			builder.add('import idl.Types;\n');
-			for (target in _targets) {
-				var t = multiTypeMap.get(mtk).get(target);
-				if (t != null) {
-					builder.add(target.getTargetCondition());
-					builder.add('\n\n');
-					builder.add(_printer.printTypeDefinition(t, false));
-					builder.add('\n#end\n');	
+		var builder = new StringBuf();
+		
+		builder.add('package ${opts.packageName};\n');
+
+		for (target in _targets) {
+			var targetTypes = targetMap.get(target);
+			if (targetTypes != null) {
+				builder.add(target.getTargetCondition());
+				builder.add('\n\n');
+				for (type in targetTypes) {
+					builder.add(_printer.printTypeDefinition(type, false));
+					builder.add('\n');
 				}
+				builder.add('\n#end\n');
 			}
-			sys.io.File.saveContent(fname, builder.toString());
 		}
+		
+
+		var fname = root + "/" + moduleName + ".hx";
+		sys.io.File.saveContent(fname, builder.toString());
 	}
 
 	function makeName(name:String) {

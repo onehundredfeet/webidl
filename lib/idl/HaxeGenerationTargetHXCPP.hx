@@ -146,44 +146,89 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	public function getInterfaceTypeDefinitions(iname:String, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
 
 
-		var x = macro :idl.Types.Ref;
-
 		var abstractNewField : Field = null;
+		var staticNew : Field = null;
 		for (df in dfields) {
 			if (df.name == "new") {
 				abstractNewField = df;
-				break;
+			} else if (df.name.startsWith("new")) {
+				staticNew = df;
 			}
 		}
 		if (abstractNewField != null) {
 			dfields.remove(abstractNewField);
 		}
-		var e : MetadataEntry;
+		if (staticNew != null) {
+			staticNew.name = staticNew.name = "construct";
+			var newMeta : MetadataEntry = {name: ":native", params:['new ${iname}'.asConstExpr()], pos: p};
+			if (staticNew.meta == null) {
+				staticNew.meta = [newMeta];
+			} else {
+				staticNew.meta = staticNew.meta.concat([newMeta]);
+			}
+			switch(staticNew.kind) {
+				case FFun(f):
+					var classNameExpr = iname.asComplexType();
+					f.ret = macro : cpp.Pointer<$classNameExpr>;
+				default:
+					throw "Unsupported kind for new field";
+			}
+		}
+		//var e : MetadataEntry;
 
-		var proxyName = makeName(iname) + "Extern";
+		// var proxyName = makeName(iname) + "Extern";
+		// var includes = opts.includes.map((x) -> {name: ":include", params:[x.asConstExpr()], pos: p});
+		// var proxyDefn = {
+		// 	pos: p,
+		// 	pack: pack,
+		// 	name: proxyName,
+		// 	meta: includes.concat([{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}]),
+		// 	isExtern: true,
+		// 	kind: TDClass(), //TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
+		// 	fields: dfields,
+		// };
+
+		// var proxyCT = proxyName.asComplexType();
+
+		// var abstractDefn = {
+		// 	pos: p,
+		// 	pack: pack,
+		// 	name: makeName(iname),
+		// 	meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
+		// 	isExtern: false,
+		// 	kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
+		// 	fields: abstractNewField != null ? [abstractNewField] : [],
+		// };
+		// return [proxyDefn, abstractDefn];
+
 		var includes = opts.includes.map((x) -> {name: ":include", params:[x.asConstExpr()], pos: p});
-		var proxyDefn = {
+		return [{
 			pos: p,
 			pack: pack,
-			name: proxyName,
+			name:  makeName(iname) ,
 			meta: includes.concat([{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}]),
 			isExtern: true,
 			kind: TDClass(), //TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
 			fields: dfields,
-		};
+		}];
 
-		var proxyCT = proxyName.asComplexType();
 
-		var abstractDefn = {
-			pos: p,
-			pack: pack,
-			name: makeName(iname),
-			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
-			isExtern: false,
-			kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
-			fields: abstractNewField != null ? [abstractNewField] : [],
-		};
-		return [proxyDefn, abstractDefn];
+// // By extending RGB we keep the same API as far as haxe is concerned, but store the data (not pointer)
+// //  The native Reference class knows how to take the reference to the structure
+// @:native("cpp.Reference<RGB>")
+// extern class RGBRef extends RGB
+// {
+// }
+
+
+
+// // By extending RGBRef, we can keep the same api, 
+// //  rather than a pointer
+// @:native("cpp.Struct<RGB>")
+// extern class RGBStruct extends RGBRef
+// {
+// }
+
 	}
 
 	public override function needsStubs() : Bool {

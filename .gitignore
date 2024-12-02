@@ -20,3 +20,4 @@ example/sample.jnilib
 *.log
 example/lib/sample/Sample*.hx
 example/.haxelib
+example/app
