@@ -5,6 +5,8 @@ import haxe.zip.Uncompress;
 import haxe.zip.Compress;
 
 import sample.Sample;
+import cpp.Reference;
+import cpp.Pointer;
 
 
 class SampleMain {
@@ -17,12 +19,15 @@ class SampleMain {
         //
   //      sample.Sample.testStatic();
 
-        var x = Sample.construct();
+        var xptr = Sample.construct();
+        var x = xptr;
+//        var x = xptr.get_ref();
         trace('x is ${x}');
         x.print();
         var y = x.funci(20);
         trace('y is ${y}');
-        var a = x.makeA();
+        var aptr = x.makeA();
+        var a = aptr;
         trace('Class A value ${a.a}');
         a.print();
   //      var b = x.makeB();
