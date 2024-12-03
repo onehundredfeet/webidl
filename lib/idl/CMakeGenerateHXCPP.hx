@@ -364,6 +364,7 @@ class CMakeGenerateHXCPP {
 		_tags.set('main', true);
 		_tags.set('static', true);
 		_tags.set('gc', true);
+		_tags.set('hxstring', true);
 		trace('Build dir: ${_absBuildDir} | ${_relBuildDir}');
 
 		var includeDirs = new Array<String>();
