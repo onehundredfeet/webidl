@@ -117,8 +117,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					default: throw "Unsupported array type. Sorry";
 				}
 				case TCustom(id):
-					if (typeNames.exists(id))
-						TPath({pack:["cpp"], name: "NativeArray",params:[TPType( TPath( typeNames[id] ) )]});
+					if (_typeInfos.exists(id))
+						TPath({pack:["cpp"], name: "NativeArray",params:[TPType( TPath( _typeInfos[id].path ) )]});
 					else
 						TPath({pack:["cpp"], name: "NativeArray",params:[TPType( TPath({ pack : [], name : makeName(id) }) )]});
 
@@ -135,8 +135,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 //			macro : GameControllerPtr -> hl.Bytes -> $retT;
 			TFunction( args, retT);
 		case TCustom(id): 
-			if (typeNames.exists(id)) {
-				TPath( typeNames[id]);
+			if (_typeInfos.exists(id)) {
+				TPath( _typeInfos[id].path);
 			}
 			else
 				TPath({ pack : [], name : makeName(id) });
@@ -144,8 +144,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	}
 
 	public function getInterfaceTypeDefinitions(iname:String, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
-
-
 		var abstractNewField : Field = null;
 		var staticNew : Field = null;
 		for (df in dfields) {
@@ -169,7 +167,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			switch(staticNew.kind) {
 				case FFun(f):
 					var classNameExpr = iname.asComplexType();
-					f.ret = macro : cpp.Pointer<$classNameExpr>;
+					f.ret = macro : cpp.Star<$classNameExpr>;
 				default:
 					throw "Unsupported kind for new field";
 			}
@@ -206,7 +204,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			pos: p,
 			pack: pack,
 			name:  makeName(iname) ,
-			meta: includes.concat([{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}]),
+			meta: includes.concat([{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}, {name: ":structAccess", params:null, pos: p}]),
 			isExtern: true,
 			kind: TDClass(), //TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
 			fields: dfields,
@@ -234,6 +232,104 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	public override function needsStubs() : Bool {
         return false;
     }
+
+	public override function addAttribute(iname : String, haxeName : String, f : idl.Data.Field, t : TypeAttr, p : Position) : Array<haxe.macro.Field> {
+		var attribFields = [];
+		switch (t.t) {
+			case TArray(at, sizeField):
+				var et = t.getElementType();
+				var cetr = makeType(et, true);
+				var cet = makeType(et, false);
+	
+				attribFields.push({
+					pos: p,
+					name: "get" + haxeName,
+					meta: makeNative(iname, "_get_", haxeName, null, p),
+					kind: externalFunction([
+						{
+							name: "index",
+							type: macro :Int
+						}
+					], cetr, macro return ${defVal(et)}),
+					access: [APublic]
+				});
+				attribFields.push({
+					pos: p,
+					name: "set" + haxeName,
+					meta: makeNative(iname, "_set_", haxeName, null, p),
+					kind: externalFunction([
+						{
+							name: "index",
+							type: macro :Int
+						},
+						{name: "_v", type: cet}
+					], cetr, macro return ${defVal(et)}),
+					access: [APublic]
+				});
+	
+			default:
+				var hasSet = t.attr == null || t.attr.indexOf(AReadOnly) < 0;
+				var tt = makeType(t, false);
+	
+				var fkind = hasSet ? FProp("get", "set", tt) : FProp("get", "never", tt);
+				attribFields.push({
+					pos: p,
+					name: haxeName,
+					meta: [],
+					kind: fkind,
+					access: [APublic],
+				});
+				attribFields.push({
+					pos: p,
+					name: "get_" + haxeName,
+					access: [],
+					meta: makeNative(iname, "_get_", haxeName, null, p),
+					kind: externalFunction([], makeType(t, true), macro return ${defVal(t)}),
+				});
+				if (hasSet) {
+					attribFields.push({
+						pos: p,
+						name: "set_" + haxeName,
+						access: [],
+						meta: makeNative(iname, "_set_", haxeName, null, p),
+						kind: externalFunction([
+							{
+								name: "_v",
+								type: tt
+							}
+						], tt, macro return ${defVal(t)})
+					});
+				}
+				var vt:Type = null;
+				var vta:TypeAttr = null;
+				var vdim = 0;
+	
+				var isVector = switch (t.t) {
+					case TVector(vvt, vvdim):
+						vt = vvt;
+						vdim = vvdim;
+						vta = {t: vt, attr: t.attr};
+						true;
+					default: false;
+				}
+	
+				if (isVector && false) {
+					attribFields.push({
+						pos: p,
+						name: "set" + haxeName + vdim,
+						meta: makeNative(iname, "_set", haxeName + vdim, null, p),
+						access: [APublic, AInline],
+						kind: FFun({
+							ret: macro :Void,
+							expr: macro return,
+							args: [for (c in 0...vdim) {name: "_v" + c, type: makeType(vta, false)}],
+						}),
+					});
+				}
+		}
+
+		return attribFields;
+	}
 }
 
 

@@ -11,7 +11,7 @@ class GenerateHL extends GenerateBase {
 	}
 
     public function generateHX() : Void {
-		var haxehl = new GenerateHaxe(opts);
+		var haxehl = new HaxeGenerate(opts);
 		haxehl.generate();
 	}
 

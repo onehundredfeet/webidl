@@ -8,14 +8,15 @@ using StringTools;
 using idl.macros.MacroTools;
 
 import idl.HaxeGenerationTargetHXCPP;
+import idl.HaxeGenerationTarget;
 
-class GenerateHaxe {
+class HaxeGenerate {
 	var pack:Array<String>;
 	var opts:Options;
 	final nullPosition:haxe.macro.Expr.Position = {min: 0, max: 0, file: 'null'};
 	var p:haxe.macro.Expr.Position = {min: 0, max: 0, file: 'null'};
 	var types:Array<TypeDefinition> = [];
-	var typeNames = new Map<String, haxe.macro.TypePath>();
+	var _typeInfos = new Map<String, HaxeGenerationTypeInfo>();
 	var _printer = new Printer();
 	//    var _inline = true;
 	var _targets:Array<HaxeGenerationTarget>;
@@ -25,8 +26,8 @@ class GenerateHaxe {
 		this.pack = opts.packageName.split(".");
 		this.opts = opts;
 		_targets = targets != null ? targets : [
-			new HaxeGenerationTargetHL(opts, typeNames),
-			new HaxeGenerationTargetHXCPP(opts, typeNames)
+			new HaxeGenerationTargetHL(opts, _typeInfos),
+			new HaxeGenerationTargetHXCPP(opts, _typeInfos)
 		];
 	}
 
@@ -95,7 +96,7 @@ class GenerateHaxe {
 				var ex = {expr: EConst(CInt("0")), pos: p};
 				var tp = TPath({pack: [], name: id});
 
-				if (typeNames.exists(id)) {expr: ECast(ex, tp), pos: p}; else {expr: EConst(CIdent("null")), pos: p};
+				if (_typeInfos.exists(id)) {expr: ECast(ex, tp), pos: p}; else {expr: EConst(CIdent("null")), pos: p};
 			default:
 				{expr: EConst(CIdent("null")), pos: p};
 		}
@@ -340,94 +341,10 @@ class GenerateHaxe {
 							}
 
 						case FAttribute(t):
-							switch (t.t) {
-								case TArray(at, sizeField):
-									var et = getElementType(t);
-									var cetr = _currentTarget.makeType(et, true);
-									var cet = _currentTarget.makeType(et, false);
+							var attribFields = _currentTarget.addAttribute(iname, haxeName, f, t, p);
 
-									dfields.push({
-										pos: p,
-										name: "get" + haxeName,
-										meta: _currentTarget.makeNative(iname, "_get_", haxeName, null, p),
-										kind: _currentTarget.externalFunction([
-											{
-												name: "index",
-												type: macro :Int
-											}
-										], cetr, macro return ${defVal(et)}),
-										access: [APublic]
-									});
-									dfields.push({
-										pos: p,
-										name: "set" + haxeName,
-										meta: _currentTarget.makeNative(iname, "_set_", haxeName, null, p),
-										kind: _currentTarget.externalFunction([
-											{
-												name: "index",
-												type: macro :Int
-											},
-											{name: "_v", type: cet}
-										], cetr, macro return ${defVal(et)}),
-										access: [APublic]
-									});
-
-								default:
-									var hasSet = t.attr == null || t.attr.indexOf(AReadOnly) < 0;
-									var tt = _currentTarget.makeType(t, false);
-
-									var fkind = hasSet ? FProp("get", "set", tt) : FProp("get", "never", tt);
-									dfields.push({
-										pos: p,
-										name: haxeName,
-										kind: fkind,
-										access: [APublic],
-									});
-									dfields.push({
-										pos: p,
-										name: "get_" + haxeName,
-										meta: _currentTarget.makeNative(iname, "_get_", haxeName, null, p),
-										kind: _currentTarget.externalFunction([], _currentTarget.makeType(t, true), macro return ${defVal(t)}),
-									});
-									if (hasSet) {
-										dfields.push({
-											pos: p,
-											name: "set_" + haxeName,
-											meta: _currentTarget.makeNative(iname, "_set_", haxeName, null, p),
-											kind: _currentTarget.externalFunction([
-												{
-													name: "_v",
-													type: tt
-												}
-											], tt, macro return ${defVal(t)})
-										});
-									}
-									var vt:Type = null;
-									var vta:TypeAttr = null;
-									var vdim = 0;
-
-									var isVector = switch (t.t) {
-										case TVector(vvt, vvdim):
-											vt = vvt;
-											vdim = vvdim;
-											vta = {t: vt, attr: t.attr};
-											true;
-										default: false;
-									}
-
-									if (isVector && false) {
-										dfields.push({
-											pos: p,
-											name: "set" + haxeName + vdim,
-											meta: _currentTarget.makeNative(iname, "_set", haxeName + vdim, null, p),
-											access: [APublic, AInline],
-											kind: FFun({
-												ret: macro :Void,
-												expr: macro return,
-												args: [for (c in 0...vdim) {name: "_v" + c, type: _currentTarget.makeType(vta, false)}],
-											}),
-										});
-									}
+							for (af in attribFields) {
+								dfields.push(af);
 							}
 
 						case DConst(name, type, value):
@@ -579,7 +496,7 @@ class GenerateHaxe {
 					name: enumT.name
 				};
 
-				typeNames[name] = enumTP;
+				_typeInfos[name] = new HaxeGenerationTypeInfo(enumTP, enumT, d.kind);
 				types.push(enumT);
 			case DTypeDef(name, attrs, type, dtype):
 		}
@@ -590,7 +507,7 @@ class GenerateHaxe {
 		var multiTypeMap = new Map<String, Map<HaxeGenerationTarget, TypeDefinition>>();
 		for (target in _targets) {
 			types = [];
-			typeNames = new Map<String, haxe.macro.TypePath>();
+			_typeInfos = new Map<String, HaxeGenerationTypeInfo>();
 			_currentTarget = target;
 			// implicitly adds them to types
 			buildTypes(opts);

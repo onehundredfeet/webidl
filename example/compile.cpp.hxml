@@ -10,6 +10,6 @@
 --main SampleMain
 --next
 --class-path ../lib
---run idl.GenerateCMakeHXCPP
+--run idl.CMakeGenerateHXCPP
 bin/cpp
 --I .

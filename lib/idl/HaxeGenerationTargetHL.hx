@@ -118,7 +118,7 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 							default: throw "Unsupported array type. Sorry";
 						}
 					case TCustom(id):
-						if (typeNames.exists(id)) TPath({pack: ["hl"], name: "NativeArray", params: [TPType(TPath(typeNames[id]))]}); else TPath({pack: ["hl"],
+						if (_typeInfos.exists(id)) TPath({pack: ["hl"], name: "NativeArray", params: [TPType(TPath(_typeInfos[id].path))]}); else TPath({pack: ["hl"],
 							name: "NativeArray", params: [TPType(TPath({pack: [], name: makeName(id)}))]});
 
 					default:
@@ -134,8 +134,8 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 				//			macro : GameControllerPtr -> hl.Bytes -> $retT;
 				TFunction(args, retT);
 			case TCustom(id):
-				if (typeNames.exists(id)) {
-					TPath(typeNames[id]);
+				if (_typeInfos.exists(id)) {
+					TPath(_typeInfos[id].path);
 				} else TPath({pack: [], name: makeName(id)});
 		}
 	}
@@ -151,4 +151,6 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 		}];
 	}
 	
+
+
 }

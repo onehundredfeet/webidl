@@ -260,7 +260,7 @@ class Target {
     }
 }
 
-class GenerateCMakeHXCPP {
+class CMakeGenerateHXCPP {
 	static var _builder:StringBuf;
 
 	static function addLine(line:String) {

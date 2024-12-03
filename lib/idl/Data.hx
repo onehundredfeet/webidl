@@ -33,7 +33,17 @@ enum FieldKind {
 }
 
 typedef FArg = { name : String, opt : Bool, t : TypeAttr };
-typedef TypeAttr = { var t : Type; var attr : Array<Attrib>; };
+typedef TypeAttrData = { var t : Type; var attr : Array<Attrib>; };
+
+@:forward
+abstract TypeAttr( TypeAttrData ) from TypeAttrData to TypeAttrData {
+	public function getElementType() {
+		return switch (this.t) {
+			case TPointer(at), TArray(at, _):{t: at, attr: this.attr};
+			default: throw "Not an array type: " + this.t.getName() + " : " + this.t.getParameters();
+		}
+	}
+}
 
 enum Type {
 	TVoid;
