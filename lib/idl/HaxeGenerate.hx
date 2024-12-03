@@ -61,8 +61,28 @@ class HaxeGenerate {
 		#end
 	}
 
+	function seedTypeInfo(d:Definition) {
+		var tp:TypePath;
+		var t:TypeDefinition;
+		switch (d.kind) {
+			case DInterface(iname, _, _):
+				tp = {pack: pack, name: iname};
+				_typeInfos[iname] = new HaxeGenerationTypeInfo(tp, null, d.kind);
+			case DEnum(name, _, _):
+				tp = {pack: pack, name: name};
+				_typeInfos[name] = new HaxeGenerationTypeInfo(tp, null, d.kind);
+			case DTypeDef(name, _, _, _):
+				tp = {pack: pack, name: name};
+				_typeInfos[name] = new HaxeGenerationTypeInfo(tp, null, d.kind);
+			default:
+		}
+	}
 	public function buildTypes(opts:Options):Array<TypeDefinition> {
 		var declarations = loadIDLDeclarations();
+
+		for (d in declarations) {
+			seedTypeInfo(d);
+		}
 
 		for (d in declarations) {
 			buildDecl(d);
@@ -102,58 +122,10 @@ class HaxeGenerate {
 		}
 	}
 
-	function makeNativeFieldRaw(iname:String, fname:String, pos:Position, args:Array<FArg>, ret:TypeAttr, pub:Bool, external = true):Field {
-		var name = fname;
-		var isConstr = name == iname || fname == "new";
-		if (isConstr) {
-			name = "new";
-			ret = {t: TCustom(iname), attr: []};
-		}
 
-		var expr = if (ret.t == TVoid) {expr: EBlock([]), pos: p}; else {expr: EReturn(defVal(ret)), pos: p};
-
-		var access:Array<Access> = [];
-		if (pub)
-			access.push(APublic);
-		if (isConstr)
-			access.push(AStatic);
-		if (ret.attr.contains(AStatic))
-			access.push(AStatic);
-
-		var fnargs = [
-			for (a in args) {
-				// This pattern is brutallly bad There must be a cleaner way to do this
-				var sub = false;
-				for (aattr in a.t.attr) {
-					switch (aattr) {
-						case ASubstitute(_):
-							sub = true;
-							break;
-						default:
-					}
-				}
-				if (a.t.attr.contains(AReturn) || sub) {
-					continue;
-				}
-				{name: a.name, opt: a.opt, type: _currentTarget.makeType(a.t, false)}
-			}
-		];
-
-		var x = {
-			pos: pos,
-			name: pub ? name : name + args.length,
-			meta: _currentTarget.makeNative(iname, null, name, args.length, p),
-			access: access,
-			kind: external 
-			? _currentTarget.externalFunction(fnargs, _currentTarget.makeType(ret, true), expr) : 
-			_currentTarget.embeddedFunction(fnargs, _currentTarget.makeType(ret, true), expr),
-		};
-
-		return x;
-	}
 
 	function makeNativeField(iname:String, hname:String, f:idl.Data.Field, args:Array<FArg>, ret:TypeAttr, pub:Bool):Field {
-		return makeNativeFieldRaw(iname, hname, makeMacroPosition(f.pos), args, ret, pub);
+		return _currentTarget.makeNativeFieldRaw(iname, hname, makeMacroPosition(f.pos), args, ret, pub);
 	}
 
 	function filterArgs(args:Array<FArg>) {
@@ -365,6 +337,11 @@ class HaxeGenerate {
 				}
 
 				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, pack, dfields, p);
+				var tp:TypePath = {
+					pack: pack,
+					name: iname
+				};
+				_typeInfos[iname] = new HaxeGenerationTypeInfo(tp, tds[0], d.kind);
 
 
 				// if (!hl) {
@@ -396,6 +373,7 @@ class HaxeGenerate {
 
 				for (t in tds)
 					types.push(t);
+
 			case DImplements(name, intf):
 				var name = makeName(name);
 				var intf = makeName(intf);
@@ -452,52 +430,11 @@ class HaxeGenerate {
 				if (!found)
 					warning("Class " + name + " not found for implements " + intf, p);
 			case DEnum(name, attrs, values):
-				var index = 0;
-				function cleanEnum(v:String):String {
-					return v.replace(":", "_");
-				}
-				var cfields = [
-					for (v in values)
-						{pos: p, name: cleanEnum(v), kind: FVar(null, {expr: EConst(CInt("" + (index++))), pos: p})}
-				];
 
-				// Add Int Conversion
-				var ta:TypeAttr = {t: TInt, attr: [AStatic]};
-				var toValue = makeNativeFieldRaw(name, "indexToValue", p, [{name: "index", opt: false, t: {t: TInt, attr: []}}], ta, true);
-				cfields.push(toValue);
+			var enumInfo = _currentTarget.makeEnum(name, attrs, values, p);
+			types.push(enumInfo.def);
+			_typeInfos[name] = new HaxeGenerationTypeInfo(enumInfo.path, enumInfo.def, d.kind);
 
-				ta = {t: TInt, attr: [AStatic]};
-				var toIndex = makeNativeFieldRaw(name, "valueToIndex", p, [{name: "value", opt: false, t: {t: TInt, attr: []}}], ta, true);
-				cfields.push(toIndex);
-
-				ta = {t: TEnum(name), attr: [AStatic]};
-				var fromValue = makeNativeFieldRaw(name, "fromValue", p, [{name: "value", opt: false, t: {t: TInt, attr: []}}], ta, true);
-				cfields.push(fromValue);
-
-				ta = {t: TEnum(name), attr: [AStatic]};
-				var fromIndex = makeNativeFieldRaw(name, "fromIndex", p, [{name: "index", opt: false, t: {t: TInt, attr: []}}], ta, true);
-				cfields.push(fromIndex);
-
-				ta = {t: TInt, attr: []};
-				var toValue = makeNativeFieldRaw(name, "toValue", p, [], ta, true);
-				cfields.push(toValue);
-
-				var enumT:TypeDefinition = {
-					pos: p,
-					pack: pack,
-					name: makeName(name),
-					meta: [],
-					kind: TDAbstract(macro :Int, [AbEnum]),
-					fields: cfields,
-				};
-
-				var enumTP:TypePath = {
-					pack: pack,
-					name: enumT.name
-				};
-
-				_typeInfos[name] = new HaxeGenerationTypeInfo(enumTP, enumT, d.kind);
-				types.push(enumT);
 			case DTypeDef(name, attrs, type, dtype):
 		}
 	}
@@ -507,7 +444,7 @@ class HaxeGenerate {
 		var multiTypeMap = new Map<String, Map<HaxeGenerationTarget, TypeDefinition>>();
 		for (target in _targets) {
 			types = [];
-			_typeInfos = new Map<String, HaxeGenerationTypeInfo>();
+			_typeInfos.clear();
 			_currentTarget = target;
 			// implicitly adds them to types
 			buildTypes(opts);

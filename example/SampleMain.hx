@@ -30,6 +30,8 @@ class SampleMain {
         var a = aptr;
         trace('Class A value ${a.a}');
         a.print();
+        trace('Enum value ${sample.SampleEnum.SE_0}');
+        trace('Enum value ${sample.SampleEnum.SE_1}');
   //      var b = x.makeB();
     //    b.print();
         trace("Done Sample Main");

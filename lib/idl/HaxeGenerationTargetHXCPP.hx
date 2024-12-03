@@ -5,6 +5,7 @@ import haxe.macro.Expr;
 
 using StringTools;
 using idl.macros.MacroTools;
+import idl.HaxeGenerationTarget;
 
 class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
@@ -136,10 +137,21 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			TFunction( args, retT);
 		case TCustom(id): 
 			if (_typeInfos.exists(id)) {
-				TPath( _typeInfos[id].path);
+				var ti : HaxeGenerationTypeInfo = _typeInfos.get(id);
+				trace('custom type ${id} has ${ti}');
+			
+				switch(ti.kind) {
+					case DInterface(name, attrs, _):
+						var ict = name.asComplexType();
+						macro : cpp.Star<$ict>;
+					default:
+						TPath( ti.path );
+				}
 			}
-			else
+			else {
+				trace('no info for ${id}');
 				TPath({ pack : [], name : makeName(id) });
+			}
 		}
 	}
 
@@ -200,11 +212,16 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		// return [proxyDefn, abstractDefn];
 
 		var includes = opts.includes.map((x) -> {name: ":include", params:[x.asConstExpr()], pos: p});
+		var buildXML = "${LAUNCH_DIR}/" + opts.packageName + ".xml";
 		return [{
 			pos: p,
 			pack: pack,
 			name:  makeName(iname) ,
-			meta: includes.concat([{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}, {name: ":structAccess", params:null, pos: p}]),
+			meta: includes.concat([
+				{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}, 
+				{name: ":structAccess", params:null, pos: p},
+				{name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
+			]),
 			isExtern: true,
 			kind: TDClass(), //TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
 			fields: dfields,
@@ -237,98 +254,77 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var attribFields = [];
 		switch (t.t) {
 			case TArray(at, sizeField):
-				var et = t.getElementType();
-				var cetr = makeType(et, true);
-				var cet = makeType(et, false);
-	
-				attribFields.push({
-					pos: p,
-					name: "get" + haxeName,
-					meta: makeNative(iname, "_get_", haxeName, null, p),
-					kind: externalFunction([
-						{
-							name: "index",
-							type: macro :Int
-						}
-					], cetr, macro return ${defVal(et)}),
-					access: [APublic]
-				});
-				attribFields.push({
-					pos: p,
-					name: "set" + haxeName,
-					meta: makeNative(iname, "_set_", haxeName, null, p),
-					kind: externalFunction([
-						{
-							name: "index",
-							type: macro :Int
-						},
-						{name: "_v", type: cet}
-					], cetr, macro return ${defVal(et)}),
-					access: [APublic]
-				});
+				throw "Unsupported array type. Sorry";
 	
 			default:
-				var hasSet = t.attr == null || t.attr.indexOf(AReadOnly) < 0;
 				var tt = makeType(t, false);
 	
-				var fkind = hasSet ? FProp("get", "set", tt) : FProp("get", "never", tt);
 				attribFields.push({
 					pos: p,
 					name: haxeName,
 					meta: [],
-					kind: fkind,
+					kind: FVar(tt),
 					access: [APublic],
 				});
-				attribFields.push({
-					pos: p,
-					name: "get_" + haxeName,
-					access: [],
-					meta: makeNative(iname, "_get_", haxeName, null, p),
-					kind: externalFunction([], makeType(t, true), macro return ${defVal(t)}),
-				});
-				if (hasSet) {
-					attribFields.push({
-						pos: p,
-						name: "set_" + haxeName,
-						access: [],
-						meta: makeNative(iname, "_set_", haxeName, null, p),
-						kind: externalFunction([
-							{
-								name: "_v",
-								type: tt
-							}
-						], tt, macro return ${defVal(t)})
-					});
-				}
-				var vt:Type = null;
-				var vta:TypeAttr = null;
-				var vdim = 0;
-	
-				var isVector = switch (t.t) {
-					case TVector(vvt, vvdim):
-						vt = vvt;
-						vdim = vvdim;
-						vta = {t: vt, attr: t.attr};
-						true;
-					default: false;
-				}
-	
-				if (isVector && false) {
-					attribFields.push({
-						pos: p,
-						name: "set" + haxeName + vdim,
-						meta: makeNative(iname, "_set", haxeName + vdim, null, p),
-						access: [APublic, AInline],
-						kind: FFun({
-							ret: macro :Void,
-							expr: macro return,
-							args: [for (c in 0...vdim) {name: "_v" + c, type: makeType(vta, false)}],
-						}),
-					});
-				}
 		}
 
 		return attribFields;
+	}
+
+	public override function makeEnum(name : String, attrs : Array<Attrib>, values : Array<String>, p : haxe.macro.Expr.Position) {
+		var index = 0;
+		function cleanEnum(v:String):String {
+			return v.replace(":", "_");
+		}
+		var cfields : Array<haxe.macro.Expr.Field> = [
+			for (v in values) {
+				var fieldName = cleanEnum(v);
+				{
+					pos: p, 
+					name: fieldName, 
+					kind: FVar(null, {expr: EConst(CInt("" + (index++))), pos: p}),
+					meta:[{name: ":native", params:[(name + "::" + fieldName).asConstExpr()], pos: p} ],
+					access: [APublic, AStatic, AFinal, AInline, AExtern]
+				}
+			}
+		];
+
+		// Add Int Conversion
+		// var ta:TypeAttr = {t: TInt, attr: [AStatic]};
+		// var toValue = makeNativeFieldRaw(name, "indexToValue", p, [{name: "index", opt: false, t: {t: TInt, attr: []}}], ta, true);
+		// cfields.push(toValue);
+
+		// ta = {t: TInt, attr: [AStatic]};
+		// var toIndex = makeNativeFieldRaw(name, "valueToIndex", p, [{name: "value", opt: false, t: {t: TInt, attr: []}}], ta, true);
+		// cfields.push(toIndex);
+
+		// ta = {t: TEnum(name), attr: [AStatic]};
+		// var fromValue = makeNativeFieldRaw(name, "fromValue", p, [{name: "value", opt: false, t: {t: TInt, attr: []}}], ta, true);
+		// cfields.push(fromValue);
+
+		// ta = {t: TEnum(name), attr: [AStatic]};
+		// var fromIndex = makeNativeFieldRaw(name, "fromIndex", p, [{name: "index", opt: false, t: {t: TInt, attr: []}}], ta, true);
+		// cfields.push(fromIndex);
+
+		// ta = {t: TInt, attr: []};
+		// var toValue = makeNativeFieldRaw(name, "toValue", p, [], ta, true);
+		// cfields.push(toValue);
+
+		var enumT:TypeDefinition = {
+			pos: p,
+			pack: _pack,
+			name: makeName(name),
+			meta: [],
+			kind: TDAbstract(macro :Int, []),
+			fields: cfields,
+		};
+
+		var enumTP:TypePath = {
+			pack: _pack,
+			name: enumT.name
+		};
+
+		return {def:enumT, path:enumTP};
 	}
 }
 
