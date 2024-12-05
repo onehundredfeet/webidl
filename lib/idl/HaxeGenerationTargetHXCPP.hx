@@ -213,7 +213,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
 		var includes = opts.includes.map((x) -> {name: ":include", params:[x.asConstExpr()], pos: p});
 		var buildXML = "${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".xml";
-//		@:build(idl.macros.MacroTools.buildHXCPPIDLType("sample/sample.idl"))
 
 		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
 		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);

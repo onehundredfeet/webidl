@@ -60,7 +60,7 @@ abstract class GenerateBase {
         var generator =  switch(opts.target) {
             case TargetHL:new GenerateHL(opts);
             case TargetJVM:new GenerateHL(opts);
-            case TargetHXCPP:new GenerateHL(opts);
+            case TargetHXCPP:new GenerateCPP(opts);
             case TargetEmscripten:new GenerateHL(opts);
             default:
                 throw "Unsupported target: " + opts.target;

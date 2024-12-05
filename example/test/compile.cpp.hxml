@@ -8,7 +8,7 @@
 -D HXCPP_VERBOSE
 --cpp bin/cpp
 -D no-compilation
---macro idl.macros.MacroTools.hxcppInit("sample/sample.idl") // would be really nice to make this
+--macro idl.macros.MacroTools.hxcppInit("sample/Sample.idl") // would be really nice to make this
 --main SampleMain
  --next
  --library hl-idl

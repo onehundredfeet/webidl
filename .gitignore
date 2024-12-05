@@ -23,3 +23,4 @@ example/.haxelib
 example/app
 example/test/.haxelib
 example/test/build
+example/src/hxcpp/Sample_hxcpp_idl.h

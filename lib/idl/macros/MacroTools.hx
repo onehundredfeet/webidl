@@ -84,7 +84,7 @@ class MacroTools {
 		var md:Metadata = ma.get();
 
 		var buildMeta = {name: ":buildXml", params: [asConstExpr('<include name=\"${dir}/${module}.xml\"/>', Context.currentPos())], pos: ct.pos};
-		var include = {name: ":include", params: [asConstExpr('${module}_hxcpp_idl.h', Context.currentPos())], pos: Context.currentPos()};
+		var include = {name: ":include", params: [asConstExpr('hxcpp/${module}_hxcpp_idl.h', Context.currentPos())], pos: Context.currentPos()};
 
 		var moduleDefine = '${module.toUpperCase()}_IDL_DIR';
 

@@ -1,4 +1,4 @@
---class-path ../lib
+--library hl-idl
 --class-path generator
 --run Generator
 
