@@ -1,0 +1,16 @@
+-cp .
+#-cp lib
+#this is terrible
+#-cp /Users/rcleven/git/hl-idl/example
+--library hvector
+--library hl-idl
+--library hl-idl-sample
+-D HXCPP_VERBOSE
+--cpp bin/cpp
+-D no-compilation
+--macro idl.macros.MacroTools.hxcppInit("sample/sample.idl") // would be really nice to make this
+--main SampleMain
+ --next
+ --library hl-idl
+ --run idl.CMakeGenerateHXCPP
+ bin/cpp

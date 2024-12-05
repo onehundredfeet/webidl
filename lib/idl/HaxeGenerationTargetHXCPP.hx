@@ -212,16 +212,22 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		// return [proxyDefn, abstractDefn];
 
 		var includes = opts.includes.map((x) -> {name: ":include", params:[x.asConstExpr()], pos: p});
-		var buildXML = "${LAUNCH_DIR}/" + opts.packageName + ".xml";
+		var buildXML = "${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".xml";
+//		@:build(idl.macros.MacroTools.buildHXCPPIDLType("sample/sample.idl"))
+
+		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
+		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);
+
 		return [{
 			pos: p,
 			pack: pack,
 			name:  makeName(iname) ,
-			meta: includes.concat([
+			meta: [
 				{name: ":native", params:[makeName(iname).asConstExpr()], pos: p}, 
 				{name: ":structAccess", params:null, pos: p},
-				{name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
-			]),
+				{name: ":build", params:[macroBuildExpr], pos: p},
+				//{name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
+			],
 			isExtern: true,
 			kind: TDClass(), //TDAbstract(macro :idl.Types.Ref, [], [macro :idl.Types.Ref], [macro :idl.Types.Ref]),
 			fields: dfields,

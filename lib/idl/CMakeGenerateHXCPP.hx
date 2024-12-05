@@ -286,7 +286,10 @@ class CMakeGenerateHXCPP {
 	}
 
 	static function getFlatXML(path:String, included:Array<String>):Array<Xml> {
+		
         var rpath = resolvePath(path);
+		
+		trace('--> Processing ${rpath} XML');
 		var xmlStr = File.getContent(rpath);
 		var xmlRoot = Xml.parse(xmlStr).firstElement();
 		var elements = [for (e in xmlRoot.elements()) e];
@@ -298,6 +301,22 @@ class CMakeGenerateHXCPP {
 		included.push(rpath);
 
 		var finalElements = [];
+		function resolveLocalDefines()
+		{
+			var this_dir = FileSystem.absolutePath(rpath).split('/').slice(0, -1).join('/');
+
+			for (e in elements) {
+				if (e.nodeName == 'set') {
+					var value = e.get('value');
+					if (value != null) {
+						value.replace("${this_dir}", this_dir);
+						value.replace("${THIS_DIR}", this_dir);
+						e.set('value', value);
+					}					
+				}
+			}
+		}
+		resolveLocalDefines();
 
 		for (e in elements) {
 			if (e.nodeName == 'include') {
@@ -353,6 +372,7 @@ class CMakeGenerateHXCPP {
 
 		_defines.set('BUILD_DIR', _absBuildDir);
 		_defines.set('LAUNCH_DIR', _launchDir);
+		_defines.set('IDL_DIR', "IDL_DIR");
 		_defines.set('exe_link', '1');
 //		_defines.set('HXCPP_M64', '1');
 		_defines.set('HXCPP_ARCH', 'arm64');

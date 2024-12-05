@@ -401,7 +401,7 @@ class ModuleHL extends ModuleBase {
 				case FAttribute(t):
 					switch(t.t) {
 						case TArray(at, sizeField):
-							var et = getElementType(t);
+							var et = t.getElementType();
 							var cetr = makeType(et, true);
 							var cet = makeType(et, false);
 

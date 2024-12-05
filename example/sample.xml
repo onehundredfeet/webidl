@@ -1,3 +1,0 @@
-<xml>
-   <cppflag value="-I${LAUNCH_DIR}/src"/>
- </xml>

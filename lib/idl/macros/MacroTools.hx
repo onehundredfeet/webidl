@@ -1,7 +1,9 @@
 package idl.macros;
 
+import haxe.macro.Compiler;
 import haxe.macro.Expr;
 import haxe.macro.Context;
+import haxe.macro.Type;
 
 // borrowed from tink_macro
 // The MIT License (MIT)
@@ -44,28 +46,81 @@ class MacroTools {
 	static public inline function sanitize(pos:Position)
 		return if (pos == null) Context.currentPos(); else pos;
 
-	static public inline function asConstExpr(s:String, ?p : Position) : Expr {
-    return {expr: EConst(CString(s)), pos: p}
-  }
+	static public inline function asConstExpr(s:String, ?p:Position):Expr {
+		return {expr: EConst(CString(s)), pos: p}
+	}
 
-  static public inline function asIdentExpr(s:String, ?p : Position) : Expr {
-    return {expr: EConst(CIdent(s)), pos: p}
-  }
+	static public inline function asIdentExpr(s:String, ?p:Position):Expr {
+		return {expr: EConst(CIdent(s)), pos: p}
+	}
 
-  static public inline function asFieldAccess(s:String, ?p : Position) : Expr {
-    var parts = s.split(".");
-    if (parts.length == 0) {
-      throw "Invalid field access";
-    }
-    var e = EConst(CIdent(parts.shift()));
-    for (part in parts) {
-      e = EField({expr: e, pos: p}, part);
-    }
-    return {expr: e, pos: p};
-  }
+	static public inline function asFieldAccess(s:String, ?p:Position):Expr {
+		var parts = s.split(".");
+		if (parts.length == 0) {
+			throw "Invalid field access";
+		}
+		var e = EConst(CIdent(parts.shift()));
+		for (part in parts) {
+			e = EField({expr: e, pos: p}, part);
+		}
+		return {expr: e, pos: p};
+	}
+
 	static public inline function at(e:ExprDef, ?pos:Position)
 		return {
 			expr: e,
 			pos: sanitize(pos)
 		};
+
+	public macro static function buildHXCPPIDLType(idlRelPath:String):Array<Field> {
+		var ct = Context.getLocalClass().get();
+
+		var file = Context.getPosInfos(Context.currentPos()).file;
+		var dir = haxe.io.Path.directory(file);
+		var module = Context.getLocalModule().split('.').pop();
+
+		var className = ct.name;
+		var ma:MetaAccess = ct.meta;
+		var md:Metadata = ma.get();
+
+		var buildMeta = {name: ":buildXml", params: [asConstExpr('<include name=\"${dir}/${module}.xml\"/>', Context.currentPos())], pos: ct.pos};
+		var include = {name: ":include", params: [asConstExpr('${module}_hxcpp_idl.h', Context.currentPos())], pos: Context.currentPos()};
+
+		var moduleDefine = '${module.toUpperCase()}_IDL_DIR';
+
+		
+
+		ma.add(buildMeta.name, buildMeta.params, buildMeta.pos);
+		ma.add(include.name, include.params, include.pos);		
+		//ma.add({name: ":native", params: [asConstExpr("SampleA"), asConstExpr("SampleA")], pos: Context.currentPos()});
+		var check = ma.get();
+
+		for (m in check) {
+			trace('Checking ${m}');
+		}
+		trace('\n\n\n');
+		return null;
+	}
+#if macro
+	public static function hxcppInit(idlRelPath:String) {
+		var file = null;
+		var pos = Context.currentPos();
+		var idlAbsPath : String = try {
+			Context.resolvePath(idlRelPath);
+		} catch( e : Dynamic ) {
+			Context.error("" + e,Context.makePosition({min:0, max:0, file: "MacroTools"}) );
+			null;
+		}
+
+		var idlAbsDir = haxe.io.Path.directory(idlAbsPath);
+		var moduleName = idlRelPath.split('/').pop().split('.').shift();
+		var moduleDefine = '${moduleName.toUpperCase()}_IDL_DIR';
+
+		if (!Context.defined(moduleDefine)) {
+//			trace('Defining ${moduleDefine} as ${idlAbsDir}');
+			Compiler.define(moduleDefine, idlAbsDir);
+		}
+	}
+	#end
 }
+

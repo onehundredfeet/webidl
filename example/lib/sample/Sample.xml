@@ -1,0 +1,3 @@
+<xml>
+   <cppflag value="-I${SAMPLE_IDL_DIR}/../../src"/>
+</xml>

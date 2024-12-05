@@ -21,3 +21,5 @@ example/sample.jnilib
 example/lib/sample/Sample*.hx
 example/.haxelib
 example/app
+example/test/.haxelib
+example/test/build
