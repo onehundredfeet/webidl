@@ -642,6 +642,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TBool: "bool";
 				case TEnum(_): "int";
 				case THString: "vstring *";
+				case TCString: "vbyte*";
+				case TStdString: "vbyte*";
 				case TBytes: "vbyte*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
@@ -730,6 +732,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";
+				case TCString: "_BYTES";
+				case TStdString: "_BYTES";
 				case TFunction(ret, ta):
 					var args = (ta == null || ta.length == 0) ? "_NO_ARG" : ta.map((x) -> defType(x)).join(" ");
 					"_FUN(" + defType(ret) + ',${args})';

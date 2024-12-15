@@ -57,6 +57,8 @@ enum Type {
 	TAny;
 	TVoidPtr;
 	THString;
+	TCString;
+	TStdString;
 	TBytes;
 	TEnum(name : String );
 	TCustom( id : String );
@@ -89,6 +91,8 @@ enum Attrib {
 	AOperator( op : String );
 	// interfaces
 	ANoDelete;
+	ANoNamespace;
+	AAutoConstructor;
 	AStatic;
 	AInclude( name : String );
 	AVirtual;

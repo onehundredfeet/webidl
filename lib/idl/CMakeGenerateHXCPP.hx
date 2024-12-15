@@ -286,7 +286,6 @@ class CMakeGenerateHXCPP {
 	}
 
 	static function getFlatXML(path:String, included:Array<String>):Array<Xml> {
-		
         var rpath = resolvePath(path);
 		
 		trace('--> Processing ${rpath} XML');

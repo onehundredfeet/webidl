@@ -7,7 +7,8 @@ enum SampleEnum {
 interface SampleA {
   attribute float a;
   attribute SampleEnum et;
-  void SampleA();
+  SampleA new();
+  
   void print();
   SampleEnum getEnum(SampleEnum p);
 };
@@ -20,9 +21,9 @@ attribute double b;
 };
 
 interface Sample {
+	Sample new();
 	attribute long x;
 	attribute long y;
-	void Sample();
  	int funci(int x);
 	void print();
   	SampleA makeA();

@@ -122,5 +122,27 @@ class MacroTools {
 		}
 	}
 	#end
+
+	public static function asMacroPos(pos:idl.Data.Position):haxe.macro.Expr.Position {
+		if (pos == null)
+			return Context.makePosition({file: "null", min: 0, max: 0 });
+		return Context.makePosition({min: pos.pos, max: pos.pos + 1, file: pos.file});
+	}
+
+	public static function asFunctionField(expr : Expr, name:String, args:Array<FunctionArg>, ret:ComplexType, pos:haxe.macro.Expr.Position):Field {
+		return {
+			name: name,
+			kind: FFun({args:args, ret:ret, expr:expr}),
+			pos: pos
+		};
+	}
+
+	public static function asCallExpr(expr:Expr, args:Array<Expr>, pos:haxe.macro.Expr.Position):Expr {
+		return at(ECall(expr, args), pos);
+	}
+
+	public static function asPrivateAccessExpr(expr:Expr, pos:haxe.macro.Expr.Position):Expr {
+		return at(EMeta( {name:":privateAccess", pos:pos}, expr), pos);
+	}
 }
 

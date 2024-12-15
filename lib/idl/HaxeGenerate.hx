@@ -10,6 +10,7 @@ using idl.macros.MacroTools;
 import idl.HaxeGenerationTargetHXCPP;
 import idl.HaxeGenerationTarget;
 
+
 class HaxeGenerate {
 	var pack:Array<String>;
 	var opts:Options;
@@ -146,16 +147,6 @@ class HaxeGenerate {
 		return b;
 	}
 
-	function makeEither(arr:Array<ComplexType>) {
-		var i = 0;
-		var t = arr[i++];
-		while (i < arr.length) {
-			var t2 = arr[i++];
-			t = TPath({pack: ["haxe", "extern"], name: "EitherType", params: [TPType(t), TPType(t2)]});
-		}
-		return t;
-	}
-
 	function getElementType(t:TypeAttr) {
 		return switch (t.t) {
 			case TPointer(at), TArray(at, _): {t: at, attr: t.attr};
@@ -178,8 +169,8 @@ class HaxeGenerate {
 				var dfields:Array<Field> = [];
 				var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
 				var interfaceCT = iname.asComplexType();
-				var variants = new Map();
-				function getVariants(name:String) {
+				var variants = new Map(); 
+				function getVariants(name:String) : Array<MethodVariant> {
 					if (variants.exists(name))
 						return null;
 					variants.set(name, true);
@@ -198,120 +189,25 @@ class HaxeGenerate {
 					var haxeName = forceCamel ? f.name.substr(0, 1).toLowerCase() + f.name.substr(1) : f.name;
 
 					switch (f.kind) {
-						case FMethod(_):
+						case FMethod(args, ret):
 							var vars = getVariants(f.name);
 							if (vars == null)
 								continue;
-
+					
 							var isConstr = f.name == iname || f.name == "new";
+							var fields = null;
 							if (isConstr) {
-								haxeName = "new";
+								fields = _currentTarget.makeConstructor(f, iname, haxeName, vars, p);
 							}
-							if (vars.length == 1 && !isConstr) {
-								var f = makeNativeField(iname, haxeName, f, vars[0].args, vars[0].ret, true);
+							else if (vars.length == 1) {
+								fields = [_currentTarget.makeNativeField(iname, haxeName, f, vars[0].args, vars[0].ret, true)];	
+							}else {
+								fields = _currentTarget.addInterfaceMethod(f, iname, haxeName,vars, p);
+							}
+
+							for (f in fields) {
 								dfields.push(f);
-							} else {
-								// create dispatching code
-								var maxArgs = 0;
-								for (v in vars)
-									if (v.args.length > maxArgs)
-										maxArgs = v.args.length;
-
-								if (vars.length > 1 && maxArgs == 0)
-									error("Duplicate method declaration", makeMacroPosition(vars.pop().pos));
-
-								var targs:Array<FunctionArg> = [];
-								var argsTypes = [];
-								for (i in 0...maxArgs) {
-									var types:Array<{t:TypeAttr, sign:String}> = [];
-									var names = [];
-									var opt = false;
-									for (v in vars) {
-										var a = v.args[i];
-										if (a == null) {
-											opt = true;
-											continue;
-										}
-										var sign = haxe.Serializer.run(a.t);
-										var found = false;
-										for (t in types)
-											if (t.sign == sign) {
-												found = true;
-												break;
-											}
-										if (!found)
-											types.push({t: a.t, sign: sign});
-										if (names.indexOf(a.name) < 0)
-											names.push(a.name);
-										if (a.opt)
-											opt = true;
-									}
-									argsTypes.push(types);
-									targs.push({
-										name: names.join("_"),
-										opt: opt,
-										type: makeEither([for (t in types) _currentTarget.makeType(t.t, false)]),
-									});
-								}
-
-								// native impls
-								var retTypes:Array<{t:TypeAttr, sign:String}> = [];
-								for (v in vars) {
-									var f = makeNativeField(iname, haxeName, f, v.args, v.ret, false);
-
-									var sign = haxe.Serializer.run(v.ret);
-									var found = false;
-									for (t in retTypes)
-										if (t.sign == sign) {
-											found = true;
-											break;
-										}
-									if (!found)
-										retTypes.push({t: v.ret, sign: sign});
-
-									dfields.push(f);
-								}
-
-								vars.sort(function(v1, v2) return v1.args.length - v2.args.length);
-
-								// dispatch only on args count
-								function makeCall(v:{args:Array<FArg>, ret:TypeAttr}):Expr {
-									var ident = isConstr
-									?  ((iname + "." + haxeName) + v.args.length).asFieldAccess(p)
-									: ((haxeName) + v.args.length).asFieldAccess(p);
-									var e:Expr = {
-										expr: ECall(ident, [
-											for (i in 0...v.args.length)
-												{expr: ECast({expr: EConst(CIdent(targs[i].name)), pos: p}, null), pos: p}
-										]),
-										pos: p
-									};
-									if (v.ret.t != TVoid)
-										e = {expr: EReturn(e), pos: p};
-									else if (isConstr) {
-										e = macro this = $e;
-									}
-									return e;
-								}
-
-								var expr = makeCall(vars[vars.length - 1]);
-								for (i in 1...vars.length) {
-									var v = vars[vars.length - 1 - i];
-									var aname = targs[v.args.length].name;
-									var call = makeCall(v);
-									expr = macro if ($i{aname} == null) $call else $expr;
-								}
-
-								dfields.push({
-									name: haxeName,
-									pos: makeMacroPosition(f.pos),
-									access: [APublic, AInline],
-									kind: isConstr 
-									? _currentTarget.embeddedFunction(targs, interfaceCT, expr)
-									: _currentTarget.externalFunction(targs, makeEither([for (t in retTypes) _currentTarget.makeType(t.t, false)]), expr),
-								});
 							}
-
 						case FAttribute(t):
 							var attribFields = _currentTarget.addAttribute(iname, haxeName, f, t, p);
 

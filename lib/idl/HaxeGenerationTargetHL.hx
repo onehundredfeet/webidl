@@ -69,6 +69,8 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 			case TDynamic: macro :Dynamic;
 			case TType: macro :hl.Type;
 			case THString: isReturn && false ? macro :hl.Bytes : macro :String;
+			case TCString: macro :hl.Bytes;
+			case TStdString: macro :hl.Bytes;
 			case TAny: macro :idl.Types.Any;
 			case TEnum(enumName): isReturn ? enumName.asComplexType() : macro :Int;
 			case TStruct: macro :hl.Bytes;

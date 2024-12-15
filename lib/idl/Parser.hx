@@ -146,6 +146,7 @@ class Parser {
 				case "AddressOf": AAddressOf;
 				case "Clone" : AClone;
 				case "NoDelete": ANoDelete;
+				case "NoNamespace": ANoNamespace;
 				case "UpperCaseFirst", "UpperCase", "UpperCaseCall": AUpperCaseFirst;
 				case "ForceCamelCase", "CamelCase": AForceCamelCase;
 				case "Initialize": AInitialize;
@@ -307,6 +308,8 @@ class Parser {
 			case "VoidPointer", "VoidPtr": TVoidPtr;
 			case "bytes": TBytes;
 			case "string", "String": THString;
+			case "cstring", "CString": TCString;
+			case "stdstring", "StdString": TStdString;
 			case "struct": TStruct;  // Doesn't work yet
 			case "float2": TVector(TFloat, 2);
 			case "float3": TVector(TFloat, 3);

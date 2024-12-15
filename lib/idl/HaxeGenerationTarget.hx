@@ -6,6 +6,9 @@ import haxe.macro.Expr;
 using StringTools;
 using idl.macros.MacroTools;
 
+typedef MethodVariant = {args : Array<FArg>, ret : TypeAttr, pos: idl.Data.Position};
+
+
 class HaxeGenerationTypeInfo {
 	public final path:haxe.macro.TypePath;
 	public final defn:haxe.macro.TypeDefinition;
@@ -23,6 +26,7 @@ abstract class HaxeGenerationTarget {
 	var _typeInfos:Map<String, HaxeGenerationTypeInfo>;
 	var defaultPos:haxe.macro.Expr.Position = {file: "unknown", min: 0, max: 0};
 	var _pack:Array<String>;
+
 	public function new(opts:Options, typeInfos:Map<String, HaxeGenerationTypeInfo>) {
 		this.opts = opts;
 		_pack = opts.packageName.split(".");
@@ -190,7 +194,7 @@ abstract class HaxeGenerationTarget {
 		}
 	}
 
-	public function makeEnum(name : String, attrs : Array<Attrib>, values : Array<String>, p : haxe.macro.Expr.Position) {
+	public function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) {
 		var index = 0;
 		function cleanEnum(v:String):String {
 			return v.replace(":", "_");
@@ -235,7 +239,7 @@ abstract class HaxeGenerationTarget {
 			name: enumT.name
 		};
 
-		return {def:enumT, path:enumTP};
+		return {def: enumT, path: enumTP};
 	}
 
 	public function makeNativeFieldRaw(iname:String, fname:String, pos:Position, args:Array<FArg>, ret:TypeAttr, pub:Bool, external = true):Field {
@@ -280,11 +284,143 @@ abstract class HaxeGenerationTarget {
 			name: pub ? name : name + args.length,
 			meta: makeNative(iname, null, name, args.length, pos),
 			access: access,
-			kind: external 
-			? externalFunction(fnargs, makeType(ret, true), expr) : 
-			embeddedFunction(fnargs, makeType(ret, true), expr),
+			kind: external ? externalFunction(fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
 		};
 
 		return x;
+	}
+
+	public function makeNativeField(iname:String, hname:String, f:idl.Data.Field, args:Array<FArg>, ret:TypeAttr, pub:Bool):Field {
+		return makeNativeFieldRaw(iname, hname, f.pos.asMacroPos(), args, ret, pub);
+	}
+
+	function makeEither(arr:Array<ComplexType>) {
+		var i = 0;
+		var t = arr[i++];
+		while (i < arr.length) {
+			var t2 = arr[i++];
+			t = TPath({pack: ["haxe", "extern"], name: "EitherType", params: [TPType(t), TPType(t2)]});
+		}
+		return t;
+	}
+
+	public function addInterfaceMethod(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
+		var varFields = [];
+		// create dispatching code
+		var maxArgs = 0;
+		for (v in variants)
+			if (v.args.length > maxArgs)
+				maxArgs = v.args.length;
+
+		if (variants.length > 1 && maxArgs == 0)
+			error("Duplicate method declaration", variants.pop().pos.asMacroPos());
+
+		var targs:Array<FunctionArg> = [];
+		var argsTypes = [];
+		for (i in 0...maxArgs) {
+			var types:Array<{t:TypeAttr, sign:String}> = [];
+			var names = [];
+			var opt = false;
+			for (v in variants) {
+				var a = v.args[i];
+				if (a == null) {
+					opt = true;
+					continue;
+				}
+				var sign = haxe.Serializer.run(a.t);
+				var found = false;
+				for (t in types)
+					if (t.sign == sign) {
+						found = true;
+						break;
+					}
+				if (!found)
+					types.push({t: a.t, sign: sign});
+				if (names.indexOf(a.name) < 0)
+					names.push(a.name);
+				if (a.opt)
+					opt = true;
+			}
+			argsTypes.push(types);
+			targs.push({
+				name: names.join("_"),
+				opt: opt,
+				type: makeEither([for (t in types) makeType(t.t, false)]),
+			});
+		}
+
+		// native impls
+		var retTypes:Array<{t:TypeAttr, sign:String}> = [];
+		for (v in variants) {
+			var f = makeNativeField(iname, haxeName, f, v.args, v.ret, false);
+
+			var sign = haxe.Serializer.run(v.ret);
+			var found = false;
+			for (t in retTypes)
+				if (t.sign == sign) {
+					found = true;
+					break;
+				}
+			if (!found)
+				retTypes.push({t: v.ret, sign: sign});
+
+			varFields.push(f);
+		}
+
+		variants.sort(function(v1, v2) return v1.args.length - v2.args.length);
+
+		final isConstr = false;
+
+		// dispatch only on args count
+		function makeCall(v:{args:Array<FArg>, ret:TypeAttr}):Expr {
+			var ident = isConstr ? ((iname + "." + haxeName) + v.args.length).asFieldAccess(p) : ((haxeName) + v.args.length).asFieldAccess(p);
+			var e:Expr = {
+				expr: ECall(ident, [
+					for (i in 0...v.args.length)
+						{expr: ECast({expr: EConst(CIdent(targs[i].name)), pos: p}, null), pos: p}
+				]),
+				pos: p
+			};
+			if (v.ret.t != TVoid)
+				e = {expr: EReturn(e), pos: p};
+			else if (isConstr) {
+				e = macro this = $e;
+			}
+			return e;
+		}
+
+		var expr = makeCall(variants[variants.length - 1]);
+		for (i in 1...variants.length) {
+			var v = variants[variants.length - 1 - i];
+			var aname = targs[v.args.length].name;
+			var call = makeCall(v);
+			expr = macro if ($i{aname} == null) $call else $expr;
+		}
+		
+		var interfaceCT = iname.asComplexType();
+
+		varFields.push({
+			name: haxeName,
+			pos: f.pos.asMacroPos(),
+			access: [APublic, AInline],
+			kind: isConstr ? embeddedFunction(targs, interfaceCT, expr) : externalFunction(targs, makeEither([for (t in retTypes) makeType(t.t, false)]), expr),
+		});
+
+		return varFields;
+	}
+
+	public function makeConstructor(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
+		return addInterfaceMethod(f, iname, haxeName, variants, p);
+	}
+
+	dynamic function error(msg:String, p:haxe.macro.Expr.Position) {
+		#if macro
+		Context.error(msg, p);
+		#else
+		if (p != null)
+			trace('${p}:' + msg);
+		else
+			trace(msg);
+		#end
 	}
 }
