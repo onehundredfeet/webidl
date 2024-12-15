@@ -81,6 +81,9 @@ class HaxeGenerate {
 	public function buildTypes(opts:Options):Array<TypeDefinition> {
 		var declarations = loadIDLDeclarations();
 
+		if (declarations == null) {
+			throw "Failed to load IDL declarations";
+		}
 		for (d in declarations) {
 			seedTypeInfo(d);
 		}
@@ -168,7 +171,7 @@ class HaxeGenerate {
 			case DInterface(iname, attrs, fields):
 				var dfields:Array<Field> = [];
 				var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
-				var interfaceCT = iname.asComplexType();
+				
 				var variants = new Map(); 
 				function getVariants(name:String) : Array<MethodVariant> {
 					if (variants.exists(name))

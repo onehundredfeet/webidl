@@ -242,7 +242,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		//ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
 
 		var fullConstructPath = fullProxyName + ".__construct";
-		var proxyConstructExpr = fullfullProxyNameProxyName.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
+		var proxyConstructExpr = fullConstructPath.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
 		var newWrapper = proxyConstructExpr.asFunctionField("new", [], proxyCT, p);
 
 		var ptrCT = 'cpp.Star<${proxyCT}>'.asComplexType();

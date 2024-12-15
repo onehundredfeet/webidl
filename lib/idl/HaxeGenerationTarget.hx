@@ -389,9 +389,11 @@ abstract class HaxeGenerationTarget {
 			return e;
 		}
 
+		//trace('maxArgs ${maxArgs} iname ${iname} fname ${f.name}');
 		var expr = makeCall(variants[variants.length - 1]);
 		for (i in 1...variants.length) {
 			var v = variants[variants.length - 1 - i];
+			//trace ('${targs} vs v.args.length ${v.args.length}');
 			var aname = targs[v.args.length].name;
 			var call = makeCall(v);
 			expr = macro if ($i{aname} == null) $call else $expr;
