@@ -93,6 +93,7 @@ enum Attrib {
 	ANoDelete;
 	ANoNamespace;
 	AAutoConstructor;
+	AEmbed;
 	AStatic;
 	AInclude( name : String );
 	AVirtual;
