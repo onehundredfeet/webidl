@@ -154,7 +154,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					switch (ti.kind) {
 						case DInterface(name, attrs, _):
 							var ict = name.asComplexType();
-							macro :cpp.Star<$ict>;
+							macro :$ict;
 						default:
 							TPath(ti.path);
 					}
