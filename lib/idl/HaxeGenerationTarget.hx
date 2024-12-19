@@ -41,7 +41,7 @@ abstract class HaxeGenerationTarget {
 
 	public abstract function getTargetCondition():String;
 
-	public abstract function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition>;
+	public abstract function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, isObject : Bool, p:Position):Array<TypeDefinition>;
 
 	function attribsFromField(f:idl.Data.Field):Array<Attrib> {
 		switch(f.kind) {
@@ -204,7 +204,24 @@ abstract class HaxeGenerationTarget {
 		}
 	}
 
-	public function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) {
+	public function makeAbstract(name:String, attrs:Array<Attrib>, type:String, p:haxe.macro.Expr.Position) :Array<TypeDefinition>{
+
+		var abstractDefn:TypeDefinition = {
+			pos: p,
+			pack: _pack,
+			name: makeName(name),
+			meta: [],
+			kind: TDAbstract(type.asComplexType(), []),
+			fields: [],
+		};
+
+		trace('makeAbstract ${name} ${type} ${abstractDefn}');
+
+
+		return [abstractDefn];
+	}
+
+	public function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) : Array<{def: haxe.macro.TypeDefinition, path: haxe.macro.TypePath}> {
 		var index = 0;
 		function cleanEnum(v:String):String {
 			return v.replace(":", "_");
@@ -249,7 +266,7 @@ abstract class HaxeGenerationTarget {
 			name: enumT.name
 		};
 
-		return {def: enumT, path: enumTP};
+		return [{def: enumT, path: enumTP}];
 	}
 
 	function getFieldAccess(isStatic : Bool, isPublic : Bool, isInline = false) :Array<Access> {
@@ -322,6 +339,7 @@ abstract class HaxeGenerationTarget {
 		return [makeNativeField(iname, haxeName, f, args, ret, true)];	
 	}
 	public function addInterfaceMethod(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
+		trace('addInterfaceMethod ${iname} ${haxeName} ${variants} ${p}');
 		var varFields = [];
 		// create dispatching code
 		var maxArgs = 0;

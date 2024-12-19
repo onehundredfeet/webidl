@@ -15,6 +15,7 @@ private enum Token {
 	TAsterisk;
 	TSemicolon;
 	TComma;
+	TQuote;
 	TOp(op:String);
 	TString(str:String);
 }
@@ -66,8 +67,9 @@ class Parser {
 		var attr = attributes();
 		var pmin = this.pos;
 
-		switch (token()) {
-			case TId("interface"):
+		var tok = null;
+		switch (tok = token()) {
+			case TId("object"), TId("namespace"):
 				var name = ident();
 				ensure(TBrOpen);
 				var fields = [];
@@ -79,16 +81,19 @@ class Parser {
 					fields.push(parseField());
 				}
 				ensure(TSemicolon);
-				return {pos: makePos(pmin), kind: DInterface(name, attr, fields)};
+				return {pos: makePos(pmin), kind: DInterface(name, attr, fields, tok.match(TId("object")))};
 			case TId("enum"):
 				var name = ident();
 				ensure(TBrOpen);
 				var values = [];
 				if (!maybe(TBrClose))
 					while (true) {
-						switch (token()) {
-							case TString(str): values.push(str);
-							case var tk: unexpected(tk);
+						if (maybe(TQuote)) {
+							values.push(ident());
+							ensure(TQuote);
+						}
+						else {
+							values.push(ident());
 						}
 						switch (token()) {
 							case TBrClose: break;
@@ -115,6 +120,11 @@ class Parser {
 				}
 				typeDefs[name] = typeStr;
 				return {pos: makePos(pmin), kind: DTypeDef(name, attr, typeStr, strToType(typeStr))};
+			case TId("abstract"):
+				var name = ident();
+				var type = ident();
+				ensure(TSemicolon);
+				return {pos: makePos(pmin), kind: DAbstract(name, attr, type)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;
@@ -444,6 +454,7 @@ class Parser {
 			case TBrOpen: "{";
 			case TBrClose: "}";
 			case TComma: ",";
+			case TQuote: "\"";
 			case TSemicolon: ";";
 			case TOp(op): op;
 			case TString(str): '"' + str + '"';

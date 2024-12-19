@@ -66,7 +66,7 @@ class HaxeGenerate {
 		var tp:TypePath;
 		var t:TypeDefinition;
 		switch (d.kind) {
-			case DInterface(iname, _, _):
+			case DInterface(iname, _, _, _):
 				tp = {pack: pack, name: iname};
 				_typeInfos[iname] = new HaxeGenerationTypeInfo(tp, null, d.kind);
 			case DEnum(name, _, _):
@@ -75,6 +75,10 @@ class HaxeGenerate {
 			case DTypeDef(name, _, _, _):
 				tp = {pack: pack, name: name};
 				_typeInfos[name] = new HaxeGenerationTypeInfo(tp, null, d.kind);
+			case DAbstract(name, _, _):
+				tp = {pack: pack, name: name};
+				_typeInfos[name] = new HaxeGenerationTypeInfo(tp, null, d.kind);
+	
 			default:
 		}
 	}
@@ -168,10 +172,9 @@ class HaxeGenerate {
 		var p = makeMacroPosition(d.pos);
 
 		switch (d.kind) {
-			case DInterface(iname, attrs, fields):
+			case DInterface(iname, attrs, fields, isObject):
 				var dfields:Array<Field> = [];
 				var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
-				
 				var variants = new Map(); 
 				function getVariants(name:String) : Array<MethodVariant> {
 					if (variants.exists(name))
@@ -197,6 +200,12 @@ class HaxeGenerate {
 							if (vars == null)
 								continue;
 					
+							if (!isObject) {
+								if (!ret.attr.contains(AStatic)) {
+									ret.attr.push(AStatic);
+								}
+							}
+
 							var isConstr = f.name == iname || f.name == "new";
 							var fields = null;
 							if (isConstr) {
@@ -232,11 +241,11 @@ class HaxeGenerate {
 					}
 				}
 
-				if (attrs.indexOf(ANoDelete) < 0) {
+				if (isObject && attrs.indexOf(ANoDelete) < 0) {
 					dfields.push(makeNativeField(iname, "delete", {name: "delete", pos: null, kind: null}, [], {t: TVoid, attr: []}, true));
 				}
 
-				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, attrs, pack, dfields, p);
+				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, attrs, pack, dfields, isObject, p);
 				var tp:TypePath = {
 					pack: pack,
 					name: iname
@@ -331,11 +340,17 @@ class HaxeGenerate {
 					warning("Class " + name + " not found for implements " + intf, p);
 			case DEnum(name, attrs, values):
 
-			var enumInfo = _currentTarget.makeEnum(name, attrs, values, p);
-			types.push(enumInfo.def);
+			var tds = _currentTarget.makeEnum(name, attrs, values, p);
+			for (t in tds)
+				types.push(t.def);
+
+			var enumInfo = tds[0];
 			_typeInfos[name] = new HaxeGenerationTypeInfo(enumInfo.path, enumInfo.def, d.kind);
 
 			case DTypeDef(name, attrs, type, dtype):
+			case DAbstract(name, attrs, type):
+				_currentTarget.makeAbstract(name, attrs, type, p);
+				//_typeInfos[name] = new HaxeGenerationTypeInfo(tp, tds[0], d.kind);
 		}
 	}
 

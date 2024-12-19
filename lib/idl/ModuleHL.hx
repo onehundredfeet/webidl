@@ -266,7 +266,7 @@ class ModuleHL extends ModuleBase {
 	function buildDecl( d : Definition ) {
 		var p = makePosition(d.pos);
 		switch( d.kind ) {
-		case DInterface(iname, attrs, fields):
+		case DInterface(iname, attrs, fields, _):
 			var dfields : Array<Field> = [];
 			var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
 
@@ -641,6 +641,7 @@ class ModuleHL extends ModuleBase {
 			typeNames[name] = enumTP;
 			types.push(enumT);
 		case DTypeDef(name, attrs, type, dtype):
+			case DAbstract(name, _, _):
 
 		}
 	}

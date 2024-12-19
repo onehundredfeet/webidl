@@ -20,7 +20,7 @@ class GenerateCPP extends GenerateBase {
             output.add('#include "' + h + '"\n');
         }
         output.add('\n');
-
+        output.add(opts.customCode.getHXCPPInclude());
         var cammelCase = opts.packageName.charAt(0).toUpperCase() + opts.packageName.substr(1);
 
         var path = FileSystem.absolutePath( opts.glueDir + '/${cammelCase}_hxcpp_idl.h');

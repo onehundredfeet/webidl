@@ -461,7 +461,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 		// ignore "JSImplementation" interfaces (?)
 		for (d in decls.copy())
 			switch (d.kind) {
-				case DInterface(_, attrs, _):
+				case DInterface(_, attrs, _, _):
 					for (a in attrs)
 						switch (a) {
 							case AJSImplementation(_):
@@ -474,7 +474,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		for (d in decls) {
 			switch (d.kind) {
-				case DInterface(name, attrs, _):
+				case DInterface(name, attrs, _, _):
 					var prefix = "";
 					var intName = name;
 					var newName = null;
@@ -553,6 +553,8 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					});
 
 				case DImplements(_):
+				case DAbstract(_, _, _):
+					// ignore
 			}
 		}
 
@@ -795,7 +797,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		for (d in decls) {
 			switch (d.kind) {
-				case DInterface(name, attrs, fields):
+				case DInterface(name, attrs, fields, _):
 					var forceCamel = attrs.contains(AForceCamelCase);
 					for (f in fields) {
 						var haxeName = forceCamel ? f.name.substr(0, 1).toLowerCase() + f.name.substr(1) :  f.name;
@@ -1498,7 +1500,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 						}
 					}
 				case DTypeDef(name, attrs, type,dtype):
-				case DEnum(_), DImplements(_):
+				case DEnum(_), DImplements(_), DAbstract(_, _, _):
 			}
 		}
 		add("}"); // extern C

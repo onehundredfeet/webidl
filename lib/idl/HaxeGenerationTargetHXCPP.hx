@@ -10,15 +10,16 @@ import idl.HaxeGenerationTarget;
 
 class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	static final PROXY_NEW_NAME = "alloc";
+
 	function getTargetCondition():String {
 		return "#if cpp";
 	}
 
-	public function makeNativeMeta(iname:String, midfix:String, name:String, argc:Null<Int>, attrs:Array<Attrib>, p:haxe.macro.Expr.Position):Array<MetadataEntry> {
-
+	public function makeNativeMeta(iname:String, midfix:String, name:String, argc:Null<Int>, attrs:Array<Attrib>,
+			p:haxe.macro.Expr.Position):Array<MetadataEntry> {
 		for (a in attrs) {
 			switch (a) {
-				case AInternal(iname): 
+				case AInternal(iname):
 					var nativeMeta:MetadataEntry = {name: ":native", params: [iname.asConstExpr()], pos: p};
 					return [nativeMeta];
 				default:
@@ -152,7 +153,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					// trace('custom type ${id} has ${ti}');
 
 					switch (ti.kind) {
-						case DInterface(name, attrs, _):
+						case DInterface(name, attrs, _, _):
 							var ict = name.asComplexType();
 							macro :$ict;
 						default:
@@ -170,22 +171,16 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	// 		throw "Unsupported number of variants for constructor";
 	// 	}
 	// 	trace('makeConstructor ${iname} ${haxeName} ${variants}');
-	// 	return [makeNativeField(iname, haxeName, f, variants[0].args, variants[0].ret, true)];	
-
+	// 	return [makeNativeField(iname, haxeName, f, variants[0].args, variants[0].ret, true)];
 	// 	//return addSimpleMethod(f, iname, haxeName, variants[0].args, variants[0].ret, p);
-
-
 	// 	// var name = fname;
 	// 	// var isConstr = name == iname || fname == "new";
 	// 	// if (isConstr) {
 	// 	// 	name = "new";
 	// 	// 	ret = {t: TCustom(iname), attr: []};
 	// 	// }
-
 	// 	// var expr = if (ret.t == TVoid) {expr: EBlock([]), pos: pos}; else {expr: EReturn(defVal(ret)), pos: pos};
-
 	// 	// var access:Array<Access> = getFieldAccess(isConstr || ret.attr.contains(AStatic), pub);
-
 	// 	// var fnargs = [
 	// 	// 	for (a in args) {
 	// 	// 		// This pattern is brutallly bad There must be a cleaner way to do this
@@ -204,7 +199,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	// 	// 		{name: a.name, opt: a.opt, type: makeType(a.t, false)}
 	// 	// 	}
 	// 	// ];
-
 	// 	// var x = {
 	// 	// 	pos: pos,
 	// 	// 	name: pub ? name : name + args.length,
@@ -212,13 +206,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	// 	// 	access: access,
 	// 	// 	kind: external ? externalFunction(fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
 	// 	// };
-
-
 	// 	// return [x];
 	// }
-
-			// dispatch only on args count
-	function makeSimpleCall(self: Bool, iname:String, haxeName : String, args:Array<FArg>, ret:TypeAttr, p):Expr {
+	// dispatch only on args count
+	function makeSimpleCall(self:Bool, iname:String, haxeName:String, args:Array<FArg>, ret:TypeAttr, p):Expr {
 		var ident = (haxeName).asFieldAccess(p);
 
 		var typical_args = [
@@ -236,13 +227,15 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return e;
 	}
 
-	public override function addSimpleMethod(f, iname, haxeName, args, ret : TypeAttr, p) : Array<haxe.macro.Field>{
+	public override function addSimpleMethod(f, iname, haxeName, args, ret:TypeAttr, p):Array<haxe.macro.Field> {
 		var isCStyleCall = false;
 		var isStatic = false;
 		for (a in ret.attr) {
-			switch(a) {
-				case AStatic: isStatic = true;
-				case ACObject: isCStyleCall = true;
+			switch (a) {
+				case AStatic:
+					isStatic = true;
+				case ACObject:
+					isCStyleCall = true;
 				default:
 			}
 		}
@@ -251,8 +244,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		}
 
 		var redirectName = '_r_' + haxeName;
-		//var redirectField = makeNativeField(iname, redirectName, f, args, ret, true);
-		
+		// var redirectField = makeNativeField(iname, redirectName, f, args, ret, true);
+
 		var name = haxeName;
 		var isConstr = name == iname || haxeName == "new";
 		if (isConstr) {
@@ -263,8 +256,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			ret = {t: TCustom(iname), attr: []};
 		}
 
-
-		var typical_args : Array<FunctionArg> = [
+		var typical_args:Array<FunctionArg> = [
 			for (a in args) {
 				// This pattern is brutallly bad There must be a cleaner way to do this
 				var sub = false;
@@ -283,7 +275,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			}
 		];
 
-		var redirect_args : Array<FunctionArg> = [{name: "This", type: makeType({ t : TCustom(iname), attr: [] }, false)}].concat(typical_args);
+		var redirect_args:Array<FunctionArg> = [{name: "This", type: makeType({t: TCustom(iname), attr: []}, false)}].concat(typical_args);
 
 		var blank_expr = if (ret.t == TVoid) {expr: EBlock([]), pos: p}; else {expr: EReturn(defVal(ret)), pos: p};
 
@@ -294,7 +286,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			access: getFieldAccess(true, false),
 			kind: externalFunction(redirect_args, makeType(ret, true), blank_expr),
 		};
-
 
 		var external = true;
 
@@ -307,17 +298,17 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		};
 
 		return [redirect_field, x];
-		
 	}
 
-	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
+	public function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, isObject : Bool, p:Position):Array<TypeDefinition> {
 		var abstractNewField:Field = null;
 		var staticNew:Field = null;
 		var staticDelete:Field = null;
+		var statics : Array<Field> = [];
 		var intName = iname;
 		var nativeName = makeName(intName);
 		var haxeName = makeName(iname);
-		var proxyName = haxeName + "Native";
+		var proxyName = isObject ? haxeName + "Native" : haxeName;
 		var fullProxyName = pack.join(".") + "." + proxyName;
 
 		var proxyCT = fullProxyName.asComplexType();
@@ -329,26 +320,37 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		for (a in attrs)
 			switch (a) {
 				// case APrefix(name): prefix = name;
-				case AInternal(iname): intName = iname;
+				case AInternal(iname):
+					intName = iname;
 				// case ANew(name): newName = name;
 				// case ADelete(name): deleteName = name;
 				// case ADestruct(expression): destructExpr = expression;
 				default:
 			}
 
-		
-
-
 		for (df in dfields) {
 			if (df.name == "new") {
 				abstractNewField = df;
 			} else if (df.name.startsWith("new")) {
 				staticNew = df;
+			} else if (df.access.contains(AStatic) && df.access.contains(APublic)) {
+				statics.push(df);
 			}
 		}
 		if (abstractNewField != null) {
 			dfields.remove(abstractNewField);
 		}
+		if (isObject) {
+			for (s in statics) {
+				dfields.remove(s);
+				// switch(s.kind) {
+				// 	case FFun(f):
+				// 		f.expr = macro return null;
+				// 	default:
+				// }
+			}
+		}
+
 		if (staticNew != null) {
 			dfields.remove(staticNew);
 			staticNew.name = staticNew.name = PROXY_NEW_NAME;
@@ -409,10 +411,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
 		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);
 
-		
-
-
-
 		var classNativeDefn = {
 			pos: p,
 			pack: pack,
@@ -429,38 +427,42 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			fields: dfields,
 		}
 
-		//ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
+		// ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
 
 		var fullConstructPath = fullProxyName + "." + PROXY_NEW_NAME;
 		var proxyConstructExpr = fullConstructPath.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
 		var newWrapper = (macro this = $proxyConstructExpr).asPublicFunctionField("alloc", [], fullPtrCT, p);
-		
 
-		var ptrDefn = {
-			pos: p,
-			pack: pack,
-			name: shortPtrName,
-			meta: [
-				{name: ":forward", pos: p}, 
-				{name: ":forwardStatics", pos: p},
-				//{name: ":unreflective", params: null, pos: p}		
-			],
-			isExtern: false,
-			kind: TDAbstract(ptrCT, [], [ptrCT], [ptrCT]),
-			fields: staticNew != null ? [staticNew, staticDelete] : [] // abstractNewField != null ? [ newWrapper] : [],
-		};
+		var ptrFields = statics.concat(staticNew != null ? [staticNew, staticDelete] : []);
 
-		var abstractDefn = {
-			pos: p,
-			pack: pack,
-			name: haxeName,
-			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
-			isExtern: false,
-			kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
-			fields: [] //abstractNewField != null ? [newWrapper] : [],
-		};
+		if (isObject) {
+			var ptrDefn = {
+				pos: p,
+				pack: pack,
+				name: shortPtrName,
+				meta: [
+					{name: ":forward", pos: p},
+					{name: ":forwardStatics", pos: p},
+					// {name: ":unreflective", params: null, pos: p}
+				],
+				isExtern: false,
+				kind: TDAbstract(ptrCT, [], [ptrCT], [ptrCT]),
+				fields: ptrFields // abstractNewField != null ? [ newWrapper] : [],
+			};
 
-		return [classNativeDefn, ptrDefn]; // abstractDefn
+			var abstractDefn = {
+				pos: p,
+				pack: pack,
+				name: haxeName,
+				meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
+				isExtern: false,
+				kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
+				fields: [] // abstractNewField != null ? [newWrapper] : [],
+			};
+
+			return [classNativeDefn, ptrDefn]; // abstractDefn
+		}
+		return [classNativeDefn];
 	}
 
 	// // By extending RGB we keep the same API as far as haxe is concerned, but store the data (not pointer)
@@ -501,7 +503,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return attribFields;
 	}
 
-	public override function makeEnum( name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) {
+	public override function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>,
+			p:haxe.macro.Expr.Position):Array<{def:haxe.macro.TypeDefinition, path:haxe.macro.TypePath}> {
 		var index = 0;
 		function cleanEnum(v:String):String {
 			return v.replace(":", "_");
@@ -524,9 +527,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				{
 					pos: p,
 					name: fieldName,
-					kind: FVar(null, {expr: EConst(CInt("" + (index++))), pos: p}),
+					kind: FVar(null), // {expr: EConst(CInt("" + (index++))), pos: p}
 					meta: [{name: ":native", params: [cppEnumName.asConstExpr()], pos: p}],
-					access: [APublic, AStatic, AFinal, AInline, AExtern]
+					//access: [APublic, AStatic, AFinal, AInline, AExtern]
+					access: []
 				}
 			}
 		];
@@ -560,21 +564,49 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		// var toValue = makeNativeFieldRaw(name, "toValue", p, [], ta, true);
 		// cfields.push(toValue);
 
+		var implName = makeName(name) + "Impl";
+		var implT:TypeDefinition = {
+			pos: p,
+			pack: _pack,
+			name: implName,
+			meta: [
+				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
+				{name: ":unreflective", params: null, pos: p},
+			],
+			kind: TDClass(),
+			isExtern: true,
+			fields: [],
+		};
+
 		var enumT:TypeDefinition = {
 			pos: p,
 			pack: _pack,
 			name: makeName(name),
-			meta: [],
-			kind: TDAbstract(macro :Int, []),
+			meta: [
+				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
+				{name: ":unreflective", params: null, pos: p}],
+			kind: TDAbstract(macro :Int, [AbEnum]), //implName.asComplexType()
+			isExtern: true,
 			fields: cfields,
 		};
 
-		var enumTP:TypePath = {
-			pack: _pack,
-			name: enumT.name
-		};
 
-		return {def: enumT, path: enumTP};
+		/*
+			@:unreflective
+			@:native("Fire_Handle_Mesh")
+			extern class FireMeshHandleImpl { 
+
+			}
+			@:unreflective
+			extern enum abstract FireMeshHandle(FireMeshHandleImpl) {
+
+			}
+		 */
+
+		return [
+			{def: enumT, path: {pack: _pack, name: enumT.name}},
+//			{def: implT, path: {pack: _pack, name: implT.name}}
+		];
 	}
 } // @:functionCode - Used to inject platform-native code into a function.
 // @:functionTailCode

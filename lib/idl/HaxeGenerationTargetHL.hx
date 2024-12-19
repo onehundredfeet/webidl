@@ -142,7 +142,7 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 		}
 	}
 
-	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>,pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
+	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>,pack:Array<String>, dfields:Array<Field>,  isObject : Bool, p:Position):Array<TypeDefinition> {
 		return [{
 			pos: p,
 			pack: pack,

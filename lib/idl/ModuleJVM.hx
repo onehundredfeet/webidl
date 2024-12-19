@@ -265,7 +265,7 @@ class ModuleJVM extends ModuleBase {
 	function buildDecl( d : Definition ) {
 		var p = makePosition(d.pos);
 		switch( d.kind ) {
-		case DInterface(iname, attrs, fields):
+		case DInterface(iname, attrs, fields, _):
 			var dfields : Array<Field> = [];
 
 //			[{ name : "index", opt : false, t : { t : TInt, attr : [] } }]
@@ -653,6 +653,7 @@ class ModuleJVM extends ModuleBase {
 			typeNames[name] = enumTP;
 			types.push(enumT);
 		case DTypeDef(name, attrs, type, dtype):
+			case DAbstract(name, _, _):
 
 		}
 	}

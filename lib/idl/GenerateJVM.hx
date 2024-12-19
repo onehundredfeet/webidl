@@ -508,7 +508,7 @@ class HNativeBuffer {
 		// ignore "JSImplementation" interfaces (?)
 		for (d in decls.copy())
 			switch (d.kind) {
-				case DInterface(_, attrs, _):
+				case DInterface(_, attrs, _, _):
 					for (a in attrs)
 						switch (a) {
 							case AJSImplementation(_):
@@ -521,7 +521,7 @@ class HNativeBuffer {
 
 		for (d in decls) {
 			switch (d.kind) {
-				case DInterface(name, attrs, _):
+				case DInterface(name, attrs, _, _):
 					var prefix = "";
 					var intName = name;
 					var newName = null;
@@ -608,6 +608,7 @@ class HNativeBuffer {
 				//					add('DEFINE_PRIM(_I32, ${name}_fromIndex1, _I32);');
 				case DTypeDef(name, attrs, type, dtype):
 				case DImplements(_):
+					case DAbstract(_, _, _):
 			}
 		}
 
@@ -840,7 +841,7 @@ class HNativeBuffer {
 
 		for (d in decls) {
 			switch (d.kind) {
-				case DInterface(name, attrs, fields):
+				case DInterface(name, attrs, fields, _):
 					var intName = name;
 
 					for (a in attrs)
@@ -1605,6 +1606,7 @@ class HNativeBuffer {
 					}
 				case DTypeDef(name, attrs, type, dtype):
 				case DEnum(_), DImplements(_):
+					case DAbstract(_, _, _):
 			}
 		}
 		add("}"); // extern C
