@@ -9,7 +9,7 @@ using idl.macros.MacroTools;
 import idl.HaxeGenerationTarget;
 
 class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
-	static final PROXY_NEW_NAME = "__idl_construct";
+	static final PROXY_NEW_NAME = "alloc";
 	function getTargetCondition():String {
 		return "#if cpp";
 	}
@@ -313,6 +313,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
 		var abstractNewField:Field = null;
 		var staticNew:Field = null;
+		var staticDelete:Field = null;
 		var intName = iname;
 		var nativeName = makeName(intName);
 		var haxeName = makeName(iname);
@@ -349,7 +350,9 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			dfields.remove(abstractNewField);
 		}
 		if (staticNew != null) {
+			dfields.remove(staticNew);
 			staticNew.name = staticNew.name = PROXY_NEW_NAME;
+			staticNew.access = [APublic, AStatic];
 			var newMeta:MetadataEntry = {name: ":native", params: ['new ${intName}'.asConstExpr()], pos: p};
 			if (staticNew.meta == null) {
 				staticNew.meta = [newMeta];
@@ -360,9 +363,18 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				case FFun(f):
 					var classNameExpr = iname.asComplexType();
 					f.ret = fullPtrCT;
+					f.expr = macro return null;
 				default:
 					throw "Unsupported kind for new field";
 			}
+
+			staticDelete = {
+				pos: p,
+				name: "free",
+				meta: [{name: ":native", params: ['delete '.asConstExpr()], pos: p}],
+				access: [APublic],
+				kind: FFun({args: [], ret: macro :Void, expr: macro {}}),
+			};
 		}
 		// var e : MetadataEntry;
 
@@ -408,6 +420,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			meta: [
 				{name: ":native", params: [intName.asConstExpr()], pos: p},
 				{name: ":structAccess", params: null, pos: p},
+				{name: ":unreflective", params: null, pos: p},
 				{name: ":build", params: [macroBuildExpr], pos: p},
 				// {name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
 			],
@@ -420,17 +433,21 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
 		var fullConstructPath = fullProxyName + "." + PROXY_NEW_NAME;
 		var proxyConstructExpr = fullConstructPath.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
-		var newWrapper = (macro this = $proxyConstructExpr).asPublicFunctionField("new", [], fullPtrCT, p);
+		var newWrapper = (macro this = $proxyConstructExpr).asPublicFunctionField("alloc", [], fullPtrCT, p);
 		
 
 		var ptrDefn = {
 			pos: p,
 			pack: pack,
 			name: shortPtrName,
-			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
+			meta: [
+				{name: ":forward", pos: p}, 
+				{name: ":forwardStatics", pos: p},
+				//{name: ":unreflective", params: null, pos: p}		
+			],
 			isExtern: false,
 			kind: TDAbstract(ptrCT, [], [ptrCT], [ptrCT]),
-			fields:  abstractNewField != null ? [ newWrapper] : [],
+			fields: staticNew != null ? [staticNew, staticDelete] : [] // abstractNewField != null ? [ newWrapper] : [],
 		};
 
 		var abstractDefn = {
@@ -440,7 +457,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
 			isExtern: false,
 			kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
-			fields: abstractNewField != null ? [newWrapper] : [],
+			fields: [] //abstractNewField != null ? [newWrapper] : [],
 		};
 
 		return [classNativeDefn, ptrDefn]; // abstractDefn
