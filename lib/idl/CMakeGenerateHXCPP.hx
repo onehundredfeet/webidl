@@ -285,6 +285,16 @@ class CMakeGenerateHXCPP {
 		return path;
 	}
 
+	static function saveIfDifferent( path : String, content : String ) {
+		if (FileSystem.exists(path)) {
+			var oldContent = File.getContent(path);
+			if (oldContent == content) {
+				trace('Skipping ${path} - no change');
+				return;
+			}
+		}
+		File.saveContent(path, content);
+	}
 	static function getFlatXML(path:String, included:Array<String>):Array<Xml> {
         var rpath = resolvePath(path);
 		
@@ -402,7 +412,7 @@ class CMakeGenerateHXCPP {
 		trace('Building CMakeLists.txt in ${_relBuildDir} from ${_launchDir}');
 
 		for (i in includeDirs) {
-			trace('Include dir: ${i}');
+			trace('Include dir: ${ sys.FileSystem.absolutePath(i)}');
 		}
 		_builder = new StringBuf();
 
@@ -444,7 +454,9 @@ class CMakeGenerateHXCPP {
 		var includes = [];
 		var haxeTargetXML = getFlatXML('${_hxCppDir}/toolchain/haxe-target.xml', includes);
 		var commonDefines = getFlatXML('${_hxCppDir}/toolchain/common-defines.xml', includes);
-		var buildXML = getFlatXML('${_relBuildDir}/Build.xml', includes);
+		var generatedBuildXMLPath = '${_relBuildDir}/Build.xml';
+
+		var buildXML = getFlatXML(generatedBuildXMLPath, includes);
 
 		var allElements = haxeTargetXML.concat(buildXML).concat(commonDefines);
 
@@ -503,7 +515,12 @@ class CMakeGenerateHXCPP {
         var miscCompilerFlags = [];
         var cppWarnings = [];
         var cppDefines = [];
+		var linkLibs = [];
+		var findLibs = [];
 
+		for (dir in includeDirs) {
+			cppIncludeDirs.push(sys.FileSystem.absolutePath(dir));
+		}
 		// mac
 
 		cppWarnings.push('no-parentheses');
@@ -529,6 +546,8 @@ class CMakeGenerateHXCPP {
 			} else if (value.startsWith('-D')) {
 				value = value.substring(2);
 				if (!cppDefines.contains(value)) cppDefines.push(value);
+			} else if (value.startsWith('-l')) {
+				linkLibs.push(value.substring(2));
 			} else {
 				miscCompilerFlags.push(value);
 			}
@@ -536,11 +555,18 @@ class CMakeGenerateHXCPP {
 
 		function addFlags(elements:Iterator<Xml>) {
 			for (cf in elements) {
-				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') continue;
 				if (!NodeCriteria.matchNode(cf)) {
 					trace('Skipping flag: ${cf.get('value')}');
 					continue;
 				}
+
+				if (cf.nodeName =='findlib') {
+					trace('Adding findlib: ${cf.get('value')} at ${cf.get('dir')}');
+					findLibs.push({name:cf.get('value'), dir:cf.get('dir'), link:cf.get('link') == 'true'});
+					continue;
+				} 			
+				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') continue;
+				
 				trace('Adding flag: ${cf.get('value')}');
 				addFlag(cf);
 			}
@@ -615,13 +641,36 @@ class CMakeGenerateHXCPP {
 
         addLine(')');
 
+		if (findLibs.length > 0) {
+			addLine('');
+			for (fl in findLibs) {
+				var rdir = resolvePath(fl.dir);
+				if (rdir == null) {
+					trace('Cannot resolve dir: ${fl.dir}');
+					continue;
+				}
+				var adir = FileSystem.absolutePath(rdir);
+				addLine('set (${fl.name}_DIR ${adir})');
+				addLine('find_package(${fl.name} REQUIRED)');
+			}
+			addLine('');
+
+			addLine('target_link_libraries(${outputName}');
+			for (fl in findLibs) {
+				if (fl.link) addLine('\t${fl.name}::${fl.name}');
+			}
+			addLine(')');
+		}
+
         addLine('target_include_directories(${outputName} PRIVATE');
 
 		cppIncludeDirs.push(resolvePath("${BUILD_DIR}/include"));
         for (d in cppIncludeDirs) {
 			var rd = resolvePath(d);
 			if (FileSystem.exists(rd)) {
-            	addLine('\t${rd}');
+				var absDir = FileSystem.absolutePath(rd);
+				trace ('Adding include dir: ${absDir}');
+            	addLine('\t${absDir}');
 			} else {
 				trace('Include dir not found: ${rd}');
 			}
@@ -643,7 +692,7 @@ class CMakeGenerateHXCPP {
 		}
 		addLine(')');
 
-		File.saveContent('${_relBuildDir}/CMakeLists.txt', _builder.toString());
+		saveIfDifferent('${_relBuildDir}/CMakeLists.txt', _builder.toString());
 	}
 }
 

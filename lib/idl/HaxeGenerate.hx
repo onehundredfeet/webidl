@@ -203,8 +203,9 @@ class HaxeGenerate {
 								fields = _currentTarget.makeConstructor(f, iname, haxeName, vars, p);
 							}
 							else if (vars.length == 1) {
-								fields = [_currentTarget.makeNativeField(iname, haxeName, f, vars[0].args, vars[0].ret, true)];	
+								fields = _currentTarget.addSimpleMethod(f, iname, haxeName, vars[0].args, vars[0].ret, p);
 							}else {
+								trace("Multiple variants for " + f.name + 'but is constr ${isConstr}');
 								fields = _currentTarget.addInterfaceMethod(f, iname, haxeName,vars, p);
 							}
 
@@ -235,7 +236,7 @@ class HaxeGenerate {
 					dfields.push(makeNativeField(iname, "delete", {name: "delete", pos: null, kind: null}, [], {t: TVoid, attr: []}, true));
 				}
 
-				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, pack, dfields, p);
+				var tds = _currentTarget.getInterfaceTypeDefinitions(iname, attrs, pack, dfields, p);
 				var tp:TypePath = {
 					pack: pack,
 					name: iname

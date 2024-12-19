@@ -40,7 +40,7 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 	}
 
 
-	function makeNative(iname : String, midfix : String, name : String, argc : Null<Int>, p:haxe.macro.Expr.Position):Array<MetadataEntry> {
+	function makeNativeMeta(iname : String, midfix : String, name : String, argc : Null<Int>, attrs:Array<Attrib>, p:haxe.macro.Expr.Position):Array<MetadataEntry> {
 		if (midfix == null) midfix = "_";
 		var nativeName = iname + midfix + name + (name == "delete" || argc == null ? "" : "" + argc);
 
@@ -142,7 +142,7 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 		}
 	}
 
-	public function getInterfaceTypeDefinitions(iname:String, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
+	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>,pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
 		return [{
 			pos: p,
 			pack: pack,

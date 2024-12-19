@@ -9,11 +9,21 @@ using idl.macros.MacroTools;
 import idl.HaxeGenerationTarget;
 
 class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
+	static final PROXY_NEW_NAME = "__idl_construct";
 	function getTargetCondition():String {
 		return "#if cpp";
 	}
 
-	public function makeNative(iname:String, midfix:String, name:String, argc:Null<Int>, p:haxe.macro.Expr.Position):Array<MetadataEntry> {
+	public function makeNativeMeta(iname:String, midfix:String, name:String, argc:Null<Int>, attrs:Array<Attrib>, p:haxe.macro.Expr.Position):Array<MetadataEntry> {
+
+		for (a in attrs) {
+			switch (a) {
+				case AInternal(iname): 
+					var nativeMeta:MetadataEntry = {name: ":native", params: [iname.asConstExpr()], pos: p};
+					return [nativeMeta];
+				default:
+			}
+		}
 		return null;
 	}
 
@@ -155,9 +165,179 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		}
 	}
 
-	public function getInterfaceTypeDefinitions(iname:String, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
+	// public override function makeConstructor(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
+	// 	if (variants.length != 1) {
+	// 		throw "Unsupported number of variants for constructor";
+	// 	}
+	// 	trace('makeConstructor ${iname} ${haxeName} ${variants}');
+	// 	return [makeNativeField(iname, haxeName, f, variants[0].args, variants[0].ret, true)];	
+
+	// 	//return addSimpleMethod(f, iname, haxeName, variants[0].args, variants[0].ret, p);
+
+
+	// 	// var name = fname;
+	// 	// var isConstr = name == iname || fname == "new";
+	// 	// if (isConstr) {
+	// 	// 	name = "new";
+	// 	// 	ret = {t: TCustom(iname), attr: []};
+	// 	// }
+
+	// 	// var expr = if (ret.t == TVoid) {expr: EBlock([]), pos: pos}; else {expr: EReturn(defVal(ret)), pos: pos};
+
+	// 	// var access:Array<Access> = getFieldAccess(isConstr || ret.attr.contains(AStatic), pub);
+
+	// 	// var fnargs = [
+	// 	// 	for (a in args) {
+	// 	// 		// This pattern is brutallly bad There must be a cleaner way to do this
+	// 	// 		var sub = false;
+	// 	// 		for (aattr in a.t.attr) {
+	// 	// 			switch (aattr) {
+	// 	// 				case ASubstitute(_):
+	// 	// 					sub = true;
+	// 	// 					break;
+	// 	// 				default:
+	// 	// 			}
+	// 	// 		}
+	// 	// 		if (a.t.attr.contains(AReturn) || sub) {
+	// 	// 			continue;
+	// 	// 		}
+	// 	// 		{name: a.name, opt: a.opt, type: makeType(a.t, false)}
+	// 	// 	}
+	// 	// ];
+
+	// 	// var x = {
+	// 	// 	pos: pos,
+	// 	// 	name: pub ? name : name + args.length,
+	// 	// 	meta: makeNativeMeta(iname, null, name, args.length, ret.attr, pos),
+	// 	// 	access: access,
+	// 	// 	kind: external ? externalFunction(fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
+	// 	// };
+
+
+	// 	// return [x];
+	// }
+
+			// dispatch only on args count
+	function makeSimpleCall(self: Bool, iname:String, haxeName : String, args:Array<FArg>, ret:TypeAttr, p):Expr {
+		var ident = (haxeName).asFieldAccess(p);
+
+		var typical_args = [
+			for (i in 0...args.length)
+				{expr: ECast({expr: EConst(CIdent(args[i].name)), pos: p}, null), pos: p}
+		];
+
+		var e:Expr = {
+			expr: ECall(ident, (self ? [{expr: EConst(CIdent("this")), pos: p}] : []).concat(typical_args)),
+			pos: p
+		};
+		if (ret.t != TVoid)
+			e = {expr: EReturn(e), pos: p};
+
+		return e;
+	}
+
+	public override function addSimpleMethod(f, iname, haxeName, args, ret : TypeAttr, p) : Array<haxe.macro.Field>{
+		var isCStyleCall = false;
+		var isStatic = false;
+		for (a in ret.attr) {
+			switch(a) {
+				case AStatic: isStatic = true;
+				case ACObject: isCStyleCall = true;
+				default:
+			}
+		}
+		if (!isCStyleCall) {
+			return [makeNativeField(iname, haxeName, f, args, ret, true)];
+		}
+
+		var redirectName = '_r_' + haxeName;
+		//var redirectField = makeNativeField(iname, redirectName, f, args, ret, true);
+		
+		var name = haxeName;
+		var isConstr = name == iname || haxeName == "new";
+		if (isConstr) {
+			throw "Unsupported C-style constructor";
+		}
+		if (isConstr) {
+			name = "new";
+			ret = {t: TCustom(iname), attr: []};
+		}
+
+
+		var typical_args : Array<FunctionArg> = [
+			for (a in args) {
+				// This pattern is brutallly bad There must be a cleaner way to do this
+				var sub = false;
+				for (aattr in a.t.attr) {
+					switch (aattr) {
+						case ASubstitute(_):
+							sub = true;
+							break;
+						default:
+					}
+				}
+				if (a.t.attr.contains(AReturn) || sub) {
+					continue;
+				}
+				{name: a.name, opt: a.opt, type: makeType(a.t, false)}
+			}
+		];
+
+		var redirect_args : Array<FunctionArg> = [{name: "This", type: makeType({ t : TCustom(iname), attr: [] }, false)}].concat(typical_args);
+
+		var blank_expr = if (ret.t == TVoid) {expr: EBlock([]), pos: p}; else {expr: EReturn(defVal(ret)), pos: p};
+
+		var redirect_field = {
+			pos: p,
+			name: redirectName,
+			meta: makeNativeMeta(iname, null, name, args.length, ret.attr, p),
+			access: getFieldAccess(true, false),
+			kind: externalFunction(redirect_args, makeType(ret, true), blank_expr),
+		};
+
+
+		var external = true;
+
+		var x = {
+			pos: p,
+			name: name,
+			meta: null,
+			access: getFieldAccess(isConstr || isStatic, true, true),
+			kind: embeddedFunction(typical_args, makeType(ret, true), makeSimpleCall(true, iname, redirectName, args, ret, p)),
+		};
+
+		return [redirect_field, x];
+		
+	}
+
+	public function getInterfaceTypeDefinitions(iname:String,  attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition> {
 		var abstractNewField:Field = null;
 		var staticNew:Field = null;
+		var intName = iname;
+		var nativeName = makeName(intName);
+		var haxeName = makeName(iname);
+		var proxyName = haxeName + "Native";
+		var fullProxyName = pack.join(".") + "." + proxyName;
+
+		var proxyCT = fullProxyName.asComplexType();
+		var ptrCT = 'cpp.Star'.asComplexType([TPType(proxyCT)]);
+		var shortPtrName = haxeName; // + "Ptr";
+		var fullPtrName = pack.join(".") + "." + shortPtrName;
+		var fullPtrCT = fullPtrName.asComplexType();
+
+		for (a in attrs)
+			switch (a) {
+				// case APrefix(name): prefix = name;
+				case AInternal(iname): intName = iname;
+				// case ANew(name): newName = name;
+				// case ADelete(name): deleteName = name;
+				// case ADestruct(expression): destructExpr = expression;
+				default:
+			}
+
+		
+
+
 		for (df in dfields) {
 			if (df.name == "new") {
 				abstractNewField = df;
@@ -169,8 +349,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			dfields.remove(abstractNewField);
 		}
 		if (staticNew != null) {
-			staticNew.name = staticNew.name = "__construct";
-			var newMeta:MetadataEntry = {name: ":native", params: ['new ${iname}'.asConstExpr()], pos: p};
+			staticNew.name = staticNew.name = PROXY_NEW_NAME;
+			var newMeta:MetadataEntry = {name: ":native", params: ['new ${intName}'.asConstExpr()], pos: p};
 			if (staticNew.meta == null) {
 				staticNew.meta = [newMeta];
 			} else {
@@ -179,7 +359,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			switch (staticNew.kind) {
 				case FFun(f):
 					var classNameExpr = iname.asComplexType();
-					f.ret = macro :cpp.Star<$classNameExpr>;
+					f.ret = fullPtrCT;
 				default:
 					throw "Unsupported kind for new field";
 			}
@@ -217,19 +397,16 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
 		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);
 
-		var nativeName = makeName(iname);
+		
 
-		var proxyName = nativeName + "Native";
-		var fullProxyName = pack.join(".") + "." + proxyName;
 
-		var proxyCT = fullProxyName.asComplexType();
 
 		var classNativeDefn = {
 			pos: p,
 			pack: pack,
 			name: proxyName,
 			meta: [
-				{name: ":native", params: [nativeName.asConstExpr()], pos: p},
+				{name: ":native", params: [intName.asConstExpr()], pos: p},
 				{name: ":structAccess", params: null, pos: p},
 				{name: ":build", params: [macroBuildExpr], pos: p},
 				// {name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
@@ -241,33 +418,32 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
 		//ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
 
-		var fullConstructPath = fullProxyName + ".__construct";
+		var fullConstructPath = fullProxyName + "." + PROXY_NEW_NAME;
 		var proxyConstructExpr = fullConstructPath.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
-		var newWrapper = proxyConstructExpr.asFunctionField("new", [], proxyCT, p);
-
-		var ptrCT = 'cpp.Star<${proxyCT}>'.asComplexType();
+		var newWrapper = (macro this = $proxyConstructExpr).asPublicFunctionField("new", [], fullPtrCT, p);
+		
 
 		var ptrDefn = {
 			pos: p,
 			pack: pack,
-			name: nativeName + "Ptr",
+			name: shortPtrName,
 			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
 			isExtern: false,
 			kind: TDAbstract(ptrCT, [], [ptrCT], [ptrCT]),
-			fields: [],
+			fields:  abstractNewField != null ? [ newWrapper] : [],
 		};
 
 		var abstractDefn = {
 			pos: p,
 			pack: pack,
-			name: nativeName,
+			name: haxeName,
 			meta: [{name: ":forward", pos: p}, {name: ":forwardStatics", pos: p}],
 			isExtern: false,
 			kind: TDAbstract(proxyCT, [], [proxyCT], [proxyCT]),
 			fields: abstractNewField != null ? [newWrapper] : [],
 		};
 
-		return [classNativeDefn, abstractDefn];
+		return [classNativeDefn, ptrDefn]; // abstractDefn
 	}
 
 	// // By extending RGB we keep the same API as far as haxe is concerned, but store the data (not pointer)
@@ -308,7 +484,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return attribFields;
 	}
 
-	public override function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) {
+	public override function makeEnum( name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) {
 		var index = 0;
 		function cleanEnum(v:String):String {
 			return v.replace(":", "_");

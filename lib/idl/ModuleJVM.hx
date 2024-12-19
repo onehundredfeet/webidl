@@ -158,7 +158,7 @@ class ModuleJVM extends ModuleBase {
 		}
 	}
 
-	function makeNative() : MetadataEntry {
+	function makeNativeMeta() : MetadataEntry {
 		return { name : ":java.native", params : [], pos : p };
 	}
 
@@ -209,7 +209,7 @@ class ModuleJVM extends ModuleBase {
 		 {
 			pos : pos,
 			name : pub ? name : name /*+ args.length*/,
-			meta : isConstr ? [] : [makeNative()],
+			meta : isConstr ? [] : [makeNativeMeta()],
 			access : access,
 			kind : FFun({
 				ret : makeType(ret, true),
@@ -397,7 +397,7 @@ class ModuleJVM extends ModuleBase {
 							name : isConstr ? "new" : f.name,
 							pos : makePosition(f.pos),
 							access : [APublic],
-							meta : [makeNative()],
+							meta : [makeNativeMeta()],
 							kind : FFun({
 								expr : expr,
 								args : targs,
@@ -420,7 +420,7 @@ class ModuleJVM extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "get" + f.name,
-								meta : [makeNative()],
+								meta : [makeNativeMeta()],
 								kind : FFun({
 									ret : cetr,
 									expr : null, //macro return ${defVal(et)},
@@ -431,7 +431,7 @@ class ModuleJVM extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "set" + f.name,
-								meta : [makeNative()],
+								meta : [makeNativeMeta()],
 								kind : FFun({
 									ret : cetr,
 									expr : null, // macro return ${defVal(et)},
@@ -453,7 +453,7 @@ class ModuleJVM extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "get_" + f.name,
-								meta : [makeNative()],
+								meta : [makeNativeMeta()],
 								kind : FFun({
 									ret : makeType(t, true),
 									expr : null, // macro return ${defVal(t)},
@@ -463,7 +463,7 @@ class ModuleJVM extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "set_" + f.name,
-								meta : [makeNative()],
+								meta : [makeNativeMeta()],
 								kind : FFun({
 									ret : tt,
 									expr : null, // macro return ${defVal(t)},
@@ -484,7 +484,7 @@ class ModuleJVM extends ModuleBase {
 								dfields.push({
 									pos : p,
 									name : "set" + f.name + vdim,
-									meta : [makeNative()],
+									meta : [makeNativeMeta()],
 									access : [APublic],
 									kind : FFun({
 										ret : macro : Void,

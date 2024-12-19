@@ -165,7 +165,7 @@ class ModuleHL extends ModuleBase {
 		}
 	}
 
-	function makeNative( name : String ) : MetadataEntry {
+	function makeNativeMeta( name : String ) : MetadataEntry {
 		return { name : ":hlNative", params : [{ expr : EConst(CString(opts.nativeLib)), pos : p },{ expr : EConst(CString(name)), pos : p }], pos : p };
 	}
 
@@ -210,7 +210,7 @@ class ModuleHL extends ModuleBase {
 		 {
 			pos : pos,
 			name : pub ? name : name + args.length,
-			meta : [makeNative(iname+"_" + name + (name == "delete" ? "" : ""+args.length))],
+			meta : [makeNativeMeta(iname+"_" + name + (name == "delete" ? "" : ""+args.length))],
 			access : access,
 			kind : FFun({
 				ret : makeType(ret, true),
@@ -408,7 +408,7 @@ class ModuleHL extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "get" + haxeName,
-								meta : [makeNative(iname+"_get_" + haxeName)],
+								meta : [makeNativeMeta(iname+"_get_" + haxeName)],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -419,7 +419,7 @@ class ModuleHL extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "set" + haxeName,
-								meta : [makeNative(iname+"_set_" + haxeName)],
+								meta : [makeNativeMeta(iname+"_set_" + haxeName)],
 								kind : FFun({
 									ret : cetr,
 									expr : macro return ${defVal(et)},
@@ -444,7 +444,7 @@ class ModuleHL extends ModuleBase {
 							dfields.push({
 								pos : p,
 								name : "get_" + haxeName,
-								meta : [makeNative(iname+"_get_" + haxeName)],
+								meta : [makeNativeMeta(iname+"_get_" + haxeName)],
 								kind : FFun({
 									ret : makeType(t, true),
 									expr : macro return ${defVal(t)},
@@ -455,7 +455,7 @@ class ModuleHL extends ModuleBase {
 								dfields.push({
 									pos : p,
 									name : "set_" + haxeName,
-									meta : [makeNative(iname+"_set_" + haxeName)],
+									meta : [makeNativeMeta(iname+"_set_" + haxeName)],
 									kind : FFun({
 										ret : tt,
 										expr : macro return ${defVal(t)},
@@ -476,7 +476,7 @@ class ModuleHL extends ModuleBase {
 								dfields.push({
 									pos : p,
 									name : "set" + haxeName + vdim,
-									meta : [makeNative(iname+"_set" + haxeName + vdim)],
+									meta : [makeNativeMeta(iname+"_set" + haxeName + vdim)],
 									access : [APublic, AInline],
 									kind : FFun({
 										ret : macro : Void,

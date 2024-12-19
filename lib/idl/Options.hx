@@ -37,6 +37,7 @@ typedef Options = {
 
 	@:optional var customCode : CustomCode;
 	@:optional var includes : Array<String>;
+	@:optional var libs : Array<String>;
 	// directories
 	@:optional var buildDir : String;
 	@:optional var glueDir : String;

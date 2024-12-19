@@ -96,9 +96,9 @@ class MacroTools {
 		var check = ma.get();
 
 		for (m in check) {
-			trace('Checking ${m}');
+			//trace('Checking ${m}');
 		}
-		trace('\n\n\n');
+//		trace('\n\n\n');
 		return null;
 	}
 #if macro
@@ -129,11 +129,12 @@ class MacroTools {
 		return Context.makePosition({min: pos.pos, max: pos.pos + 1, file: pos.file});
 	}
 
-	public static function asFunctionField(expr : Expr, name:String, args:Array<FunctionArg>, ret:ComplexType, pos:haxe.macro.Expr.Position):Field {
+	public static function asPublicFunctionField(expr : Expr, name:String, args:Array<FunctionArg>, ret:ComplexType, pos:haxe.macro.Expr.Position):Field {
 		return {
 			name: name,
 			kind: FFun({args:args, ret:ret, expr:expr}),
-			pos: pos
+			pos: pos,
+			access: [APublic]
 		};
 	}
 

@@ -33,7 +33,7 @@ abstract class HaxeGenerationTarget {
 		this._typeInfos = typeInfos;
 	}
 
-	public abstract function makeNative(iname:String, midfix:String, fname:String, argc:Null<Int>, p:Position):Array<MetadataEntry>;
+	public abstract function makeNativeMeta(iname:String, midfix:String, fname:String, argc:Null<Int>,  attrs:Array<Attrib>, p:Position):Array<MetadataEntry>;
 
 	public abstract function makeType(t:TypeAttr, isReturn:Bool):ComplexType;
 
@@ -41,10 +41,20 @@ abstract class HaxeGenerationTarget {
 
 	public abstract function getTargetCondition():String;
 
-	public abstract function getInterfaceTypeDefinitions(iname:String, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition>;
+	public abstract function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, p:Position):Array<TypeDefinition>;
 
+	function attribsFromField(f:idl.Data.Field):Array<Attrib> {
+		switch(f.kind) {
+			case FMethod(_, ret): return ret.attr;
+			case FAttribute(t): return t.attr;
+			case DConst(_, _, _): return [];
+		}
+		return [];
+	}
 	public function addAttribute(iname:String, haxeName:String, f:idl.Data.Field, t:TypeAttr, p:Position):Array<haxe.macro.Field> {
 		var attribFields:Array<Field> = [];
+		var attribs = attribsFromField(f);
+
 		switch (t.t) {
 			case TArray(at, sizeField):
 				var et = t.getElementType();
@@ -54,7 +64,7 @@ abstract class HaxeGenerationTarget {
 				attribFields.push({
 					pos: p,
 					name: "get" + haxeName,
-					meta: makeNative(iname, "_get_", haxeName, null, p),
+					meta: makeNativeMeta(iname, "_get_", haxeName, null, attribs, p),
 					kind: externalFunction([
 						{
 							name: "index",
@@ -66,7 +76,7 @@ abstract class HaxeGenerationTarget {
 				attribFields.push({
 					pos: p,
 					name: "set" + haxeName,
-					meta: makeNative(iname, "_set_", haxeName, null, p),
+					meta: makeNativeMeta(iname, "_set_", haxeName, null, attribs, p),
 					kind: externalFunction([
 						{
 							name: "index",
@@ -91,14 +101,14 @@ abstract class HaxeGenerationTarget {
 				attribFields.push({
 					pos: p,
 					name: "get_" + haxeName,
-					meta: makeNative(iname, "_get_", haxeName, null, p),
+					meta: makeNativeMeta(iname, "_get_", haxeName, null, attribs, p),
 					kind: externalFunction([], makeType(t, true), macro return ${defVal(t)}),
 				});
 				if (hasSet) {
 					attribFields.push({
 						pos: p,
 						name: "set_" + haxeName,
-						meta: makeNative(iname, "_set_", haxeName, null, p),
+						meta: makeNativeMeta(iname, "_set_", haxeName, null, attribs, p),
 						kind: externalFunction([
 							{
 								name: "_v",
@@ -124,7 +134,7 @@ abstract class HaxeGenerationTarget {
 					attribFields.push({
 						pos: p,
 						name: "set" + haxeName + vdim,
-						meta: makeNative(iname, "_set", haxeName + vdim, null, p),
+						meta: makeNativeMeta(iname, "_set", haxeName + vdim, null, attribs, p),
 						access: [APublic, AInline],
 						kind: FFun({
 							ret: macro :Void,
@@ -242,6 +252,16 @@ abstract class HaxeGenerationTarget {
 		return {def: enumT, path: enumTP};
 	}
 
+	function getFieldAccess(isStatic : Bool, isPublic : Bool, isInline = false) :Array<Access> {
+		var access = [];
+		if (isStatic) 
+			access.push(AStatic);
+		if (isPublic)
+			access.push(APublic);
+		if (isInline)
+			access.push(AInline);
+		return access;
+	}
 	public function makeNativeFieldRaw(iname:String, fname:String, pos:Position, args:Array<FArg>, ret:TypeAttr, pub:Bool, external = true):Field {
 		var name = fname;
 		var isConstr = name == iname || fname == "new";
@@ -252,13 +272,7 @@ abstract class HaxeGenerationTarget {
 
 		var expr = if (ret.t == TVoid) {expr: EBlock([]), pos: pos}; else {expr: EReturn(defVal(ret)), pos: pos};
 
-		var access:Array<Access> = [];
-		if (pub)
-			access.push(APublic);
-		if (isConstr)
-			access.push(AStatic);
-		if (ret.attr.contains(AStatic))
-			access.push(AStatic);
+		var access:Array<Access> = getFieldAccess(isConstr || ret.attr.contains(AStatic), pub);
 
 		var fnargs = [
 			for (a in args) {
@@ -282,7 +296,7 @@ abstract class HaxeGenerationTarget {
 		var x = {
 			pos: pos,
 			name: pub ? name : name + args.length,
-			meta: makeNative(iname, null, name, args.length, pos),
+			meta: makeNativeMeta(iname, null, name, args.length, ret.attr, pos),
 			access: access,
 			kind: external ? externalFunction(fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
 		};
@@ -304,6 +318,9 @@ abstract class HaxeGenerationTarget {
 		return t;
 	}
 
+	public function addSimpleMethod(f, iname, haxeName, args, ret, p) {
+		return [makeNativeField(iname, haxeName, f, args, ret, true)];	
+	}
 	public function addInterfaceMethod(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
 		var varFields = [];
 		// create dispatching code
