@@ -10,6 +10,8 @@ import idl.HaxeGenerationTarget;
 
 class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	static final PROXY_NEW_NAME = "alloc";
+	static final PROXY_DELETE_NAME = "free";
+	static final PROXY_STRUCT_MAKE = "make";
 
 	function getTargetCondition():String {
 		return "#if cpp";
@@ -96,6 +98,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 							case TInt: macro :cpp.Pointer<Int>;
 							default: throw "Unsupported array vector type " + vt;
 						}
+					case TCustom(id):
+						//var x : TypeParam;
+						//TPath({pack: ["cpp"], name: "Pointer", params: [TPType(TPath(_typeInfos[id].path))]});
+						(id + "Ptr").asComplexType();
 					default:
 						throw 'Unsupported array type. Sorry ${pt}';
 				}
@@ -275,7 +281,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			}
 		];
 
-		var redirect_args:Array<FunctionArg> = [{name: "This", type: makeType({t: TCustom(iname), attr: []}, false)}].concat(typical_args);
+		var redirect_args:Array<FunctionArg> = [{name: "This", type: makeType({t: TPointer(TCustom(iname)), attr: []}, false)}].concat(typical_args);
 
 		var blank_expr = if (ret.t == TVoid) {expr: EBlock([]), pos: p}; else {expr: EReturn(defVal(ret)), pos: p};
 
@@ -300,21 +306,26 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return [redirect_field, x];
 	}
 
-	public function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, isObject : Bool, p:Position):Array<TypeDefinition> {
+	public function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, isObject:Bool,
+			p:Position):Array<TypeDefinition> {
 		var abstractNewField:Field = null;
 		var staticNew:Field = null;
 		var staticDelete:Field = null;
-		var statics : Array<Field> = [];
+		var statics:Array<Field> = [];
 		var intName = iname;
 		var nativeName = makeName(intName);
 		var haxeName = makeName(iname);
-		var proxyName = isObject ? haxeName + "Native" : haxeName;
+		//var proxyName = isObject ? haxeName + "Native" : haxeName;
+		var proxyName = haxeName;
 		var fullProxyName = pack.join(".") + "." + proxyName;
 
 		var proxyCT = fullProxyName.asComplexType();
 		var ptrCT = 'cpp.Star'.asComplexType([TPType(proxyCT)]);
-		var shortPtrName = haxeName; // + "Ptr";
+		var structCT = 'cpp.Struct'.asComplexType([TPType(proxyCT)]);
+		var shortPtrName = haxeName + "Ptr";
+		var shortStructName = haxeName;// + "Struct";
 		var fullPtrName = pack.join(".") + "." + shortPtrName;
+		var fullStructName = pack.join(".") + "." + shortStructName;
 		var fullPtrCT = fullPtrName.asComplexType();
 
 		for (a in attrs)
@@ -350,6 +361,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				// }
 			}
 		}
+		
+		var newArgs = null;
 
 		if (staticNew != null) {
 			dfields.remove(staticNew);
@@ -366,13 +379,14 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					var classNameExpr = iname.asComplexType();
 					f.ret = fullPtrCT;
 					f.expr = macro return null;
+					newArgs = f.args;
 				default:
 					throw "Unsupported kind for new field";
 			}
 
 			staticDelete = {
 				pos: p,
-				name: "free",
+				name: PROXY_DELETE_NAME,
 				meta: [{name: ":native", params: ['delete '.asConstExpr()], pos: p}],
 				access: [APublic],
 				kind: FFun({args: [], ret: macro :Void, expr: macro {}}),
@@ -433,9 +447,9 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var proxyConstructExpr = fullConstructPath.asFieldAccess().asCallExpr([], p).asPrivateAccessExpr(p);
 		var newWrapper = (macro this = $proxyConstructExpr).asPublicFunctionField("alloc", [], fullPtrCT, p);
 
-		var ptrFields = statics.concat(staticNew != null ? [staticNew, staticDelete] : []);
 
 		if (isObject) {
+			var ptrFields = statics.concat(staticNew != null ? [staticNew, staticDelete] : []);
 			var ptrDefn = {
 				pos: p,
 				pack: pack,
@@ -450,6 +464,31 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				fields: ptrFields // abstractNewField != null ? [ newWrapper] : [],
 			};
 
+			var structMake = {
+				pos: p,
+				name: PROXY_STRUCT_MAKE,
+				meta: [{name: ":native", params: [${intName}.asConstExpr()], pos: p}],
+				access: [APublic, AStatic],
+				kind: FFun({args: newArgs, ret: shortStructName.asComplexType(), expr: macro {return null;}}),
+			};
+
+			dfields.push(structMake);
+
+			var structFields = [structMake];
+			var structDefn = {
+				pos: p,
+				pack: pack,
+				name: shortStructName,
+				meta: [
+					{name: ":forward", pos: p},
+					{name: ":forwardStatics", pos: p},
+					// {name: ":unreflective", params: null, pos: p}
+				],
+				isExtern: false,
+				kind: TDAbstract(structCT, [], [structCT], [structCT]),
+				fields: structFields // abstractNewField != null ? [ newWrapper] : [],
+			};
+
 			var abstractDefn = {
 				pos: p,
 				pack: pack,
@@ -460,7 +499,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				fields: [] // abstractNewField != null ? [newWrapper] : [],
 			};
 
-			return [classNativeDefn, ptrDefn]; // abstractDefn
+			return [classNativeDefn, ptrDefn]; //, //structDefn]; // abstractDefn
 		}
 		return [classNativeDefn];
 	}
@@ -484,6 +523,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
 	public override function addAttribute(iname:String, haxeName:String, f:idl.Data.Field, t:TypeAttr, p:Position):Array<haxe.macro.Field> {
 		var attribFields = [];
+		var hasSet = t.attr == null || t.attr.indexOf(AReadOnly) < 0;
+		var embed = t.attr != null && t.attr.indexOf(AEmbed) >= 0;
+		var attribs = attribsFromField(f);
+
 		switch (t.t) {
 			case TArray(at, sizeField):
 				throw "Unsupported array type. Sorry";
@@ -491,13 +534,45 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			default:
 				var tt = makeType(t, false);
 
-				attribFields.push({
-					pos: p,
-					name: haxeName,
-					meta: [],
-					kind: FVar(tt),
-					access: [APublic],
-				});
+				//if (hasSet && !embed) {
+					attribFields.push({
+						pos: p,
+						name: haxeName,
+						meta: [],
+						kind: FVar(tt),
+						access: [APublic],
+					});
+				// } else {
+				// 	var fkind = hasSet ? FProp("get", "set", tt) : FProp("get", "never", tt);
+				// 	attribFields.push({
+				// 		pos: p,
+				// 		name: haxeName,
+				// 		kind: fkind,
+				// 		meta: [],
+				// 		access: [APublic],
+				// 	});
+				// 	attribFields.push({
+				// 		pos: p,
+				// 		name: "get_" + haxeName,
+				// 		meta: [{name: ":native", params: [("get_" + haxeName).asConstExpr()], pos: p}],
+				// 		kind: externalFunction([], makeType(t, true), macro return ${defVal(t)}),
+				// 		access: [],
+				// 	});
+				// 	if (hasSet) {
+				// 		attribFields.push({
+				// 			pos: p,
+				// 			name: "set_" + haxeName,
+				// 			meta: [{name: ":native", params: [("set_" + haxeName).asConstExpr()], pos: p}],
+				// 			access: [],
+				// 			kind: externalFunction([
+				// 				{
+				// 					name: "_v",
+				// 					type: tt
+				// 				}
+				// 			], tt, macro return ${defVal(t)})
+				// 		});
+				// 	}
+				// }
 		}
 
 		return attribFields;
@@ -529,7 +604,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					name: fieldName,
 					kind: FVar(null), // {expr: EConst(CInt("" + (index++))), pos: p}
 					meta: [{name: ":native", params: [cppEnumName.asConstExpr()], pos: p}],
-					//access: [APublic, AStatic, AFinal, AInline, AExtern]
+					// access: [APublic, AStatic, AFinal, AInline, AExtern]
 					access: []
 				}
 			}
@@ -584,12 +659,12 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			name: makeName(name),
 			meta: [
 				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
-				{name: ":unreflective", params: null, pos: p}],
-			kind: TDAbstract(macro :Int, [AbEnum]), //implName.asComplexType()
+				{name: ":unreflective", params: null, pos: p}
+			],
+			kind: TDAbstract(macro :Int, [AbEnum]), // implName.asComplexType()
 			isExtern: true,
 			fields: cfields,
 		};
-
 
 		/*
 			@:unreflective
@@ -605,7 +680,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 
 		return [
 			{def: enumT, path: {pack: _pack, name: enumT.name}},
-//			{def: implT, path: {pack: _pack, name: implT.name}}
+			//			{def: implT, path: {pack: _pack, name: implT.name}}
 		];
 	}
 } // @:functionCode - Used to inject platform-native code into a function.

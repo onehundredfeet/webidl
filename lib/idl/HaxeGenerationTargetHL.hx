@@ -92,6 +92,8 @@ class HaxeGenerationTargetHL extends HaxeGenerationTarget {
 							case TInt: macro :hl.BytesAccess<Int>;
 							default: throw "Unsupported array vector type " + vt;
 						}
+					case TCustom(id):
+						id.asComplexType();
 					default:
 						throw 'Unsupported array type. Sorry ${pt}';
 				}
