@@ -65,7 +65,7 @@ abstract class HaxeGenerationTarget {
 					pos: p,
 					name: "get" + haxeName,
 					meta: makeNativeMeta(iname, "_get_", haxeName, null, attribs, p),
-					kind: externalFunction([
+					kind: externalFunction(attribs, [
 						{
 							name: "index",
 							type: macro :Int
@@ -77,7 +77,7 @@ abstract class HaxeGenerationTarget {
 					pos: p,
 					name: "set" + haxeName,
 					meta: makeNativeMeta(iname, "_set_", haxeName, null, attribs, p),
-					kind: externalFunction([
+					kind: externalFunction(attribs, [
 						{
 							name: "index",
 							type: macro :Int
@@ -102,14 +102,14 @@ abstract class HaxeGenerationTarget {
 					pos: p,
 					name: "get_" + haxeName,
 					meta: makeNativeMeta(iname, "_get_", haxeName, null, attribs, p),
-					kind: externalFunction([], makeType(t, true), macro return ${defVal(t)}),
+					kind: externalFunction(attribs, [], makeType(t, true), macro return ${defVal(t)}),
 				});
 				if (hasSet) {
 					attribFields.push({
 						pos: p,
 						name: "set_" + haxeName,
 						meta: makeNativeMeta(iname, "_set_", haxeName, null, attribs, p),
-						kind: externalFunction([
+						kind: externalFunction(attribs, [
 							{
 								name: "_v",
 								type: tt
@@ -148,10 +148,10 @@ abstract class HaxeGenerationTarget {
 		return attribFields;
 	}
 
-	public function externalFunction(args:Array<FunctionArg>, ret:ComplexType = null, expr:Expr = null):FieldType {
+	public function externalFunction(attribs:Array<Attrib>, args:Array<FunctionArg>, ret:ComplexType = null, expr:Expr = null):FieldType {
 		return FFun({
 			ret: ret,
-			expr: needsStubs() ? expr : null,
+			expr: needsStubs(attribs) ? expr : null,
 			args: args,
 		});
 	}
@@ -164,7 +164,7 @@ abstract class HaxeGenerationTarget {
 		});
 	}
 
-	public function needsStubs():Bool {
+	public function needsStubs(attribs:Array<Attrib>):Bool {
 		return true;
 	}
 
@@ -279,6 +279,11 @@ abstract class HaxeGenerationTarget {
 			access.push(AInline);
 		return access;
 	}
+
+	function makeReturnExpression(ret:TypeAttr, pos:Position) {
+		return  (ret.t == TVoid) ? {expr: EBlock([]), pos: pos} :  {expr: EReturn(defVal(ret)), pos: pos};
+
+	}
 	public function makeNativeFieldRaw(iname:String, fname:String, pos:Position, args:Array<FArg>, ret:TypeAttr, pub:Bool, external = true):Field {
 		var name = fname;
 		var isConstr = name == iname || fname == "new";
@@ -315,7 +320,7 @@ abstract class HaxeGenerationTarget {
 			name: pub ? name : name + args.length,
 			meta: makeNativeMeta(iname, null, name, args.length, ret.attr, pos),
 			access: access,
-			kind: external ? externalFunction(fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
+			kind: external ? externalFunction(ret.attr, fnargs, makeType(ret, true), expr) : embeddedFunction(fnargs, makeType(ret, true), expr),
 		};
 
 		return x;
@@ -349,6 +354,7 @@ abstract class HaxeGenerationTarget {
 
 		if (variants.length > 1 && maxArgs == 0)
 			error("Duplicate method declaration", variants.pop().pos.asMacroPos());
+		var attribs = attribsFromField(f);
 
 		var targs:Array<FunctionArg> = [];
 		var argsTypes = [];
@@ -440,7 +446,7 @@ abstract class HaxeGenerationTarget {
 			name: haxeName,
 			pos: f.pos.asMacroPos(),
 			access: [APublic, AInline],
-			kind: isConstr ? embeddedFunction(targs, interfaceCT, expr) : externalFunction(targs, makeEither([for (t in retTypes) makeType(t.t, false)]), expr),
+			kind: isConstr ? embeddedFunction(targs, interfaceCT, expr) : externalFunction(attribs, targs, makeEither([for (t in retTypes) makeType(t.t, false)]), expr),
 		});
 
 		return varFields;

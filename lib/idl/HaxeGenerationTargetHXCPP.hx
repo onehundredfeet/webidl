@@ -290,7 +290,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			name: redirectName,
 			meta: makeNativeMeta(iname, null, name, args.length, ret.attr, p),
 			access: getFieldAccess(true, false),
-			kind: externalFunction(redirect_args, makeType(ret, true), blank_expr),
+			kind: externalFunction(null, redirect_args, makeType(ret, true), blank_expr),
 		};
 
 		var external = true;
@@ -348,6 +348,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				statics.push(df);
 			}
 		}
+		var hasNew = abstractNewField != null || staticNew != null;
+
 		if (abstractNewField != null) {
 			dfields.remove(abstractNewField);
 		}
@@ -472,9 +474,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				kind: FFun({args: newArgs, ret: shortStructName.asComplexType(), expr: macro {return null;}}),
 			};
 
-			dfields.push(structMake);
-
-			var structFields = [structMake];
+			if (hasNew) {
+				dfields.push(structMake);
+			}
+			var structFields = hasNew ? [structMake] : [];
 			var structDefn = {
 				pos: p,
 				pack: pack,
@@ -517,7 +520,9 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 	// {
 	// }
 
-	public override function needsStubs():Bool {
+	public override function needsStubs(attribs:Array<Attrib>):Bool {
+		if (attribs == null) return false;
+		if (attribs.contains(AStatic)) return true;
 		return false;
 	}
 
@@ -527,6 +532,14 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var embed = t.attr != null && t.attr.indexOf(AEmbed) >= 0;
 		var attribs = attribsFromField(f);
 
+		var intName = null;
+		for (a in attribs) {
+			switch (a) {
+				case AInternal(name):
+					intName = name;
+				default:
+			}
+		}
 		switch (t.t) {
 			case TArray(at, sizeField):
 				throw "Unsupported array type. Sorry";
@@ -538,7 +551,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					attribFields.push({
 						pos: p,
 						name: haxeName,
-						meta: [],
+						meta: intName == null ? [] : [{name: ":native", params: [intName.asConstExpr()], pos: p}],
 						kind: FVar(tt),
 						access: [APublic],
 					});
@@ -613,6 +626,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				}
 			}
 		];
+		var enumType = makeName(name).asComplexType();
 
 		var toStringSwitchExpr = ESwitch(EConst(CIdent("thisAsEnum")).at(), [
 			for (v in values) {
@@ -623,9 +637,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				};
 				c;
 			}
-		], EConst(CString("Unknown")).at()).at();
+		], EConst(CString('Unknown ${makeName(name)}')).at()).at();
 
-		var enumType = makeName(name).asComplexType();
 		var toString = {
 			pos: p,
 			name: "toString",
