@@ -586,19 +586,23 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		}
 		var hasNamespace = true;
 		var namespaceName = name;
+		var prefix = "";
+
 		for (a in attrs) {
 			switch (a) {
 				case ANoNamespace:
 					hasNamespace = !attrs.contains(ANoNamespace);
 				case AInternal(namespace):
 					namespaceName = namespace;
+				case APrefix(prefixStr):
+					prefix = prefixStr;
 				default:
 			}
 		}
 		var cfields:Array<haxe.macro.Expr.Field> = [
 			for (v in values) {
 				var fieldName = cleanEnum(v);
-				var cppEnumName = hasNamespace ? namespaceName + "::" + fieldName : fieldName;
+				var cppEnumName = hasNamespace ? namespaceName + "::" + prefix + fieldName : prefix + fieldName;
 				{
 					pos: p,
 					name: fieldName,
@@ -609,6 +613,26 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				}
 			}
 		];
+
+		var toStringSwitchExpr = ESwitch(EConst(CIdent("thisAsEnum")).at(), [
+			for (v in values) {
+				var c : Case =
+				{
+					values: [EConst(CIdent(cleanEnum(v))).at()],
+					expr: EConst(CString(v)).at()
+				};
+				c;
+			}
+		], EConst(CString("Unknown")).at()).at();
+
+		var enumType = makeName(name).asComplexType();
+		var toString = {
+			pos: p,
+			name: "toString",
+			kind: FFun({args: [], ret: macro :String, expr: macro {var thisAsEnum : $enumType = cast this; return $toStringSwitchExpr;}}),
+			meta: [],
+			access: [APublic,  AInline],
+		};
 
 		// //		Add Int Conversion
 		// 		var ta:TypeAttr = {t: TInt, attr: [AStatic]};
@@ -663,7 +687,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			],
 			kind: TDAbstract(macro :Int, [AbEnum]), // implName.asComplexType()
 			isExtern: true,
-			fields: cfields,
+			fields: cfields.concat([toString]),
 		};
 
 		/*
