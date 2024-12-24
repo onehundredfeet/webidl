@@ -344,7 +344,7 @@ abstract class HaxeGenerationTarget {
 		return [makeNativeField(iname, haxeName, f, args, ret, true)];	
 	}
 	public function addInterfaceMethod(f:idl.Data.Field, iname:String, haxeName:String, variants: Array<MethodVariant>, p:Position):Array<haxe.macro.Field> {
-		trace('addInterfaceMethod ${iname} ${haxeName} ${variants} ${p}');
+//		trace('addInterfaceMethod ${iname} ${haxeName} ${variants} ${p}');
 		var varFields = [];
 		// create dispatching code
 		var maxArgs = 0;

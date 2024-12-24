@@ -3,7 +3,7 @@ package idl;
 import haxe.macro.Printer;
 import idl.Data;
 import haxe.macro.Expr;
-
+import haxe.io.Path;
 using StringTools;
 using idl.macros.MacroTools;
 
@@ -172,6 +172,8 @@ class HaxeGenerate {
 		var p = makeMacroPosition(d.pos);
 
 		switch (d.kind) {
+			case DInclude(_):
+
 			case DInterface(iname, attrs, fields, isObject):
 				var dfields:Array<Field> = [];
 				var forceCamel = attrs.indexOf(AForceCamelCase) >= 0;
@@ -377,7 +379,7 @@ class HaxeGenerate {
 		var root = opts.hxDir + opts.packageName.split(".").join("/");
 		var lastPartOfPackage = opts.packageName.split(".").pop();
 		// Uppercase the first letter, lowercase the rest
-		var moduleName = lastPartOfPackage.charAt(0).toUpperCase() + lastPartOfPackage.substr(1).toLowerCase();
+		//var moduleName = lastPartOfPackage.charAt(0).toUpperCase() + lastPartOfPackage.substr(1).toLowerCase();
 
 		trace('root ${root}');
 		var builder = new StringBuf();
@@ -398,7 +400,7 @@ class HaxeGenerate {
 		}
 		
 
-		var fname = root + "/" + moduleName + ".hx";
+		var fname = root + "/" + opts.nativeLib + ".hx";
 		sys.io.File.saveContent(fname, builder.toString());
 	}
 
@@ -418,25 +420,53 @@ class HaxeGenerate {
 	function loadIDLDeclarations() {
 		// load IDL
 		var file = opts.idlFile;
-		var content = try {
-			sys.io.File.getBytes(file);
-		} catch (e:Dynamic) {
-			error("" + e, p);
-			return null;
-		}
+		var resolutionQueue = [file];
+		var decls = [];
+		while (resolutionQueue.length > 0) {
+			var currentFile = resolutionQueue.shift();
+			trace('Loading ${currentFile} ${resolutionQueue.length} remaining');
+			var content = try {
+				sys.io.File.getBytes(currentFile);
+			} catch (e:Dynamic) {
+				error("" + e, p);
+				return null;
+			}
+			// parse IDL
+			var parse = new idl.Parser();
+			try {
+				var currentDecls = parse.parseFile(currentFile, new haxe.io.BytesInput(content));
+				var localDecls = [];
+				for (d in currentDecls) {
+					switch( d.kind ) {
+						case DInclude(path):
+							var tryPath = Path.directory(currentFile) + "/" + path;
+							if (!tryPath.contains(".idl") ) {
+								tryPath += ".idl";
+							}
+							if (sys.FileSystem.exists(tryPath)) {
+								trace('\tIncluding ${tryPath} ${resolutionQueue.length} remaining');
+								resolutionQueue.push(tryPath);
+							} else {
+								error("Include file not found: " + tryPath, makePosition({min: 0, max: 0, file: currentFile}));
+								return null;
+							}
+						default:
+							localDecls.push(d);
+					}
+				}
+				trace('Prepending ${currentFile} ${localDecls.length} declarations to ${decls.length} ${resolutionQueue.length} remaining');
+				decls = localDecls.concat(decls);
 
-		// parse IDL
-		var parse = new idl.Parser();
-		var decls = null;
-		try {
-			decls = parse.parseFile(file, new haxe.io.BytesInput(content));
-		} catch (msg:String) {
-			var lines = content.toString().split("\n");
-			var start = lines.slice(0, parse.line - 1).join("\n").length + 1;
-			error(msg, makePosition({min: start, max: start + lines[parse.line - 1].length, file: file}));
-			return null;
+			} catch (msg:String) {
+				var lines = content.toString().split("\n");
+				var start = lines.slice(0, parse.line - 1).join("\n").length + 1;
+				error(msg, makePosition({min: start, max: start + lines[parse.line - 1].length, file: file}));
+				return null;
+			}
+				
 		}
-
+		
+	
 		return decls;
 	}
 

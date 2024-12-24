@@ -16,6 +16,7 @@ typedef Definition = {
 enum DefinitionKind {
 	DAbstract( name : String, attrs : Array<Attrib>, type : String );
 	DInterface( name : String, attrs : Array<Attrib>, fields : Array<Field>, isObject : Bool );
+	DInclude( name : String );
 	DImplements( type : String, interfaceName : String );
 	DEnum( name : String, attrs : Array<Attrib>, values : Array<String> );
 	DTypeDef( name : String, attrs : Array<Attrib>, type : String, dtype : Type );

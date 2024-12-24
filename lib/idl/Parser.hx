@@ -125,6 +125,10 @@ class Parser {
 				var type = ident();
 				ensure(TSemicolon);
 				return {pos: makePos(pmin), kind: DAbstract(name, attr, type)};
+			case TId("include"):
+				var name = ident();
+				ensure(TSemicolon);
+				return {pos: makePos(pmin), kind: DInclude(name)};
 			case TId(name):
 				if (attr == null) {
 					throw "attributes error on " + name;

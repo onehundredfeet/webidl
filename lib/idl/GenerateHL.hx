@@ -474,6 +474,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		for (d in decls) {
 			switch (d.kind) {
+				case DInclude(_):
 				case DInterface(name, attrs, _, _):
 					var prefix = "";
 					var intName = name;
@@ -797,6 +798,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 
 		for (d in decls) {
 			switch (d.kind) {
+				case DInclude(_):
 				case DInterface(name, attrs, fields, _):
 					var forceCamel = attrs.contains(AForceCamelCase);
 					for (f in fields) {

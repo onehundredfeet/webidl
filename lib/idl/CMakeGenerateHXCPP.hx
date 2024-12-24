@@ -146,7 +146,7 @@ class NodeCriteria {
 				return false;
 		}
 		if (tags != null) {
-			trace('Checking tags: ${tags}');
+//			trace('Checking tags: ${tags}');
 			for (t in tags) {
 				if (!_tags.exists(t)) {
 					trace('Missing tag: ${t}');
@@ -268,20 +268,26 @@ class CMakeGenerateHXCPP {
 		_builder.add('\n');
 	}
 
-	static function resolvePath(path:String) {
-		if (FileSystem.exists(path))
-			return path;
-		//        trace('Resolving path: ${path}');
+	static function resolvePath(path:String, required = true) {
 		path = resolveString(path);
+		if (FileSystem.exists(path)) {
+			trace('Found path: ${path}');
+			return path;
+		}
+		//        trace('Resolving path: ${path}');
 
 		if (FileSystem.exists(path))
 			return path;
 		if (path.startsWith('/'))
 			return path;
 		// try prepending hxcpp dir
+		trace('defaulting ${path}');
 		path = '${_hxCppDir}/${path}';
 		if (FileSystem.exists(path))
 			return path;
+		if (required) {
+			throw ('Cannot resolve path: ${path}');
+		}
 		return path;
 	}
 
@@ -556,7 +562,7 @@ class CMakeGenerateHXCPP {
 		function addFlags(elements:Iterator<Xml>) {
 			for (cf in elements) {
 				if (!NodeCriteria.matchNode(cf)) {
-					trace('Skipping flag: ${cf.get('value')}');
+					//trace('Skipping flag: ${cf.get('value')}');
 					continue;
 				}
 
@@ -619,7 +625,7 @@ class CMakeGenerateHXCPP {
 		
         for (f in haxeTarget.root.elementsNamed('files')) {
 			if (!NodeCriteria.matchNode(f)) {
-				trace('Skipping block: ${f.get('id')}');
+//				trace('Skipping block: ${f.get('id')}');
 				continue;
 			}
 
@@ -634,7 +640,7 @@ class CMakeGenerateHXCPP {
 					trace('Skipping file: ${f.get('srcPath')}');
 					continue;
 				}
-				trace('Adding file: ${f.get('srcPath')}');
+//				trace('Adding file: ${f.get('srcPath')}');
                 addLine('\t${f.get('srcPath')}');
             }
         }
@@ -644,6 +650,7 @@ class CMakeGenerateHXCPP {
 		if (findLibs.length > 0) {
 			addLine('');
 			for (fl in findLibs) {
+				trace('Adding findlib: ${fl.name} at ${fl.dir}');
 				var rdir = resolvePath(fl.dir);
 				if (rdir == null) {
 					trace('Cannot resolve dir: ${fl.dir}');

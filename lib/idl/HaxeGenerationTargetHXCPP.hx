@@ -80,7 +80,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			case TAny: macro :idl.Types.Any;
 			case TEnum(enumName): isReturn ? enumName.asComplexType() : macro :Int;
 			case TStruct: throw "Unsupported type TType";
-			case TBytes: macro :cpp.Pointer<cpp.Char>;
+			case TBytes: macro :cpp.Pointer<cpp.UInt8>;
 			case TVector(vt, vdim): makeVectorType(t, vt, vdim, isReturn);
 			case TPointer(pt):
 				switch (pt) {
@@ -345,7 +345,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			} else if (df.name.startsWith("new")) {
 				staticNew = df;
 			} else if (df.access.contains(AStatic) && df.access.contains(APublic)) {
-				statics.push(df);
+				//statics.push(df);
 			}
 		}
 		var hasNew = abstractNewField != null || staticNew != null;

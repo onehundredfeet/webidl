@@ -521,6 +521,8 @@ class HNativeBuffer {
 
 		for (d in decls) {
 			switch (d.kind) {
+				case DInclude(_):
+
 				case DInterface(name, attrs, _, _):
 					var prefix = "";
 					var intName = name;
@@ -841,6 +843,8 @@ class HNativeBuffer {
 
 		for (d in decls) {
 			switch (d.kind) {
+				case DInclude(_):
+
 				case DInterface(name, attrs, fields, _):
 					var intName = name;
 

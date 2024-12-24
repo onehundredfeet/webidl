@@ -21,9 +21,9 @@ class GenerateCPP extends GenerateBase {
         }
         output.add('\n');
         output.add(opts.customCode.getHXCPPInclude());
-        var cammelCase = opts.packageName.charAt(0).toUpperCase() + opts.packageName.substr(1);
+//        var cammelCase = opts.packageName.charAt(0).toUpperCase() + opts.packageName.substr(1);
 
-        var path = FileSystem.absolutePath( opts.glueDir + '/${cammelCase}_hxcpp_idl.h');
+        var path = FileSystem.absolutePath( opts.glueDir + '/${opts.nativeLib}_hxcpp_idl.h');
 
 		sys.io.File.saveContent(path,output.toString());
 
