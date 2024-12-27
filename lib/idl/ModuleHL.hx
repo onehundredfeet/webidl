@@ -74,6 +74,7 @@ class ModuleHL extends ModuleBase {
 		case TEnum(enumName): isReturn ? enumName.asComplexType() : macro : Int;
 		case TStruct: macro : hl.Bytes;
 		case TBytes: macro : hl.Bytes;
+		case TIOBytes: macro : haxe.io.Bytes;
 		case TVector(vt, vdim): makeVectorType( t, vt, vdim, isReturn);
 		case TPointer(pt):
 			switch(pt) {

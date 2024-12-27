@@ -647,6 +647,7 @@ class HNativeBuffer {
 				case TBool: "jboolean";
 				case TEnum(_): "jint";
 				case TBytes: "jobject";
+				case TIOBytes: "jobject";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -705,6 +706,7 @@ class HNativeBuffer {
 				case TEnum(_): "jint";
 				case THString: "jstring";
 				case TBytes: "jobject";
+				case TIOBytes: "jobject";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -787,6 +789,7 @@ class HNativeBuffer {
 				case TArray(_, _): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
+				case TIOBytes: "_BYTES";
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";

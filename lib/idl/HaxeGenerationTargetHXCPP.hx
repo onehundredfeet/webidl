@@ -81,6 +81,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			case TEnum(enumName): isReturn ? enumName.asComplexType() : macro :Int;
 			case TStruct: throw "Unsupported type TType";
 			case TBytes: macro :cpp.Pointer<cpp.UInt8>;
+			case TIOBytes: macro : haxe.io.Bytes;
 			case TVector(vt, vdim): makeVectorType(t, vt, vdim, isReturn);
 			case TPointer(pt):
 				switch (pt) {
@@ -600,6 +601,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var hasNamespace = true;
 		var namespaceName = name;
 		var prefix = "";
+		var enumClass = attrs.contains(AClass);
 
 		for (a in attrs) {
 			switch (a) {
@@ -676,19 +678,8 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		// var toValue = makeNativeFieldRaw(name, "toValue", p, [], ta, true);
 		// cfields.push(toValue);
 
+		
 		var implName = makeName(name) + "Impl";
-		var implT:TypeDefinition = {
-			pos: p,
-			pack: _pack,
-			name: implName,
-			meta: [
-				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
-				{name: ":unreflective", params: null, pos: p},
-			],
-			kind: TDClass(),
-			isExtern: true,
-			fields: [],
-		};
 
 		var enumT:TypeDefinition = {
 			pos: p,
@@ -696,9 +687,10 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			name: makeName(name),
 			meta: [
 				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
-				{name: ":unreflective", params: null, pos: p}
+				{name: ":unreflective", params: null, pos: p},
+				{name: ":notNull", params: null, pos: p},
 			],
-			kind: TDAbstract(macro :Int, [AbEnum]), // implName.asComplexType()
+			kind: TDAbstract(enumClass ? implName.asComplexType(): macro :Int, [AbEnum]), // implName.asComplexType()
 			isExtern: true,
 			fields: cfields.concat([toString]),
 		};
@@ -715,6 +707,27 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 			}
 		 */
 
+		if (enumClass) {
+			var implT:TypeDefinition = {
+				pos: p,
+				pack: _pack,
+				name: implName,
+				meta: [
+					{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
+					{name: ":unreflective", params: null, pos: p},
+					{name: ":notNull", params: null, pos: p},
+//					@:scalar
+//					{name: ":stackOnly", params: null, pos: p},
+				],
+				kind: TDClass(),
+				isExtern: true,
+				fields: [],
+			};
+
+			return [
+				{def: enumT, path: {pack: _pack, name: enumT.name}},
+				{def: implT, path: {pack: _pack, name: implT.name}}];
+		}
 		return [
 			{def: enumT, path: {pack: _pack, name: enumT.name}},
 			//			{def: implT, path: {pack: _pack, name: implT.name}}

@@ -592,6 +592,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TBool: "bool";
 				case TEnum(_): "int";
 				case TBytes: "unsigned char*";
+				case TIOBytes: "unsigned char*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -648,6 +649,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TCString: "vbyte*";
 				case TStdString: "vbyte*";
 				case TBytes: "vbyte*";
+				case TIOBytes: "vbyte*";
 				case TCustom(id): {
 						var t = typeNames.get(id);
 						if (t == null) {
@@ -732,6 +734,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 				case TArray(_, _): "_ARR";
 				case TBool: "_BOOL";
 				case TBytes: "_BYTES";
+				case TIOBytes: "_BYTES";
 				case TVector(t, dim): "_STRUCT";
 				case TStruct: "_STRUCT";
 				case THString: "_STRING";

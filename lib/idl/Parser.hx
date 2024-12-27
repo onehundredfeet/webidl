@@ -166,6 +166,7 @@ class Parser {
 				case "Initialize": AInitialize;
 				case "Static": AStatic;
 				case "Embed": AEmbed;
+				case "Class": AClass;
 				case "Virtual": AVirtual;
 				case "ReadOnly": AReadOnly;
 				case "CStruct": ACStruct;
@@ -219,6 +220,12 @@ class Parser {
 				case "Cast":
 					ensure(TOp("="));
 					ACast(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
+				case "Convert":
+					ensure(TOp("="));
+					AConvert(switch (token()) {
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					});
@@ -322,6 +329,7 @@ class Parser {
 			case "any": TAny;
 			case "VoidPointer", "VoidPtr": TVoidPtr;
 			case "bytes": TBytes;
+			case "iobytes": TIOBytes;
 			case "string", "String": THString;
 			case "cstring", "CString": TCString;
 			case "stdstring", "StdString": TStdString;

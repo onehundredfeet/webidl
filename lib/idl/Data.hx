@@ -61,6 +61,7 @@ enum Type {
 	THString;
 	TCString;
 	TStdString;
+	TIOBytes;
 	TBytes;
 	TEnum(name : String );
 	TCustom( id : String );
@@ -96,6 +97,7 @@ enum Attrib {
 	ANoNamespace;
 	AAutoConstructor;
 	AEmbed;
+	AClass;
 	AStatic;
 	AInclude( name : String );
 	AVirtual;
@@ -120,6 +122,7 @@ enum Attrib {
 	ADelete( name : String );	
 	ADestruct( expression : String);
 	ANew( name : String );	
+	AConvert( functionName : String );
 	AInitialize;
 	AUpperCaseFirst;
 	AForceCamelCase;
