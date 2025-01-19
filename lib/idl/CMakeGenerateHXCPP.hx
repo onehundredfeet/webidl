@@ -578,12 +578,6 @@ class CMakeGenerateHXCPP {
 			cppIncludeDirs.push(sys.FileSystem.absolutePath(dir));
 		}
 
-		cppWarnings.push('null-dereference');
-		cppWarnings.push('unused-value');
-		cppWarnings.push('format-extra-args');
-		cppWarnings.push('overflow');
-		cppWarnings.push('no-invalid-offsetof');
-		cppWarnings.push('no-return-type-c-linkage');
 
 		if (Sys.systemName() == "Windows") {
 			cppDefines.push('HX_WINDOWS');
@@ -593,7 +587,13 @@ class CMakeGenerateHXCPP {
 			cppDefines.push('HX_MACOS');
 			cppDefines.push('HXCPP_M64');
 			cppWarnings.push('no-parentheses');
-
+			cppWarnings.push('null-dereference');
+			cppWarnings.push('unused-value');
+			cppWarnings.push('format-extra-args');
+			cppWarnings.push('overflow');
+			cppWarnings.push('no-invalid-offsetof');
+			cppWarnings.push('no-return-type-c-linkage');
+	
 		} else if (Sys.systemName() == "Linux") {
 			cppDefines.push('HX_LINUX');
 			cppDefines.push('HXCPP_LINUX');
