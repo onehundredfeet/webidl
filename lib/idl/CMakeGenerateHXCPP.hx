@@ -61,7 +61,7 @@ private function isAbsolutePath(path:String):Bool {
 		if (reDriveLetter.match(path) || reUNC.match(path)) {
 			return true;
 		}
-		trace('Not an absolute path: "${path}"');
+//		trace('Not an absolute path: "${path}"');
 		return false;
 	} else if (Sys.systemName() == "Mac" || Sys.systemName() == "Linux") {
 		return path.startsWith("/");
