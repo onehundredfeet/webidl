@@ -61,7 +61,7 @@ private function isAbsolutePath(path:String):Bool {
 		if (reDriveLetter.match(path) || reUNC.match(path)) {
 			return true;
 		}
-//		trace('Not an absolute path: "${path}"');
+		//		trace('Not an absolute path: "${path}"');
 		return false;
 	} else if (Sys.systemName() == "Mac" || Sys.systemName() == "Linux") {
 		return path.startsWith("/");
@@ -646,11 +646,7 @@ class CMakeGenerateHXCPP {
 					findLibs.push({name: cf.get('value'), dir: cf.get('dir'), link: cf.get('link') == 'true'});
 					continue;
 				}
-				if (cf.nodeName == "lib") {
-					trace('Adding lib: ${cf.get('name')}');
-					linkLibs.push(cf.get('name'));
-					continue;
-				}
+
 				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') {
 					continue;
 				}
@@ -682,6 +678,10 @@ class CMakeGenerateHXCPP {
 				// for (f in block.files) {
 				//     trace('\t${f.get('srcPath')}');
 				// }
+				case 'lib':
+					var libName = e.get('name');
+
+					linkLibs.push(libName);
 				case 'options':
 				default:
 					trace('Unknown node: ${e.nodeName}');
