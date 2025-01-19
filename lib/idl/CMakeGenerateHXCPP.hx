@@ -402,8 +402,14 @@ class CMakeGenerateHXCPP {
 		_defines.set('IDL_DIR', "IDL_DIR");
 		_defines.set('exe_link', '1');
 //		_defines.set('HXCPP_M64', '1');
-		_defines.set('HXCPP_ARCH', 'arm64');
-		_defines.set('HXCPP_ARM64', '1');
+		if (Sys.systemName() == "Windows") {
+			_defines.set('HXCPP_ARCH', 'x86_64');
+			_defines.set('windows', '1');
+			_defines.set('HXCPP_M64', '1');
+		} else {
+			_defines.set('HXCPP_ARCH', 'arm64');
+			_defines.set('HXCPP_ARM64', '1');	
+		}
 		_defines.set('removeQuotes:hxcpp_api_level', '430');
 		_defines.set('CPPIA_NO_JIT', '1');
 		
