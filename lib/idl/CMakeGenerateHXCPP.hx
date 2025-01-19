@@ -96,11 +96,14 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		tried.push(path);
 	}
 
-	trace('Cannot resolve source path for ${name} on ${file} within ${files}');
+	trace('Cannot resolve source path for ${name} in dir ${dir}');
+	trace('from ${file}');
+	trace('within ${files}');
+	trace('Tried:');
 	for (t in tried) {
 		trace('\t${t}');
 	}
-	throw('Cannot resolve source path for ${name} on ${file} within ${files}');
+	throw('Cannot resolve source path for ${name}');
 
 	return cleanPath(name);
 }
