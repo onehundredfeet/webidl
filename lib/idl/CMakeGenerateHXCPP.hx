@@ -48,7 +48,7 @@ private function cleanPath(path:String):String {
 	if (path.endsWith('/'))
 		path = path.substring(0, path.length - 1);
 	if (Sys.systemName() == "Windows") {
-		//path = path.replace("/", "\\");
+		// path = path.replace("/", "\\");
 	}
 	return path;
 }
@@ -66,7 +66,7 @@ private function isAbsolutePath(path:String):Bool {
 	} else if (Sys.systemName() == "Mac" || Sys.systemName() == "Linux") {
 		return path.startsWith("/");
 	}
-	throw ('Unknown system: ${Sys.systemName()}');
+	throw('Unknown system: ${Sys.systemName()}');
 }
 
 private function resolveSourcePath(file:Xml, files:Xml):String {
@@ -439,6 +439,20 @@ class CMakeGenerateHXCPP {
 			_defines.set('windows', '1');
 			_defines.set('HXCPP_M64', '1');
 			_defines.set('HXCPP_MSVC_VER', '190');
+
+			var cl_version = 19;
+			var cl_versionStr = '${cl_version}';
+			_defines.set('MSVC_VER', cl_versionStr);
+			if (cl_version >= 17)
+				_defines.set("MSVC17+", "1");
+			if (cl_version >= 18)
+				_defines.set("MSVC18+", "1");
+			if (cl_version >= 19)
+				_defines.set("MSVC19", "1");
+			//               BuildTool.sAllowNumProcs = cl_version >= 14;
+			//    var threads = BuildTool.getThreadCount();
+			//    if (threads>1 && cl_version>=18)
+			//       ioDefines.set("HXCPP_FORCE_PDB_SERVER","1");
 		} else {
 			_defines.set('HXCPP_ARCH', 'arm64');
 			_defines.set('HXCPP_ARM64', '1');
@@ -579,7 +593,6 @@ class CMakeGenerateHXCPP {
 			cppIncludeDirs.push(sys.FileSystem.absolutePath(dir));
 		}
 
-
 		if (Sys.systemName() == "Windows") {
 			cppDefines.push('HX_WINDOWS');
 			cppDefines.push('HXCPP_WIN');
@@ -594,7 +607,6 @@ class CMakeGenerateHXCPP {
 			cppWarnings.push('overflow');
 			cppWarnings.push('no-invalid-offsetof');
 			cppWarnings.push('no-return-type-c-linkage');
-	
 		} else if (Sys.systemName() == "Linux") {
 			cppDefines.push('HX_LINUX');
 			cppDefines.push('HXCPP_LINUX');
@@ -702,7 +714,7 @@ class CMakeGenerateHXCPP {
 
 			for (f in block.files) {
 				var fpath = cleanPath(f.get('srcPath'));
-				
+
 				if (!NodeCriteria.matchNode(f)) {
 					trace('Skipping file: ${fpath}');
 					continue;
