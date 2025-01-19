@@ -668,9 +668,10 @@ class CMakeGenerateHXCPP {
 					trace('Unknown node: ${e.nodeName}');
 			}
 		}
-
-		miscCompilerFlags.push(resolveString("-arch ${HXCPP_ARCH}"));
-
+		if (Sys.systemName() == "Mac") {
+			miscCompilerFlags.push(resolveString("-arch ${HXCPP_ARCH}"));
+		}
+		
 		trace('Include dirs: ${cppIncludeDirs.join(',')}');
 		trace('Lib dirs: ${cppLibDirs.join(',')}');
 		trace('Misc compiler flags: ${miscCompilerFlags.join(',')}');
