@@ -56,7 +56,15 @@ private function cleanPath( path : String ) : String {
 private function isAbsolutePath(path:String):Bool {
 	#if sys
 	#if windows
-	return ~/^[a-zA-Z]:[\/\\]/.match(path) || ~/^\\\\/.match(path); // Drive letter (C:\) or UNC path (\\server\)
+	static final reDriveLetter = new EReg("^[a-zA-Z]:[\\/\\\\]");
+	static final reUNC = new EReg("^\\\\\\\\");
+
+	if (reDriveLetter.match(path) || reUNC.match(path)) {
+		return true;
+	}
+	trace('Not an absolute path: "${path}"');
+	return false;
+
 	#else
 	return path.startsWith("/");
 	#end
@@ -69,7 +77,7 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 	var name = file.get('name');
 	var dir = files.get('dir');
 	var tried = [];
-
+	var ignored = [];
 	if (name == null) {
 		trace(file);
 		trace(files);
@@ -83,7 +91,9 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		if ( FileSystem.exists(name))
 			return name;
 		tried.push(name);
-	} 
+	} else {
+		ignored.push(name);
+	}
 
 	if (dir == null) {
 		if (FileSystem.exists(name))
@@ -91,6 +101,8 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		tried.push(name);
 		// try build dir
 		var buildPath = '${_absBuildDir}/${name}';
+	} else {
+		ignored.push("directory is not empty");
 	}
 	if (dir != null) {
 		dir = resolveString(dir);
@@ -108,6 +120,8 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		if (FileSystem.exists(path))
 			return path;
 		tried.push(path);
+	} else {
+		ignored.push("parent path is empty");
 	}
 
 	trace('Cannot resolve source path for ${name} in dir ${dir}');
@@ -116,6 +130,10 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 	trace('Tried:');
 	for (t in tried) {
 		trace('\t${t}');
+	}
+	trace('Ignored:');
+	for (i in ignored) {
+		trace('\t${i}');
 	}
 	throw('Cannot resolve source path for ${name}');
 
