@@ -48,7 +48,7 @@ private function cleanPath( path : String ) : String {
     path = path.replace("//", "/");
 	if (path.endsWith('/')) path = path.substring(0, path.length - 1);
 	if (Sys.systemName() == "Windows") {
-		path.replace("/", "\\");
+		path = path.replace("/", "\\");
 	}
     return path;
 }
