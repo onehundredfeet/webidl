@@ -438,6 +438,7 @@ class CMakeGenerateHXCPP {
 			_defines.set('HXCPP_ARCH', 'x86_64');
 			_defines.set('windows', '1');
 			_defines.set('HXCPP_M64', '1');
+			_defines.set('HXCPP_MSVC_VER', '190');
 		} else {
 			_defines.set('HXCPP_ARCH', 'arm64');
 			_defines.set('HXCPP_ARM64', '1');
@@ -671,7 +672,7 @@ class CMakeGenerateHXCPP {
 		if (Sys.systemName() == "Mac") {
 			miscCompilerFlags.push(resolveString("-arch ${HXCPP_ARCH}"));
 		}
-		
+
 		trace('Include dirs: ${cppIncludeDirs.join(',')}');
 		trace('Lib dirs: ${cppLibDirs.join(',')}');
 		trace('Misc compiler flags: ${miscCompilerFlags.join(',')}');
