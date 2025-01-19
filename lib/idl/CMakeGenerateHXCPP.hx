@@ -578,7 +578,6 @@ class CMakeGenerateHXCPP {
 			cppIncludeDirs.push(sys.FileSystem.absolutePath(dir));
 		}
 
-		cppWarnings.push('no-parentheses');
 		cppWarnings.push('null-dereference');
 		cppWarnings.push('unused-value');
 		cppWarnings.push('format-extra-args');
@@ -593,6 +592,8 @@ class CMakeGenerateHXCPP {
 		} else if (Sys.systemName() == "Mac") {
 			cppDefines.push('HX_MACOS');
 			cppDefines.push('HXCPP_M64');
+			cppWarnings.push('no-parentheses');
+
 		} else if (Sys.systemName() == "Linux") {
 			cppDefines.push('HX_LINUX');
 			cppDefines.push('HXCPP_LINUX');
