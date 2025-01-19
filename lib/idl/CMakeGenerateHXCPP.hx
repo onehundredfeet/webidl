@@ -53,6 +53,18 @@ private function cleanPath( path : String ) : String {
     return path;
 }
 
+private function isAbsolutePath(path:String):Bool {
+	#if sys
+	#if windows
+	return ~/^[a-zA-Z]:[\/\\]/.match(path) || ~/^\\\\/.match(path); // Drive letter (C:\) or UNC path (\\server\)
+	#else
+	return path.startsWith("/");
+	#end
+	#else
+	throw "isAbsolutePath is only available on sys platforms";
+	#end
+}
+
 private function resolveSourcePath(file:Xml, files:Xml):String {
 	var name = file.get('name');
 	var dir = files.get('dir');
@@ -67,7 +79,7 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		return null;
 
 	name = cleanPath(resolveString(name));
-	if (name.startsWith('/') && FileSystem.exists(name))
+	if (isAbsolutePath(name) && FileSystem.exists(name))
 		return name;
 	tried.push(name);
 
