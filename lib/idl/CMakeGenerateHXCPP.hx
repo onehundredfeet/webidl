@@ -681,6 +681,7 @@ class CMakeGenerateHXCPP {
 				case 'lib':
 					var libName = e.get('name');
 
+					trace('Adding lib: ${libName}');
 					linkLibs.push(libName);
 				case 'options':
 				default:
@@ -751,6 +752,9 @@ class CMakeGenerateHXCPP {
 			for (fl in findLibs) {
 				if (fl.link)
 					addLine('\t${fl.name}::${fl.name}');
+			}
+			for (ll in linkLibs) {
+				addLine('\t${ll}');
 			}
 			addLine(')');
 		}
