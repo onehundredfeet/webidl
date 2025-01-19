@@ -47,12 +47,16 @@ private function cleanPath( path : String ) : String {
     path = path.replace("\\", "/");
     path = path.replace("//", "/");
 	if (path.endsWith('/')) path = path.substring(0, path.length - 1);
+	if (Sys.systemName() == "Windows") {
+		path.replace("/", "\\");
+	}
     return path;
 }
 
 private function resolveSourcePath(file:Xml, files:Xml):String {
 	var name = file.get('name');
 	var dir = files.get('dir');
+	var tried = [];
 
 	if (name == null) {
 		trace(file);
@@ -62,32 +66,40 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 	if (name == "${resourceFile}")
 		return null;
 
-	name = resolveString(name);
+	name = cleanPath(resolveString(name));
 	if (name.startsWith('/') && FileSystem.exists(name))
-		return cleanPath(name);
+		return name;
+	tried.push(name);
 
 	if (dir == null) {
 		if (FileSystem.exists(name))
 			return name;
+		tried.push(name);
 		// try build dir
 		var buildPath = '${_absBuildDir}/${name}';
 	}
 	if (dir != null) {
 		dir = resolveString(dir);
-		var path = '${dir}/${name}';
+		var path = cleanPath('${dir}/${name}');
 		if (FileSystem.exists(path))
-			return cleanPath(path);
+			return path;
+		tried.push(path);
 	}
 
 	var parentPath = files.get('path');
 	if (parentPath != null) {
 		var dir = parentPath.split('/').slice(0, -1).join('/');
 		var path = '${dir}/${name}';
-		path = path.replace("${HXCPP}", _hxCppDir);
+		path = cleanPath(path.replace("${HXCPP}", _hxCppDir));
 		if (FileSystem.exists(path))
-			return cleanPath(path);
+			return path;
+		tried.push(path);
 	}
 
+	trace('Cannot resolve source path for ${name} on ${file} within ${files}');
+	for (t in tried) {
+		trace('\t${t}');
+	}
 	throw('Cannot resolve source path for ${name} on ${file} within ${files}');
 
 	return cleanPath(name);

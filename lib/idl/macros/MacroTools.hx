@@ -116,6 +116,14 @@ class MacroTools {
 		var moduleName = idlRelPath.split('/').pop().split('.').shift();
 		var moduleDefine = '${moduleName.toUpperCase()}_IDL_DIR';
 
+		var libDirDef = '${moduleName.toUpperCase()}_LIB_DIR';
+		if (!Context.defined(libDirDef)) {
+			if (Context.defined("IDL_DEBUG")) 
+				Compiler.define(libDirDef, idlAbsDir + "/../../lib/debug");
+			else
+				Compiler.define(libDirDef, idlAbsDir + "/../../lib/release");
+			trace('${libDirDef}= ${Context.definedValue(libDirDef)}');
+		}
 		if (!Context.defined(moduleDefine)) {
 //			trace('Defining ${moduleDefine} as ${idlAbsDir}');
 			Compiler.define(moduleDefine, idlAbsDir);

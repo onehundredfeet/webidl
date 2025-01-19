@@ -454,7 +454,7 @@ class HaxeGenerate {
 							localDecls.push(d);
 					}
 				}
-				trace('Prepending ${currentFile} ${localDecls.length} declarations to ${decls.length} ${resolutionQueue.length} remaining');
+				//trace('Prepending ${currentFile} ${localDecls.length} declarations to ${decls.length} ${resolutionQueue.length} remaining');
 				decls = localDecls.concat(decls);
 
 			} catch (msg:String) {

@@ -307,6 +307,16 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return [redirect_field, x];
 	}
 
+	function getMacroBuilderExpr() : Expr{
+		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
+		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);
+		return macroBuildExpr;
+	}
+
+	function getMacroBuilderMeta(p : haxe.macro.Expr.Position) : MetadataEntry {
+		return {name: ":build", params: [getMacroBuilderExpr()], pos: p};
+	}
+
 	public function getInterfaceTypeDefinitions(iname:String, attrs:Array<Attrib>, pack:Array<String>, dfields:Array<Field>, isObject:Bool,
 			p:Position):Array<TypeDefinition> {
 		var abstractNewField:Field = null;
@@ -425,9 +435,6 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		var includes = opts.includes.map((x) -> {name: ":include", params: [x.asConstExpr()], pos: p});
 		var buildXML = "${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".xml";
 
-		var idlPathExpr = ("${" + opts.packageName.toUpperCase() + "_IDL_DIR}/" + opts.packageName + ".idl").asConstExpr();
-		var macroBuildExpr = macro idl.macros.MacroTools.buildHXCPPIDLType($idlPathExpr);
-
 		var classNativeDefn = {
 			pos: p,
 			pack: pack,
@@ -436,7 +443,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				{name: ":native", params: [intName.asConstExpr()], pos: p},
 				{name: ":structAccess", params: null, pos: p},
 				{name: ":unreflective", params: null, pos: p},
-				{name: ":build", params: [macroBuildExpr], pos: p},
+				getMacroBuilderMeta(p),
 				// {name: ":buildXml", params:['<include name="${buildXML}"/>'.asConstExpr()], pos: p},
 			],
 			isExtern: true,
@@ -689,6 +696,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 				{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
 				{name: ":unreflective", params: null, pos: p},
 				{name: ":notNull", params: null, pos: p},
+				getMacroBuilderMeta(p),
 			],
 			kind: TDAbstract(enumClass ? implName.asComplexType(): macro :Int, [AbEnum]), // implName.asComplexType()
 			isExtern: true,
@@ -716,6 +724,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 					{name: ":native", params: [namespaceName.asConstExpr()], pos: p},
 					{name: ":unreflective", params: null, pos: p},
 					{name: ":notNull", params: null, pos: p},
+					getMacroBuilderMeta(p),
 //					@:scalar
 //					{name: ":stackOnly", params: null, pos: p},
 				],
