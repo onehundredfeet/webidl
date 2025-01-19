@@ -548,7 +548,6 @@ class CMakeGenerateHXCPP {
 		for (dir in includeDirs) {
 			cppIncludeDirs.push(sys.FileSystem.absolutePath(dir));
 		}
-		// mac
 
 		cppWarnings.push('no-parentheses');
 		cppWarnings.push('null-dereference');
@@ -558,8 +557,19 @@ class CMakeGenerateHXCPP {
 		cppWarnings.push('no-invalid-offsetof');
 		cppWarnings.push('no-return-type-c-linkage');
 
-		cppDefines.push('HX_MACOS');
-		cppDefines.push('HXCPP_M64');
+
+		if (Sys.systemName() == "Windows") {
+			cppDefines.push('HX_WINDOWS');
+			cppDefines.push('HXCPP_WIN');
+			cppDefines.push('HXCPP_M64');
+		} else if (Sys.systemName() == "Mac") {
+			cppDefines.push('HX_MACOS');
+			cppDefines.push('HXCPP_M64');	
+		} else if (Sys.systemName() == "Linux") {
+			cppDefines.push('HX_LINUX');
+			cppDefines.push('HXCPP_LINUX');
+			cppDefines.push('HXCPP_M64');
+		}
 
 		function addFlag(n:Xml) {
 			var value = resolveString(n.get("value"));
