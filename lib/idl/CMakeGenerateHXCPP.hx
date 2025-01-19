@@ -79,9 +79,11 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 		return null;
 
 	name = cleanPath(resolveString(name));
-	if (isAbsolutePath(name) && FileSystem.exists(name))
-		return name;
-	tried.push(name);
+	if (isAbsolutePath(name)) {
+		if ( FileSystem.exists(name))
+			return name;
+		tried.push(name);
+	} 
 
 	if (dir == null) {
 		if (FileSystem.exists(name))
