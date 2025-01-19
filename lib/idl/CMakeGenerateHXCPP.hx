@@ -13,64 +13,60 @@ private var _absBuildDir:String;
 private var _launchDir:String;
 private var _tags = new Map<String, Bool>();
 
-private function resolveString( s : String, ignoreMissing = false ) : String {
-    while (s.contains("${") && s.contains("}")) {
-        var start = s.indexOf("${");
-        var end = s.indexOf("}", start);
-        var key = s.substring(start + 2, end);
-        var replace = resolveDefine(key, ignoreMissing);
-        if (replace == null) {
-            replace = resolveDefine(key.toLowerCase(), ignoreMissing);
-        }
-        if (replace == null) {
-            if (ignoreMissing) {
-                replace = "";
-            } else {
-                replace = "<" + key + ">";
-            }
-        }
-        s = s.substring(0, start) + replace + s.substring(end + 1);
-    }
-    return s;
+private function resolveString(s:String, ignoreMissing = false):String {
+	while (s.contains("${") && s.contains("}")) {
+		var start = s.indexOf("${");
+		var end = s.indexOf("}", start);
+		var key = s.substring(start + 2, end);
+		var replace = resolveDefine(key, ignoreMissing);
+		if (replace == null) {
+			replace = resolveDefine(key.toLowerCase(), ignoreMissing);
+		}
+		if (replace == null) {
+			if (ignoreMissing) {
+				replace = "";
+			} else {
+				replace = "<" + key + ">";
+			}
+		}
+		s = s.substring(0, start) + replace + s.substring(end + 1);
+	}
+	return s;
 }
 
-private function resolveDefine( key : String, ignoreMissing = false ) : String {
-    var value = _defines.get(key);
-    if (value == null) {
-        return null;
-    }
-    return resolveString(value, ignoreMissing);
+private function resolveDefine(key:String, ignoreMissing = false):String {
+	var value = _defines.get(key);
+	if (value == null) {
+		return null;
+	}
+	return resolveString(value, ignoreMissing);
 }
 
-
-private function cleanPath( path : String ) : String {
-    path = path.replace("\\", "/");
-    path = path.replace("//", "/");
-	if (path.endsWith('/')) path = path.substring(0, path.length - 1);
+private function cleanPath(path:String):String {
+	path = path.replace("\\", "/");
+	path = path.replace("//", "/");
+	if (path.endsWith('/'))
+		path = path.substring(0, path.length - 1);
 	if (Sys.systemName() == "Windows") {
 		path = path.replace("/", "\\");
 	}
-    return path;
+	return path;
 }
 
 private function isAbsolutePath(path:String):Bool {
-	#if sys
-	#if windows
-	static final reDriveLetter = new EReg("^[a-zA-Z]:[\\/\\\\]");
-	static final reUNC = new EReg("^\\\\\\\\");
+	if (Sys.systemName() == "Windows") {
+		static final reDriveLetter = new EReg("^[a-zA-Z]:[\\/\\\\]", "i");
+		static final reUNC = new EReg("^\\\\\\\\", "i");
 
-	if (reDriveLetter.match(path) || reUNC.match(path)) {
-		return true;
+		if (reDriveLetter.match(path) || reUNC.match(path)) {
+			return true;
+		}
+		trace('Not an absolute path: "${path}"');
+		return false;
+	} else if (Sys.systemName() == "Mac" || Sys.systemName() == "Linux") {
+		return path.startsWith("/");
 	}
-	trace('Not an absolute path: "${path}"');
-	return false;
-
-	#else
-	return path.startsWith("/");
-	#end
-	#else
-	throw "isAbsolutePath is only available on sys platforms";
-	#end
+	throw ('Unknown system: ${Sys.systemName()}');
 }
 
 private function resolveSourcePath(file:Xml, files:Xml):String {
@@ -88,7 +84,7 @@ private function resolveSourcePath(file:Xml, files:Xml):String {
 
 	name = cleanPath(resolveString(name));
 	if (isAbsolutePath(name)) {
-		if ( FileSystem.exists(name))
+		if (FileSystem.exists(name))
 			return name;
 		tried.push(name);
 	} else {
@@ -151,13 +147,14 @@ class NodeCriteria {
 	public var condUnless:String;
 	public var condIf:String;
 
-    public static function matchNode(e:Xml):Bool {
-        var criteria = NodeCriteria.fromNode(e);
-        if (criteria != null && !criteria.match()) {
-            return false;
-        }
-        return true;
-    }
+	public static function matchNode(e:Xml):Bool {
+		var criteria = NodeCriteria.fromNode(e);
+		if (criteria != null && !criteria.match()) {
+			return false;
+		}
+		return true;
+	}
+
 	public static function fromNode(e:Xml):NodeCriteria {
 		var tags = e.get('tags');
 		var condUnless = e.get('unless');
@@ -182,7 +179,7 @@ class NodeCriteria {
 
 			for (c in conds) {
 				if (resolveDefine(condIf) != null)
-					any = true;	
+					any = true;
 			}
 
 			if (!any)
@@ -193,7 +190,7 @@ class NodeCriteria {
 				return false;
 		}
 		if (tags != null) {
-//			trace('Checking tags: ${tags}');
+			//			trace('Checking tags: ${tags}');
 			for (t in tags) {
 				if (!_tags.exists(t)) {
 					trace('Missing tag: ${t}');
@@ -213,31 +210,30 @@ class NodeCriteria {
 	}
 }
 
+private function collapseSections(n:Xml) {
+	var sectionsKeep = [];
+	var sectionsRemove = [];
 
-private function collapseSections( n : Xml ) {
-    var sectionsKeep = [];
-    var sectionsRemove = [];
+	for (e in n.elementsNamed('section')) {
+		if (!NodeCriteria.matchNode(e)) {
+			sectionsRemove.push(e);
+			continue;
+		}
+		sectionsKeep.push(e);
+		sectionsRemove.push(e);
+	}
 
-    for (e in n.elementsNamed('section')) {
-        if (!NodeCriteria.matchNode(e)) {
-            sectionsRemove.push(e);
-            continue;
-        }
-        sectionsKeep.push(e);
-        sectionsRemove.push(e);
-    }
+	for (e in sectionsKeep) {
+		for (c in e.elements()) {
+			n.addChild(c);
+		}
+	}
 
-    for (e in sectionsKeep) {
-        for (c in e.elements()) {
-            n.addChild(c);
-        }
-    }
-
-    for (e in sectionsRemove) {
-        n.removeChild(e);
-    }
-
+	for (e in sectionsRemove) {
+		n.removeChild(e);
+	}
 }
+
 class CompileBlock {
 	function new(root:Xml, files:Array<Xml>) {
 		this.id = root.get('id');
@@ -250,7 +246,7 @@ class CompileBlock {
 	public var id:String;
 
 	public static function fromXml(root:Xml):CompileBlock {
-        collapseSections(root);
+		collapseSections(root);
 		var blockCriteria = NodeCriteria.fromNode(root);
 		if (blockCriteria != null && !blockCriteria.match()) {
 			return null;
@@ -276,9 +272,9 @@ class CompileBlock {
 			if (srcPath == null) {
 				throw('Cannot resolve source path for ${f} on ${root}');
 			}
-            if (!srcPath.startsWith('/')) {
-                srcPath = FileSystem.absolutePath(srcPath);
-            }
+			if (!srcPath.startsWith('/')) {
+				srcPath = FileSystem.absolutePath(srcPath);
+			}
 			f.set('srcPath', srcPath);
 		}
 		return new CompileBlock(root, files);
@@ -286,25 +282,26 @@ class CompileBlock {
 }
 
 class Target {
-    function new(root:Xml) {
-        this.root = root;
-    }
+	function new(root:Xml) {
+		this.root = root;
+	}
 
-    public var root:Xml;
+	public var root:Xml;
 
-    public function merge(otherRoot:Xml) {
-        for (a in otherRoot.attributes()) {
-            this.root.set(a, otherRoot.get(a));
-        }
-        for (e in otherRoot.elements()) {
-            this.root.addChild(e);
-        }
-    }
-    public static function fromXml(root:Xml):Target {
-        collapseSections(root);
+	public function merge(otherRoot:Xml) {
+		for (a in otherRoot.attributes()) {
+			this.root.set(a, otherRoot.get(a));
+		}
+		for (e in otherRoot.elements()) {
+			this.root.addChild(e);
+		}
+	}
 
-        return new Target(root);
-    }
+	public static function fromXml(root:Xml):Target {
+		collapseSections(root);
+
+		return new Target(root);
+	}
 }
 
 class CMakeGenerateHXCPP {
@@ -333,12 +330,12 @@ class CMakeGenerateHXCPP {
 		if (FileSystem.exists(path))
 			return path;
 		if (required) {
-			throw ('Cannot resolve path: ${path}');
+			throw('Cannot resolve path: ${path}');
 		}
 		return path;
 	}
 
-	static function saveIfDifferent( path : String, content : String ) {
+	static function saveIfDifferent(path:String, content:String) {
 		if (FileSystem.exists(path)) {
 			var oldContent = File.getContent(path);
 			if (oldContent == content) {
@@ -348,23 +345,23 @@ class CMakeGenerateHXCPP {
 		}
 		File.saveContent(path, content);
 	}
+
 	static function getFlatXML(path:String, included:Array<String>):Array<Xml> {
-        var rpath = resolvePath(path);
-		
+		var rpath = resolvePath(path);
+
 		trace('--> Processing ${rpath} XML');
 		var xmlStr = File.getContent(rpath);
 		var xmlRoot = Xml.parse(xmlStr).firstElement();
 		var elements = [for (e in xmlRoot.elements()) e];
 
-        if (included.contains(rpath)) {
-//            trace('Already included: ${rpath}');
-            return [];
-        }
+		if (included.contains(rpath)) {
+			//            trace('Already included: ${rpath}');
+			return [];
+		}
 		included.push(rpath);
 
 		var finalElements = [];
-		function resolveLocalDefines()
-		{
+		function resolveLocalDefines() {
 			var this_dir = FileSystem.absolutePath(rpath).split('/').slice(0, -1).join('/');
 
 			for (e in elements) {
@@ -374,7 +371,7 @@ class CMakeGenerateHXCPP {
 						value.replace("${this_dir}", this_dir);
 						value.replace("${THIS_DIR}", this_dir);
 						e.set('value', value);
-					}					
+					}
 				}
 			}
 		}
@@ -386,11 +383,11 @@ class CMakeGenerateHXCPP {
 
 				var actualPath = name;
 				if (included.contains(actualPath)) {
-//					trace('Already included: ${actualPath}');
+					//					trace('Already included: ${actualPath}');
 					continue;
 				}
 
-//				trace('Recursing into include: ${name}');
+				//				trace('Recursing into include: ${name}');
 
 				var includeElements = getFlatXML(actualPath, included);
 				for (ie in includeElements) {
@@ -436,18 +433,18 @@ class CMakeGenerateHXCPP {
 		_defines.set('LAUNCH_DIR', _launchDir);
 		_defines.set('IDL_DIR', "IDL_DIR");
 		_defines.set('exe_link', '1');
-//		_defines.set('HXCPP_M64', '1');
+		//		_defines.set('HXCPP_M64', '1');
 		if (Sys.systemName() == "Windows") {
 			_defines.set('HXCPP_ARCH', 'x86_64');
 			_defines.set('windows', '1');
 			_defines.set('HXCPP_M64', '1');
 		} else {
 			_defines.set('HXCPP_ARCH', 'arm64');
-			_defines.set('HXCPP_ARM64', '1');	
+			_defines.set('HXCPP_ARM64', '1');
 		}
 		_defines.set('removeQuotes:hxcpp_api_level', '430');
 		_defines.set('CPPIA_NO_JIT', '1');
-		
+
 		_tags.set('haxe', true);
 		_tags.set('main', true);
 		_tags.set('static', true);
@@ -471,7 +468,7 @@ class CMakeGenerateHXCPP {
 		trace('Building CMakeLists.txt in ${_relBuildDir} from ${_launchDir}');
 
 		for (i in includeDirs) {
-			trace('Include dir: ${ sys.FileSystem.absolutePath(i)}');
+			trace('Include dir: ${sys.FileSystem.absolutePath(i)}');
 		}
 		_builder = new StringBuf();
 
@@ -519,61 +516,61 @@ class CMakeGenerateHXCPP {
 
 		var allElements = haxeTargetXML.concat(buildXML).concat(commonDefines);
 
-        for (s in allElements.filter((e) -> e.nodeName == "set")) {
-            if (NodeCriteria.matchNode(s)){
-                var name = s.get('name');
-                var value = s.get('value');
-                    trace('Setting ${name} = ${value}');
-                _defines.set(name, value);    
-            }
-        }
+		for (s in allElements.filter((e) -> e.nodeName == "set")) {
+			if (NodeCriteria.matchNode(s)) {
+				var name = s.get('name');
+				var value = s.get('value');
+				trace('Setting ${name} = ${value}');
+				_defines.set(name, value);
+			}
+		}
 		var hxcppFileBlocks = new Map<String, CompileBlock>();
 		for (e in allElements.filter((e) -> e.nodeName == "files")) {
 			var filesCriteria = NodeCriteria.fromNode(e);
 			var id = e.get('id');
 			var block = CompileBlock.fromXml(e);
 			if (block == null) {
-//				trace('Skipping block ${id}');
+				//				trace('Skipping block ${id}');
 				continue;
 			}
-            hxcppFileBlocks.set(id, block);
+			hxcppFileBlocks.set(id, block);
 
-//			trace('Found file block: ${id}');
+			//			trace('Found file block: ${id}');
 			// for (f in block.files) {
 			// 	var srcPath = f.get('srcPath');
 			// 	trace('\t${srcPath}');
 			// }
 		}
 
-        var targetMap = new Map<String, Target>();
+		var targetMap = new Map<String, Target>();
 
-        for (e in allElements.filter((e) -> e.nodeName == "target")) {
-            var id = e.get('id');
-            if (id == null) {
-                trace('Target missing id');
-                continue;
-            }
-            if (targetMap.exists(id)) {
-                targetMap.get(id).merge(e);
-            } else {
-                targetMap.set(id, Target.fromXml(e));
-            }            
-        }
+		for (e in allElements.filter((e) -> e.nodeName == "target")) {
+			var id = e.get('id');
+			if (id == null) {
+				trace('Target missing id');
+				continue;
+			}
+			if (targetMap.exists(id)) {
+				targetMap.get(id).merge(e);
+			} else {
+				targetMap.set(id, Target.fromXml(e));
+			}
+		}
 
-        var haxeTarget = targetMap.get('haxe');
+		var haxeTarget = targetMap.get('haxe');
 
-        if (haxeTarget == null) {
-            trace('No haxe target');
-            return;
-        }
-		
-        var targetBlocks = [];
+		if (haxeTarget == null) {
+			trace('No haxe target');
+			return;
+		}
 
-        var cppIncludeDirs = [];
-        var cppLibDirs = [];
-        var miscCompilerFlags = [];
-        var cppWarnings = [];
-        var cppDefines = [];
+		var targetBlocks = [];
+
+		var cppIncludeDirs = [];
+		var cppLibDirs = [];
+		var miscCompilerFlags = [];
+		var cppWarnings = [];
+		var cppDefines = [];
 		var linkLibs = [];
 		var findLibs = [];
 
@@ -589,14 +586,13 @@ class CMakeGenerateHXCPP {
 		cppWarnings.push('no-invalid-offsetof');
 		cppWarnings.push('no-return-type-c-linkage');
 
-
 		if (Sys.systemName() == "Windows") {
 			cppDefines.push('HX_WINDOWS');
 			cppDefines.push('HXCPP_WIN');
 			cppDefines.push('HXCPP_M64');
 		} else if (Sys.systemName() == "Mac") {
 			cppDefines.push('HX_MACOS');
-			cppDefines.push('HXCPP_M64');	
+			cppDefines.push('HXCPP_M64');
 		} else if (Sys.systemName() == "Linux") {
 			cppDefines.push('HX_LINUX');
 			cppDefines.push('HXCPP_LINUX');
@@ -607,14 +603,16 @@ class CMakeGenerateHXCPP {
 			var value = resolveString(n.get("value"));
 			if (value.startsWith('-I')) {
 				value = value.substring(2);
-				if (!cppIncludeDirs.contains(value)) cppIncludeDirs.push(cleanPath(value));
+				if (!cppIncludeDirs.contains(value))
+					cppIncludeDirs.push(cleanPath(value));
 			} else if (value.startsWith('-L')) {
 				cppLibDirs.push(value.substring(2));
 			} else if (value.startsWith('-W')) {
 				cppWarnings.push(value.substring(2));
 			} else if (value.startsWith('-D')) {
 				value = value.substring(2);
-				if (!cppDefines.contains(value)) cppDefines.push(value);
+				if (!cppDefines.contains(value))
+					cppDefines.push(value);
 			} else if (value.startsWith('-l')) {
 				linkLibs.push(value.substring(2));
 			} else {
@@ -625,17 +623,18 @@ class CMakeGenerateHXCPP {
 		function addFlags(elements:Iterator<Xml>) {
 			for (cf in elements) {
 				if (!NodeCriteria.matchNode(cf)) {
-					//trace('Skipping flag: ${cf.get('value')}');
+					// trace('Skipping flag: ${cf.get('value')}');
 					continue;
 				}
 
-				if (cf.nodeName =='findlib') {
+				if (cf.nodeName == 'findlib') {
 					trace('Adding findlib: ${cf.get('value')} at ${cf.get('dir')}');
-					findLibs.push({name:cf.get('value'), dir:cf.get('dir'), link:cf.get('link') == 'true'});
+					findLibs.push({name: cf.get('value'), dir: cf.get('dir'), link: cf.get('link') == 'true'});
 					continue;
-				} 			
-				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') continue;
-				
+				}
+				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag')
+					continue;
+
 				trace('Adding flag: ${cf.get('value')}');
 				addFlag(cf);
 			}
@@ -643,72 +642,72 @@ class CMakeGenerateHXCPP {
 
 		addFlags(allElements.iterator());
 
-        for (e in haxeTarget.root.elements()) {
-            if (!NodeCriteria.matchNode(e)) {
-                continue;
-            }
-            switch (e.nodeName) {
-                case 'files':
-                var block = hxcppFileBlocks.get(e.get('id'));
-                if (block == null) {
-                    trace('No block for ${e.get('id')}');
-                    continue;
-                }
-				addFlags(block.root.elements());
+		for (e in haxeTarget.root.elements()) {
+			if (!NodeCriteria.matchNode(e)) {
+				continue;
+			}
+			switch (e.nodeName) {
+				case 'files':
+					var block = hxcppFileBlocks.get(e.get('id'));
+					if (block == null) {
+						trace('No block for ${e.get('id')}');
+						continue;
+					}
+					addFlags(block.root.elements());
 
-                if (block.files.length == 0) {
-                    continue;
-                }
-                // trace('Adding files from ${e.get('id')}');
-                // for (f in block.files) {
-                //     trace('\t${f.get('srcPath')}');
-                // }
-                case 'options':
-                default:
-                trace('Unknown node: ${e.nodeName}');
-            }
-        }
+					if (block.files.length == 0) {
+						continue;
+					}
+				// trace('Adding files from ${e.get('id')}');
+				// for (f in block.files) {
+				//     trace('\t${f.get('srcPath')}');
+				// }
+				case 'options':
+				default:
+					trace('Unknown node: ${e.nodeName}');
+			}
+		}
 
 		miscCompilerFlags.push(resolveString("-arch ${HXCPP_ARCH}"));
 
-        trace('Include dirs: ${cppIncludeDirs.join(',')}');
-        trace('Lib dirs: ${cppLibDirs.join(',')}');
-        trace('Misc compiler flags: ${miscCompilerFlags.join(',')}');
-        trace('Compiler warnings: ${cppWarnings.join(',')}');
-        trace('Compiler defines: ${cppDefines.join(',')}');
+		trace('Include dirs: ${cppIncludeDirs.join(',')}');
+		trace('Lib dirs: ${cppLibDirs.join(',')}');
+		trace('Misc compiler flags: ${miscCompilerFlags.join(',')}');
+		trace('Compiler warnings: ${cppWarnings.join(',')}');
+		trace('Compiler defines: ${cppDefines.join(',')}');
 
-        var outputName = resolveString(haxeTarget.root.get('output'), true);
-        addLine('cmake_minimum_required(VERSION 3.20)');
-        addLine('\n');
-        addLine('project(${outputName} C CXX)');
-        addLine('\n');
+		var outputName = resolveString(haxeTarget.root.get('output'), true);
+		addLine('cmake_minimum_required(VERSION 3.20)');
+		addLine('\n');
+		addLine('project(${outputName} C CXX)');
+		addLine('\n');
 		addLine('set(CMAKE_CXX_STANDARD 20)');
-        addLine('\n');
-        addLine('add_executable(${outputName}');
-		
-        for (f in haxeTarget.root.elementsNamed('files')) {
+		addLine('\n');
+		addLine('add_executable(${outputName}');
+
+		for (f in haxeTarget.root.elementsNamed('files')) {
 			if (!NodeCriteria.matchNode(f)) {
-//				trace('Skipping block: ${f.get('id')}');
+				//				trace('Skipping block: ${f.get('id')}');
 				continue;
 			}
 
 			trace('Looking for files in ${f.get('id')}');
-            var block = hxcppFileBlocks.get(f.get('id'));
-            if (block == null) {
-                continue;
-            }
-			
-            for (f in block.files) {
+			var block = hxcppFileBlocks.get(f.get('id'));
+			if (block == null) {
+				continue;
+			}
+
+			for (f in block.files) {
 				if (!NodeCriteria.matchNode(f)) {
 					trace('Skipping file: ${f.get('srcPath')}');
 					continue;
 				}
-//				trace('Adding file: ${f.get('srcPath')}');
-                addLine('\t${f.get('srcPath')}');
-            }
-        }
+				//				trace('Adding file: ${f.get('srcPath')}');
+				addLine('\t${f.get('srcPath')}');
+			}
+		}
 
-        addLine(')');
+		addLine(')');
 
 		if (findLibs.length > 0) {
 			addLine('');
@@ -727,25 +726,26 @@ class CMakeGenerateHXCPP {
 
 			addLine('target_link_libraries(${outputName}');
 			for (fl in findLibs) {
-				if (fl.link) addLine('\t${fl.name}::${fl.name}');
+				if (fl.link)
+					addLine('\t${fl.name}::${fl.name}');
 			}
 			addLine(')');
 		}
 
-        addLine('target_include_directories(${outputName} PRIVATE');
+		addLine('target_include_directories(${outputName} PRIVATE');
 
 		cppIncludeDirs.push(resolvePath("${BUILD_DIR}/include"));
-        for (d in cppIncludeDirs) {
+		for (d in cppIncludeDirs) {
 			var rd = resolvePath(d);
 			if (FileSystem.exists(rd)) {
 				var absDir = FileSystem.absolutePath(rd);
-				trace ('Adding include dir: ${absDir}');
-            	addLine('\t${absDir}');
+				trace('Adding include dir: ${absDir}');
+				addLine('\t${absDir}');
 			} else {
 				trace('Include dir not found: ${rd}');
 			}
-        }
-        addLine(')');
+		}
+		addLine(')');
 
 		addLine('target_compile_options(${outputName} PRIVATE');
 		for (f in miscCompilerFlags) {
@@ -766,40 +766,36 @@ class CMakeGenerateHXCPP {
 	}
 }
 
-
 // - Parsing include: /Users/rcleven/git/hxcpp/toolchain/setup.xml
-		// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "vars")
-		// - Running process: xcode-select --print-path
-		// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/finish-setup.xml
-		// - Parsing makefile: /Users/rcleven/git/hl-idl/example/bin/cpp/Build.xml
-		// - Parsing include: /Users/rcleven/git/hxcpp/build-tool/BuildCommon.xml
-		// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/haxe-target.xml
-		// - Parsing include: /Users/rcleven/git/hxcpp/src/hx/libs/zlib/Build.xml
-		// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
-		// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
-		// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/mac-toolchain.xml
-		// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/gcc-toolchain.xml
-		// - Adding path: /Applications/Xcode.app/Contents/Developer/usr/bin
-		// - Parsing compiler: /Users/rcleven/git/hxcpp/toolchain/common-defines.xml
-		// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "exes")
-
-		// - Parsing include: ${hxCppDir}/toolchain/setup.xml
-		// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "vars")
-		// - Running process: xcode-select --print-path
-		// - Parsing include: ${hxCppDir}/toolchain/finish-setup.xml
-		// - Parsing makefile: /Users/rcleven/git/hl-idl/example/bin/cpp/Build.xml
-		// - Parsing include: ${hxCppDir}/build-tool/BuildCommon.xml
-		// - Parsing include: ${hxCppDir}/toolchain/haxe-target.xml
-		// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
-		// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
-		// - Parsing include: ${hxCppDir}/toolchain/mac-toolchain.xml
-		// - Parsing include: ${hxCppDir}/toolchain/gcc-toolchain.xml
-		// - Adding path: /Applications/Xcode.app/Contents/Developer/usr/bin
-		// - Parsing compiler: ${hxCppDir}/toolchain/common-defines.xml
-		// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "exes")
-
-		// trace(elements);
-
+// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "vars")
+// - Running process: xcode-select --print-path
+// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/finish-setup.xml
+// - Parsing makefile: /Users/rcleven/git/hl-idl/example/bin/cpp/Build.xml
+// - Parsing include: /Users/rcleven/git/hxcpp/build-tool/BuildCommon.xml
+// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/haxe-target.xml
+// - Parsing include: /Users/rcleven/git/hxcpp/src/hx/libs/zlib/Build.xml
+// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
+// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
+// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/mac-toolchain.xml
+// - Parsing include: /Users/rcleven/git/hxcpp/toolchain/gcc-toolchain.xml
+// - Adding path: /Applications/Xcode.app/Contents/Developer/usr/bin
+// - Parsing compiler: /Users/rcleven/git/hxcpp/toolchain/common-defines.xml
+// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "exes")
+// - Parsing include: ${hxCppDir}/toolchain/setup.xml
+// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "vars")
+// - Running process: xcode-select --print-path
+// - Parsing include: ${hxCppDir}/toolchain/finish-setup.xml
+// - Parsing makefile: /Users/rcleven/git/hl-idl/example/bin/cpp/Build.xml
+// - Parsing include: ${hxCppDir}/build-tool/BuildCommon.xml
+// - Parsing include: ${hxCppDir}/toolchain/haxe-target.xml
+// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
+// - Parsing include: /Users/rcleven/git/hl-idl/example/sample.xml
+// - Parsing include: ${hxCppDir}/toolchain/mac-toolchain.xml
+// - Parsing include: ${hxCppDir}/toolchain/gcc-toolchain.xml
+// - Adding path: /Applications/Xcode.app/Contents/Developer/usr/bin
+// - Parsing compiler: ${hxCppDir}/toolchain/common-defines.xml
+// - Parsing include: /Users/rcleven/.hxcpp_config.xml (section "exes")
+// trace(elements);
 //         <target id="haxe" tool="linker" toolid="${haxelink}" output="${HAXE_OUTPUT_FILE}">
 //   <files id="haxe"/>
 //   <options name="Options.txt"/>
@@ -809,16 +805,13 @@ class CMakeGenerateHXCPP {
 //   <ext value="${LIBEXTRA}.a" if="appletvsim" unless="dll_import" />
 //   <ext value="${LIBEXTRA}.a" if="watchos" unless="dll_import" />
 //   <ext value="${LIBEXTRA}.a" if="watchsimulator" unless="dll_import" />
-
 //   <section if="android">
 //      <ext value="${LIBEXTRA}.so" />
 //      <ext value="${LIBEXTRA}.a"  if="static_link" />
 //      <ext value="${LIBEXTRA}" if="exe_link" />
 //   </section>
-
 //   <fullouput name="${HAXE_FULL_OUTPUT_NAME}" if="HAXE_FULL_OUTPUT_NAME" />
 //   <fullunstripped name="${HAXE_FULL_UNSTRIPPED_NAME}" if="HAXE_FULL_UNSTRIPPED_NAME" />
-
 //   <files id="__main__" unless="static_link" />
 //   <files id="__lib__" if="static_link"/>
 //   <files id="__resources__" />
@@ -830,9 +823,6 @@ class CMakeGenerateHXCPP {
 //   <lib name="-lpthread" if="linux" unless="static_link" />
 //   <lib name="-ldl" if="linux" unless="static_link" />
 // </target>
-
-
-
 // /lib/idl/GenerateCMakeHXCPP.hx:345: Setting hxcpp_api_level = ${HXCPP_API_LEVEL}
 // ../lib/idl/GenerateCMakeHXCPP.hx:345: Setting CPPIA_JIT = 1
 // ../lib/idl/GenerateCMakeHXCPP.hx:345: Setting EXESUFFIX = .exe
