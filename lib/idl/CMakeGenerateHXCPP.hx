@@ -646,8 +646,14 @@ class CMakeGenerateHXCPP {
 					findLibs.push({name: cf.get('value'), dir: cf.get('dir'), link: cf.get('link') == 'true'});
 					continue;
 				}
-				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag')
+				if (cf.nodeName == "lib") {
+					trace('Adding lib: ${cf.get('name')}');
+					linkLibs.push(cf.get('name'));
 					continue;
+				}
+				if (cf.nodeName != 'compilerflag' && cf.nodeName != 'flag' && cf.nodeName != 'cppflag') {
+					continue;
+				}
 
 				trace('Adding flag: ${cf.get('value')}');
 				addFlag(cf);
