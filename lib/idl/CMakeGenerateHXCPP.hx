@@ -698,12 +698,14 @@ class CMakeGenerateHXCPP {
 			}
 
 			for (f in block.files) {
+				var fpath = cleanPath(f.get('srcPath'));
+				
 				if (!NodeCriteria.matchNode(f)) {
-					trace('Skipping file: ${f.get('srcPath')}');
+					trace('Skipping file: ${fpath}');
 					continue;
 				}
 				//				trace('Adding file: ${f.get('srcPath')}');
-				addLine('\t${f.get('srcPath')}');
+				addLine('\t${fpath}');
 			}
 		}
 
