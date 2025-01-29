@@ -193,7 +193,7 @@ abstract class HaxeGenerationTarget {
 			case TInt, TUInt, TShort, TInt64, TChar: {expr: EConst(CInt("0")), pos: p};
 			case TFloat, TDouble: {expr: EConst(CFloat("0.")), pos: p};
 			case TBool: {expr: EConst(CIdent("false")), pos: p};
-			case TEnum(name): ECall(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
+			case TEnum(name): EConst(CInt("0")).at(p); //(EField(EConst(CIdent(name)).at(p), "fromIndex").at(p), [EConst(CInt("0")).at(p)]).at(p); // { expr : , pos : p };
 			case TCustom(id):
 				var ex = {expr: EConst(CInt("0")), pos: p};
 				var tp = TPath({pack: [], name: id});
@@ -221,7 +221,7 @@ abstract class HaxeGenerationTarget {
 		return [abstractDefn];
 	}
 
-	public function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, p:haxe.macro.Expr.Position) : Array<{def: haxe.macro.TypeDefinition, path: haxe.macro.TypePath}> {
+	public function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>, fields:Array<idl.Data.Field>, p:haxe.macro.Expr.Position) : Array<{def: haxe.macro.TypeDefinition, path: haxe.macro.TypePath}> {
 		var index = 0;
 		function cleanEnum(v:String):String {
 			return v.replace(":", "_");

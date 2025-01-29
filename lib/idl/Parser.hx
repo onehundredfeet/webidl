@@ -30,14 +30,14 @@ class Parser {
 	var tokens:Array<Token>;
 	var pos = 0;
 	var fileName:String;
-	var typeDefs:Map<String,String>;
+	var typeDefs:Map<String, String>;
 
 	public function new() {
 		var opChars = "+*/-=!><&|^%~";
 		var identChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
 		idents = new Array();
 		ops = new Array();
-		typeDefs = new Map<String,String>();
+		typeDefs = new Map<String, String>();
 
 		for (i in 0...identChars.length)
 			idents[identChars.charCodeAt(i)] = true;
@@ -86,36 +86,47 @@ class Parser {
 				var name = ident();
 				ensure(TBrOpen);
 				var values = [];
+				var fields = [];
 				if (!maybe(TBrClose))
 					while (true) {
-						if (maybe(TQuote)) {
-							values.push(ident());
-							ensure(TQuote);
-						}
-						else {
-							values.push(ident());
-						}
-						switch (token()) {
-							case TBrClose: break;
-							case TComma: continue;
-							case var tk: unexpected(tk);
+						if (!maybe(TBkOpen)) {
+
+							if (maybe(TQuote)) {
+								values.push(ident());
+								ensure(TQuote);
+							} else {
+								values.push(ident());
+							}
+							switch (token()) {
+								case TBrClose: break;
+								case TComma: continue;
+								case var tk: unexpected(tk);
+							}
+						} else {
+							push(TBkOpen);
+							// Function
+							fields.push(parseField());
+
+							if (maybe(TBrClose))
+								break;
 						}
 					}
 				ensure(TSemicolon);
-				return {pos: makePos(pmin), kind: DEnum(name, attr, values)};
+				return {pos: makePos(pmin), kind: DEnum(name, attr, values, fields)};
 			case TId("typedef"):
 				var name = ident();
 				var typeStr = "";
 				var first = true;
 				while (!maybe(TSemicolon)) {
-					if (!first) typeStr = typeStr + " ";
+					if (!first)
+						typeStr = typeStr + " ";
 					first = false;
 					var tk = token();
-					switch(tk) {
+					switch (tk) {
 						case TId(id):
 							typeStr = typeStr + id;
 						default:
-							throw ("Unknown type " + tk);
+							throw("Unknown type " + tk);
 					}
 				}
 				typeDefs[name] = typeStr;
@@ -155,10 +166,10 @@ class Parser {
 			var attr = switch (ident()) {
 				case "Value": AValue;
 				case "Ref": ARef;
-				case "Deref":ADeref;
+				case "Deref": ADeref;
 				case "Const": AConst;
 				case "AddressOf": AAddressOf;
-				case "Clone" : AClone;
+				case "Clone": AClone;
 				case "NoDelete": ANoDelete;
 				case "NoNamespace": ANoNamespace;
 				case "UpperCaseFirst", "UpperCase", "UpperCaseCall": AUpperCaseFirst;
@@ -172,12 +183,12 @@ class Parser {
 				case "CStruct": ACStruct;
 				case "Indexed": AIndexed;
 				case "Out": AOut;
-				case "HString" : AHString;
+				case "HString": AHString;
 				case "Synthetic": ASynthetic;
 				case "Return": AReturn;
 				case "CObject": ACObject;
 				case "CObjectRef": ACObjectRef;
-				case "STL" : ASTL;
+				case "STL": ASTL;
 				case "Local": ALocal;
 				case "Ignore": AIgnore;
 
@@ -230,11 +241,11 @@ class Parser {
 						case var tk: unexpected(tk);
 					});
 				case "GetCast":
-						ensure(TOp("="));
-						AGetCast(switch (token()) {
-							case TString(s): s;
-							case var tk: unexpected(tk);
-						});
+					ensure(TOp("="));
+					AGetCast(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
 				case "SetCast":
 					ensure(TOp("="));
 					ASetCast(switch (token()) {
@@ -257,13 +268,13 @@ class Parser {
 					ensure(TOp("="));
 					ensure(TPOpen);
 					var pIdx = switch (token()) {
-						case TId(s):s;
+						case TId(s): s;
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					};
 					ensure(TComma);
 					var lIdx = switch (token()) {
-						case TId(s):s;
+						case TId(s): s;
 						case TString(s): s;
 						case var tk: unexpected(tk);
 					};
@@ -288,14 +299,14 @@ class Parser {
 						case var tk: unexpected(tk);
 					});
 				case "Replace":
-						ensure(TOp("="));
-						AReplace(switch (token()) {
-							case TString(s): s;
-							case var tk: unexpected(tk);
-						},switch (token()) {
-							case TString(s): s;
-							case var tk: unexpected(tk);
-						});
+					ensure(TOp("="));
+					AReplace(switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					}, switch (token()) {
+						case TString(s): s;
+						case var tk: unexpected(tk);
+					});
 				case "Destruct":
 					ensure(TOp("="));
 					ADestruct(switch (token()) {
@@ -315,7 +326,7 @@ class Parser {
 		return attrs;
 	}
 
-	function strToType(id:String)  {
+	function strToType(id:String) {
 		return switch (id) {
 			case "void": TVoid;
 			case "byte", "uchar", "char": TChar;
@@ -333,7 +344,7 @@ class Parser {
 			case "string", "String": THString;
 			case "cstring", "CString": TCString;
 			case "stdstring", "StdString": TStdString;
-			case "struct": TStruct;  // Doesn't work yet
+			case "struct": TStruct; // Doesn't work yet
 			case "float2": TVector(TFloat, 2);
 			case "float3": TVector(TFloat, 3);
 			case "float4": TVector(TFloat, 4);
@@ -345,12 +356,12 @@ class Parser {
 			case "double4": TVector(TDouble, 4);
 			case "dynamic": TDynamic;
 			case "type": TType;
-			default: 
+			default:
 				TCustom(id);
 		};
 	}
 
-	function type(attrs : Array<Attrib> = null):Type {
+	function type(attrs:Array<Attrib> = null):Type {
 		// Type defs
 		var original_id = ident();
 		var id = original_id;
@@ -363,7 +374,6 @@ class Parser {
 			attrs.push(ARemap(original_id, id));
 		}
 
-		
 		var t = strToType(id);
 		if (maybe(TBkOpen)) {
 			if (maybe(TBkClose)) {
@@ -376,16 +386,16 @@ class Parser {
 		} else if (maybe(TAsterisk)) {
 			t = TPointer(t);
 		} else if (maybe(TPOpen)) {
-//			trace('t = ${t} attrs = ${attrs}');
+			//			trace('t = ${t} attrs = ${attrs}');
 			var args = [];
 			while (!maybe(TPClose)) {
-				var at = type( );
+				var at = type();
 				var name = ident();
-				args.push( {t : at, attr : null} );
+				args.push({t: at, attr: null});
 
 				maybe(TComma);
 			}
-			t = TFunction({t:t, attr: attrs == null ? [] : attrs}, args);
+			t = TFunction({t: t, attr: attrs == null ? [] : attrs}, args);
 		}
 		return t;
 	}
@@ -625,7 +635,7 @@ class Parser {
 						this.char = char;
 						return TDot;
 				}*/
-				case 0x2A: 
+				case 0x2A:
 					return TAsterisk;
 				case 123:
 					return TBrOpen;

@@ -579,7 +579,7 @@ class HNativeBuffer {
 					}
 
 				//					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
-				case DEnum(name, attrs, values):
+				case DEnum(name, attrs, values, _):
 					enumNames.set(name, true);
 					typeNames.set(name, {
 						full: "int",

@@ -511,7 +511,7 @@ inline static void _idc_copy_array( varray *dst, double *src,  int count) {
 					add('static void finalize_$name( $refFullName _this ) { $freeRefText; }');
 					add('HL_PRIM void HL_NAME(${name}_delete)( $refFullName _this ) {\n\t$freeRefText;\n}');
 					add('DEFINE_PRIM(_VOID, ${name}_delete, _IDL);');
-				case DEnum(name, attrs, values):
+				case DEnum(name, attrs, values, _):
 					typeNames.set(name, {
 						full: "int",
 						constructor: null,

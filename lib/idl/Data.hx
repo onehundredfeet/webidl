@@ -12,20 +12,18 @@ typedef Definition = {
 	var pos : Position;
 	var kind : DefinitionKind;
 }
-
+typedef Field = {
+	var name : String;
+	var kind : FieldKind;
+	var pos : Position;
+}
 enum DefinitionKind {
 	DAbstract( name : String, attrs : Array<Attrib>, type : String );
 	DInterface( name : String, attrs : Array<Attrib>, fields : Array<Field>, isObject : Bool );
 	DInclude( name : String );
 	DImplements( type : String, interfaceName : String );
-	DEnum( name : String, attrs : Array<Attrib>, values : Array<String> );
+	DEnum( name : String, attrs : Array<Attrib>, values : Array<String>, fields : Array<Field> );
 	DTypeDef( name : String, attrs : Array<Attrib>, type : String, dtype : Type );
-}
-
-typedef Field = {
-	var name : String;
-	var kind : FieldKind;
-	var pos : Position;
 }
 
 enum FieldKind {

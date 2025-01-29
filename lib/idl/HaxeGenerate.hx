@@ -69,7 +69,7 @@ class HaxeGenerate {
 			case DInterface(iname, _, _, _):
 				tp = {pack: pack, name: iname};
 				_typeInfos[iname] = new HaxeGenerationTypeInfo(tp, null, d.kind);
-			case DEnum(name, _, _):
+			case DEnum(name, _, _, _):
 				tp = {pack: pack, name: name};
 				_typeInfos[name] = new HaxeGenerationTypeInfo(tp, null, d.kind);
 			case DTypeDef(name, _, _, _):
@@ -340,9 +340,9 @@ class HaxeGenerate {
 					}
 				if (!found)
 					warning("Class " + name + " not found for implements " + intf, p);
-			case DEnum(name, attrs, values):
+			case DEnum(name, attrs, values, fields):
 
-			var tds = _currentTarget.makeEnum(name, attrs, values, p);
+			var tds = _currentTarget.makeEnum(name, attrs, values, fields, p);
 			for (t in tds)
 				types.push(t.def);
 

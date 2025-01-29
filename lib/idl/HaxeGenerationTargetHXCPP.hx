@@ -599,7 +599,7 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		return attribFields;
 	}
 
-	public override function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>,
+	public override function makeEnum(name:String, attrs:Array<Attrib>, values:Array<String>,fields:Array<idl.Data.Field>, 
 			p:haxe.macro.Expr.Position):Array<{def:haxe.macro.TypeDefinition, path:haxe.macro.TypePath}> {
 		var index = 0;
 		function cleanEnum(v:String):String {
@@ -688,6 +688,32 @@ class HaxeGenerationTargetHXCPP extends HaxeGenerationTarget {
 		
 		var implName = makeName(name) + "Impl";
 
+		for (f in fields) {
+			var fname = f.name;
+			switch(f.kind) {
+				case FMethod(args, ret):
+					var attr = ret.attr;
+					var isStatic = attr.contains(AStatic);
+					if (!isStatic) {
+						throw "Unsupported non-static method in enum";
+					}
+
+					var retValue = defVal(ret);
+					var fullFnName = '${namespaceName}::${fname}';
+					var fieldMethod = {
+						pos: p,
+						name: fname,
+						kind: FFun({args: [], ret:makeType(ret, true), expr: null}),
+						meta: [{name: ":native", params: [fullFnName.asConstExpr()], pos: p}],
+						access: [APublic,  AStatic],
+					};
+
+					cfields.push(fieldMethod);
+					trace('method ${fname} ${args} ${ret}');
+				default:
+					throw 'Unsupported field kind ${f.kind}';
+			}
+		}
 		var enumT:TypeDefinition = {
 			pos: p,
 			pack: _pack,

@@ -595,7 +595,7 @@ class ModuleHL extends ModuleBase {
 				}
 			if( !found )
 				Context.warning("Class " + name+" not found for implements " + intf, p);
-		case DEnum(name, attrs, values):
+		case DEnum(name, attrs, values, _):
 			var index = 0;
 			function cleanEnum(v:String) : String{
 				return v.replace(":", "_");
